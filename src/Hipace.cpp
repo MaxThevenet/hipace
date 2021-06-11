@@ -27,7 +27,7 @@ namespace {
 
 Hipace* Hipace::m_instance = nullptr;
 
-int Hipace::m_max_step = 1;
+int Hipace::m_max_step = 2;
 amrex::Real Hipace::m_dt = 0.0;
 bool Hipace::m_normalized_units = false;
 amrex::Real Hipace::m_physical_time = 0.0;
