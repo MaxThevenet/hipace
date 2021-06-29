@@ -328,3 +328,7 @@ IonizationModule (const int lev,
         amrex::Gpu::synchronize();
     }
 }
+
+PlasmaParticleIterator::PlasmaParticleIterator (ContainerType& pc, int level)
+    : ParIter(pc, level, amrex::MFItInfo().SetDynamic(true))
+{}
