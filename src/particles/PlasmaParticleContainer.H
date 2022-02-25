@@ -99,10 +99,12 @@ public:
     /** returns u_std of the plasma distribution */
     amrex::RealVect GetUStd () const {return m_u_std;};
 
-    /** Returns charge of physical species */
+    /** Returns charge of physical species. In case of partially-ionized ion, this should
+     * return the charge of the fully-ionized atom (atomic number * elementary charge)
+     */
     amrex::Real GetCharge () const {return m_charge;};
 
-    /** Returns charge of physical species */
+    /** Returns mass of physical species */
     amrex::Real GetMass () const {return m_mass;};
 
     amrex::Parser m_parser; /**< owns data for m_density_func */

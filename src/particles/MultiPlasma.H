@@ -114,7 +114,14 @@ public:
      * to avoid machine-precision problems. */
     void CheckDensity () const;
 
-    /** Perform Coulomb collisions */
+    /** Perform binary elastic Coulomb collision, inter- and/or intra-species.
+     *
+     * The algorithm implemented is that of [Perez et al., Phys. Plasmas 19, 083104 (2012)]
+     *
+     * \param[in] lev MR level
+     * \param[in] bx box on which plasma particles are sorted per-cell and collide together
+     * \param[in] geom Corresponding gemetry
+     */
     void doCoulombCollision (int lev, amrex::Box bx, amrex::Geometry geom);
 
     int m_sort_bin_size {32}; /**< Tile size to sort plasma particles */
