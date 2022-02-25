@@ -44,12 +44,15 @@ CoulombCollision::doCoulombCollision (
 
     if ( is_same_species ) // species_1 == species_2
     {
-        int count = 0;
-
+        // Logically particles per-cell, and return indices of particles in each cell
         PlasmaBins bins1 = findParticlesInEachTile(lev, bx, 1, species1, geom);
         int const n_cells = bins1.numBins();
+
+        // Counter to check there is only 1 box
+        int count = 0;
         for (PlasmaParticleIterator pti(species1, lev); pti.isValid(); ++pti) {
 
+            // Get particles SoA and AoS data
             auto& aos1 = pti.GetArrayOfStructs();
             const auto& pos1 = aos1.begin();
             auto& soa1 = pti.GetStructOfArrays();
@@ -95,15 +98,20 @@ CoulombCollision::doCoulombCollision (
             count++;
         }
         AMREX_ALWAYS_ASSERT(count == 1);
+
     } else {
+
+        // Logically particles per-cell, and return indices of particles in each cell
         PlasmaBins bins1 = findParticlesInEachTile(lev, bx, 1, species1, geom);
         PlasmaBins bins2 = findParticlesInEachTile(lev, bx, 1, species2, geom);
 
         int const n_cells = bins1.numBins();
 
+        // Counter to check there is only 1 box
         int count = 0;
         for (PlasmaParticleIterator pti(species1, lev); pti.isValid(); ++pti) {
 
+            // Get particles SoA and AoS data for species 1
             auto& aos1 = pti.GetArrayOfStructs();
             const auto& pos1 = aos1.begin();
             auto& soa1 = pti.GetStructOfArrays();
@@ -116,8 +124,8 @@ CoulombCollision::doCoulombCollision (
             amrex::Real q1 = species1.GetCharge();
             amrex::Real m1 = species1.GetMass();
 
+            // Get particles SoA and AoS data for species 1
             auto index = std::make_pair(pti.index(), pti.LocalTileIndex());
-            // auto& ptile2 = species2.at(index);
             auto& ptile2 = species2.ParticlesAt(lev, pti.index(), pti.LocalTileIndex());
             auto& aos2 = ptile2.GetArrayOfStructs();
             const auto& pos2 = aos2.begin();
