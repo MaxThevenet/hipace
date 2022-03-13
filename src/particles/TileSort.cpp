@@ -12,7 +12,7 @@
 
 PlasmaBins
 findParticlesInEachTile (
-    int lev, amrex::Box bx, int bin_size,
+    int lev, amrex::Box bx, int bin_size, int tile_size,
     PlasmaParticleContainer& plasma, const amrex::Geometry& geom)
 {
     HIPACE_PROFILE("findParticlesInEachTile()");
@@ -48,7 +48,7 @@ findParticlesInEachTile (
                         static_cast<int>((p.pos(0)-plo[0])*dxi[0]-lo.x),
                         static_cast<int>((p.pos(1)-plo[1])*dxi[1]-lo.y),
                         0));
-            });
+            }, tile_size/bin_size);
     }
     AMREX_ALWAYS_ASSERT(count <= 1);
     return bins;

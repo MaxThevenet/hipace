@@ -265,8 +265,8 @@ void doDepositionShapeN (const PlasmaParticleIterator& pti,
         AMREX_ALWAYS_ASSERT(ntilex * ntiley * binspertile * binspertile == bins.numBins());
 #endif
     }
-    const int ntiles = do_tiling ? bins.numBins()/binspertile/binspertile : 1;
-    // const int ntilex = ntiles / ntiley;
+    // const int ntiles = do_tiling ? bins.numBins()/binspertile/binspertile : 1;
+    const int ntiles = do_tiling ? ntilex * ntiley : 1;
     const int nbiny = ntiley * binspertile;
     const int nbinx = ntilex * binspertile;
     
@@ -301,6 +301,11 @@ void doDepositionShapeN (const PlasmaParticleIterator& pti,
                 const int itile = blockIdx.x;
                 const int itilex = itile / ntiley;
                 const int itiley = itile % ntiley;
+
+                const int iplo = offsets[binspertile*binspertile* itile];
+                const int iphi = offsets[binspertile*binspertile*(itile+1)];
+                if (iplo == iphi) return;
+
                 amrex::Gpu::SharedMemory<amrex::Real> gsm;
                 amrex::Real * const shared = gsm.dataPtr();
 
@@ -312,6 +317,19 @@ void doDepositionShapeN (const PlasmaParticleIterator& pti,
                 for (int i = threadIdx.x; i < tilebox.numPts(); i += blockDim.x) vs[i] = 0._rt;
                 __syncthreads();
 
+                for (int idx=iplo+threadIdx.x; idx<iphi; idx+=blockDim.x) {
+                    const int ip = indices[idx];
+                    if (pos_structs[ip].id() < 0) continue;
+                    doOneParticle<depos_order_xy>(
+                        ip, psip, const_of_motion, uxp, uyp, wp, ion_lev, pos_structs,
+                        max_qsa_weighting_factor, p_n_qsa_violation, can_ionize,
+                        charge, invvol, x_pos_offset-ng/dxi, y_pos_offset-ng/dyi, dxi, dyi,
+                        itilex, itiley, bin_size, z_index,
+                        deposit_jx_jy, deposit_jz, deposit_rho, deposit_j_squared,
+                        tile, tile, tile, tile, tile, tile, tile,
+                        phys_const.m_e, phys_const.q_e, phys_const.c, do_tiling);
+                }
+/*                
                 for (int ibin=(itiley+nbiny*itilex)*binspertile; ibin<(itiley+nbiny*(itilex+1))*binspertile; ibin+=nbiny){
                     const int iplo = offsets[ibin];
                     const int iphi = offsets[ibin+binspertile];
@@ -332,7 +350,8 @@ void doDepositionShapeN (const PlasmaParticleIterator& pti,
                     __syncthreads();
                 }
                 __syncthreads();
-
+*/
+                
                 amrex::Box srcbx = {{0, 0, 0}, {tile_size-1, tile_size-1, 0}};
                 amrex::Box dstbx = {{itilex*tile_size, itiley*tile_size, ptitilebox.smallEnd(2)},
                                     {(itilex+1)*tile_size-1, (itiley+1)*tile_size-1, ptitilebox.smallEnd(2)}};

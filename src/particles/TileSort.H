@@ -25,7 +25,7 @@ using PlasmaBins = amrex::DenseBins<PlasmaParticleContainer::ParticleType>;
  */
 PlasmaBins
 findParticlesInEachTile (
-    int lev, amrex::Box bx, int bin_size,
+    int lev, amrex::Box bx, int bin_size, int tile_size,
     PlasmaParticleContainer& plasma, const amrex::Geometry& geom);
 
 #endif // HIPACE_TILESORT_H_

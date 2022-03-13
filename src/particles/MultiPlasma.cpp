@@ -175,7 +175,7 @@ MultiPlasma::TileSort (amrex::Box bx, amrex::Geometry geom)
     m_all_bins.clear();
     for (auto& plasma : m_all_plasmas) {
         m_all_bins.emplace_back(
-            findParticlesInEachTile(lev, bx, m_sort_bin_size, plasma, geom));
+            findParticlesInEachTile(lev, bx, m_sort_bin_size, m_shared_bin_size, plasma, geom));
     }
 }
 
