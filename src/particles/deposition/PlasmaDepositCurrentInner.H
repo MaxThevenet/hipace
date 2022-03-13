@@ -301,12 +301,6 @@ void doDepositionShapeN (const PlasmaParticleIterator& pti,
                 const int itile = blockIdx.x;
                 const int itilex = itile / ntiley;
                 const int itiley = itile % ntiley;
-
-/*
-                const int iplo = offsets[itile];
-                const int iphi = offsets[itile+1];
-                if (iplo == iphi) return;
-*/
                 amrex::Gpu::SharedMemory<amrex::Real> gsm;
                 amrex::Real * const shared = gsm.dataPtr();
 
@@ -315,54 +309,28 @@ void doDepositionShapeN (const PlasmaParticleIterator& pti,
                 // Set the tile to 0
                 // I do not understand why vs is defined, and why volatile.
                 volatile amrex::Real * const vs = shared;
-                for (int i = threadIdx.x; i < tilebox.numPts(); i += blockDim.x) vs[i] = 0.;
+                for (int i = threadIdx.x; i < tilebox.numPts(); i += blockDim.x) vs[i] = 0._rt;
                 __syncthreads();
 
-                // int counter = 0;
-                // for (int ibinx=itilex*binspertile; ibinx<(itilex+1)*binspertile; ibinx++){
-                //         const int ibin = ibinx*nbiny + itiley*binspertile;
                 for (int ibin=(itiley+nbiny*itilex)*binspertile; ibin<(itiley+nbiny*(itilex+1))*binspertile; ibin+=nbiny){
-                    // const int ibin = ibinx*nbiny + itiley*binspertile;
-                        const int iplo = offsets[ibin];
-                        const int iphi = offsets[ibin+binspertile];
-                        if (iplo == iphi) return;
-                        for (int idx=iplo+threadIdx.x; idx<iphi; idx+=blockDim.x) {
-/*
-                        for (int idx=iplo; idx<iphi; idx++) {
-                            if (counter % blockDim.x != threadIdx.x){
-                                counter += 1;
-                                continue;
-                            }
-                            counter += 1;
-*/
-                            const int ip = indices[idx];
-                            if (pos_structs[ip].id() < 0) continue;
-                            doOneParticle<depos_order_xy>(
-                                ip, psip, const_of_motion, uxp, uyp, wp, ion_lev, pos_structs,
-                                max_qsa_weighting_factor, p_n_qsa_violation, can_ionize,
-                                charge, invvol, x_pos_offset-ng/dxi, y_pos_offset-ng/dyi, dxi, dyi,
-                                itilex, itiley, tile_size, z_index,
-                                deposit_jx_jy, deposit_jz, deposit_rho, deposit_j_squared,
-                                tile, tile, tile, tile, tile, tile, tile,
-                                phys_const.m_e, phys_const.q_e, phys_const.c, do_tiling);
+                    const int iplo = offsets[ibin];
+                    const int iphi = offsets[ibin+binspertile];
+                    if (iplo == iphi) return;
+                    for (int idx=iplo+threadIdx.x; idx<iphi; idx+=blockDim.x) {
+                        const int ip = indices[idx];
+                        if (pos_structs[ip].id() < 0) continue;
+                        doOneParticle<depos_order_xy>(
+                            ip, psip, const_of_motion, uxp, uyp, wp, ion_lev, pos_structs,
+                            max_qsa_weighting_factor, p_n_qsa_violation, can_ionize,
+                            charge, invvol, x_pos_offset-ng/dxi, y_pos_offset-ng/dyi, dxi, dyi,
+                            itilex, itiley, tile_size, z_index,
+                            deposit_jx_jy, deposit_jz, deposit_rho, deposit_j_squared,
+                            tile, tile, tile, tile, tile, tile, tile,
+                            phys_const.m_e, phys_const.q_e, phys_const.c, do_tiling);
                             
                     }
-                        __syncthreads();
+                    __syncthreads();
                 }
-/*
-                for (int idx=iplo+threadIdx.x; idx<iphi; idx+=blockDim.x) {
-                    const int ip = indices[idx];
-                    if (pos_structs[ip].id() < 0) continue;
-                    doOneParticle<depos_order_xy>(
-                        ip, psip, const_of_motion, uxp, uyp, wp, ion_lev, pos_structs,
-                        max_qsa_weighting_factor, p_n_qsa_violation, can_ionize,
-                        charge, invvol, x_pos_offset-ng/dxi, y_pos_offset-ng/dyi, dxi, dyi,
-                        itilex, itiley, bin_size, z_index,
-                        deposit_jx_jy, deposit_jz, deposit_rho, deposit_j_squared,
-                        tile, tile, tile, tile, tile, tile, tile,
-                        phys_const.m_e, phys_const.q_e, phys_const.c, do_tiling);
-                    }
-*/
                 __syncthreads();
 
                 amrex::Box srcbx = {{0, 0, 0}, {tile_size-1, tile_size-1, 0}};
