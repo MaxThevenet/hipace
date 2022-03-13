@@ -121,6 +121,9 @@ public:
     void CheckDensity () const;
 
     int m_sort_bin_size {32}; /**< Tile size to sort plasma particles */
+#ifdef AMREX_USE_GPU
+    int m_shared_bin_size {16}; /**< Tile size in shared memory to deposit plasma current */
+#endif
 
 private:
 

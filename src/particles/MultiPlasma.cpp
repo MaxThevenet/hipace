@@ -19,6 +19,12 @@ MultiPlasma::MultiPlasma (amrex::AmrCore* amr_core)
     getWithParser(pp, "names", m_names);
     queryWithParser(pp, "adaptive_density", m_adaptive_density);
     queryWithParser(pp, "sort_bin_size", m_sort_bin_size);
+#ifdef AMREX_USE_GPU
+    queryWithParser(pp, "shared_bin_size", m_shared_bin_size);
+    AMREX_ALWAYS_ASSERT(m_shared_bin_size % m_sort_bin_size == 0);
+#else
+    m_shared_bin_size = m_sort_bin_size;
+#endif
     m_nominal_density = Hipace::m_normalized_units ? 1. : 1.e23;
     queryWithParser(pp, "nominal_density", m_nominal_density);
 
@@ -94,7 +100,7 @@ MultiPlasma::DepositCurrent (
     for (int i=0; i<m_nplasmas; i++) {
         ::DepositCurrent(m_all_plasmas[i], fields, which_slice, temp_slice,
                          deposit_jx_jy, deposit_jz, deposit_rho, deposit_j_squared,
-                         gm, lev, m_all_bins[i], m_sort_bin_size);
+                         gm, lev, m_all_bins[i], m_sort_bin_size, m_shared_bin_size);
     }
 }
 
@@ -127,7 +133,7 @@ MultiPlasma::DepositNeutralizingBackground (
             if (m_all_plasmas[i].m_neutralize_background){
                 // current of ions is zero, so they are not deposited.
                 ::DepositCurrent(m_all_plasmas[i], fields, which_slice, false, false, false,
-                                 true, false, gm, lev, m_all_bins[i], m_sort_bin_size);
+                                 true, false, gm, lev, m_all_bins[i], m_sort_bin_size, m_shared_bin_size);
             }
         }
     }
