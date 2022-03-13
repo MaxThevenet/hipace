@@ -252,7 +252,6 @@ void doDepositionShapeN (const PlasmaParticleIterator& pti,
 
     const int ng = Fields::m_slices_nguards[0];
     int ntiley = 0;
-    int ntilex = 0;
     const int binspertile = tile_size / bin_size;
     if (do_tiling) {
         const int ncellx = jx_fab.box().bigEnd(0)-jx_fab.box().smallEnd(0)+1-2*ng;
@@ -260,15 +259,8 @@ void doDepositionShapeN (const PlasmaParticleIterator& pti,
         AMREX_ALWAYS_ASSERT(ncellx % tile_size == 0);
         AMREX_ALWAYS_ASSERT(ncelly % tile_size == 0);
         ntiley = ncelly / tile_size;
-        ntilex = ncellx / tile_size;
-#ifdef AMREX_USE_GPU
-        AMREX_ALWAYS_ASSERT(ntilex * ntiley * binspertile * binspertile == bins.numBins());
-#endif
     }
-    // const int ntiles = do_tiling ? bins.numBins()/binspertile/binspertile : 1;
-    const int ntiles = do_tiling ? ntilex * ntiley : 1;
-    const int nbiny = ntiley * binspertile;
-    const int nbinx = ntilex * binspertile;
+    const int ntiles = do_tiling ? bins.numBins()/binspertile/binspertile : 1;
     
 #ifdef AMREX_USE_GPU // on GPU
     amrex::Array4<amrex::Real> const& jx_arr  = jx_fab.array();
@@ -287,13 +279,6 @@ void doDepositionShapeN (const PlasmaParticleIterator& pti,
         const int threads_per_block = Hipace::m_tiling_threadsperblock;
         const std::size_t shared_mem_bytes = tilebox.numPts()*sizeof(amrex::Real);
         AMREX_ALWAYS_ASSERT(shared_mem_bytes <= amrex::Gpu::Device::sharedMemPerBlock());
-        for (int itile=0; itile<ntiles; itile++){
-            const int itilex = itile / ntiley;
-            const int itiley = itile % ntiley;
-            for (int ibin=(itiley+nbiny*itilex)*binspertile; ibin<(itiley+nbiny*(itilex+1))*binspertile; ibin+=nbiny){
-                amrex::Print()<<"itile "<<itile<<" ibin "<<ibin<<" ibins+binspertile "<<ibin+binspertile<<'\n';
-            }            
-        }
         // nblocks = ntiles
         amrex::launch(
             ntiles, threads_per_block, shared_mem_bytes, amrex::Gpu::gpuStream(),
@@ -303,7 +288,7 @@ void doDepositionShapeN (const PlasmaParticleIterator& pti,
                 const int itiley = itile % ntiley;
 
                 const int iplo = offsets[binspertile*binspertile* itile];
-                const int iphi = offsets[binspertile*binspertile*(itile+1)];
+                const int iphi = offsets[binspertileb*inspertile*(itile+1)];
                 if (iplo == iphi) return;
 
                 amrex::Gpu::SharedMemory<amrex::Real> gsm;
@@ -324,33 +309,13 @@ void doDepositionShapeN (const PlasmaParticleIterator& pti,
                         ip, psip, const_of_motion, uxp, uyp, wp, ion_lev, pos_structs,
                         max_qsa_weighting_factor, p_n_qsa_violation, can_ionize,
                         charge, invvol, x_pos_offset-ng/dxi, y_pos_offset-ng/dyi, dxi, dyi,
-                        itilex, itiley, bin_size, z_index,
+                        itilex, itiley, tile_size, z_index,
                         deposit_jx_jy, deposit_jz, deposit_rho, deposit_j_squared,
                         tile, tile, tile, tile, tile, tile, tile,
                         phys_const.m_e, phys_const.q_e, phys_const.c, do_tiling);
                 }
-/*                
-                for (int ibin=(itiley+nbiny*itilex)*binspertile; ibin<(itiley+nbiny*(itilex+1))*binspertile; ibin+=nbiny){
-                    const int iplo = offsets[ibin];
-                    const int iphi = offsets[ibin+binspertile];
-                    if (iplo == iphi) return;
-                    for (int idx=iplo+threadIdx.x; idx<iphi; idx+=blockDim.x) {
-                        const int ip = indices[idx];
-                        if (pos_structs[ip].id() < 0) continue;
-                        doOneParticle<depos_order_xy>(
-                            ip, psip, const_of_motion, uxp, uyp, wp, ion_lev, pos_structs,
-                            max_qsa_weighting_factor, p_n_qsa_violation, can_ionize,
-                            charge, invvol, x_pos_offset-ng/dxi, y_pos_offset-ng/dyi, dxi, dyi,
-                            itilex, itiley, tile_size, z_index,
-                            deposit_jx_jy, deposit_jz, deposit_rho, deposit_j_squared,
-                            tile, tile, tile, tile, tile, tile, tile,
-                            phys_const.m_e, phys_const.q_e, phys_const.c, do_tiling);
-                            
-                    }
-                    __syncthreads();
-                }
+
                 __syncthreads();
-*/
                 
                 amrex::Box srcbx = {{0, 0, 0}, {tile_size-1, tile_size-1, 0}};
                 amrex::Box dstbx = {{itilex*tile_size, itiley*tile_size, ptitilebox.smallEnd(2)},
