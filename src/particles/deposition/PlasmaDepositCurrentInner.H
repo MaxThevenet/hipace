@@ -288,7 +288,7 @@ void doDepositionShapeN (const PlasmaParticleIterator& pti,
                 const int itiley = itile % ntiley;
 
                 const int iplo = offsets[binspertile*binspertile* itile];
-                const int iphi = offsets[binspertileb*inspertile*(itile+1)];
+                const int iphi = offsets[binspertile*binspertile*(itile+1)];
                 if (iplo == iphi) return;
 
                 amrex::Gpu::SharedMemory<amrex::Real> gsm;

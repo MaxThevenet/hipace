@@ -185,7 +185,7 @@ struct EnforceBC
     {
         using namespace amrex::literals;
 
-        const bool shifted = enforcePeriodic(m_structs[ip], m_plo, m_phi, m_periodicity);
+        const bool shifted = enforcePeriodic(m_structs[ip], m_plo, m_phi, m_phi, m_periodicity);
         const bool invalid = (shifted && !m_is_per[0]);
         if (invalid) {
             m_weights[ip] = 0.0_rt;
