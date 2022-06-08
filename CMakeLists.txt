@@ -159,6 +159,17 @@ if(AMReX_LINEAR_SOLVERS)
     target_compile_definitions(HiPACE PUBLIC AMREX_USE_LINEAR_SOLVERS)
 endif()
 
+target_compile_definitions(HiPACE PUBLIC HIPACEVAL_CMAKE_BUILD_TYPE="${CMAKE_BUILD_TYPE}")
+target_compile_definitions(HiPACE PUBLIC HIPACEVAL_HiPACE_COMPUTE="${HiPACE_COMPUTE}")
+target_compile_definitions(HiPACE PUBLIC HIPACEVAL_HiPACE_MPI="${HiPACE_MPI}")
+target_compile_definitions(HiPACE PUBLIC HIPACEVAL_HiPACE_OPENPMD="${HiPACE_OPENPMD}")
+target_compile_definitions(HiPACE PUBLIC HIPACEVAL_HiPACE_PRECISION="${HiPACE_PRECISION}")
+target_compile_definitions(HiPACE PUBLIC HIPACEVAL_HiPACE_amrex_branch="${HiPACE_amrex_branch}")
+target_compile_definitions(HiPACE PUBLIC HIPACEVAL_HiPACE_amrex_repo="${HiPACE_amrex_repo}")
+target_compile_definitions(HiPACE PUBLIC HIPACEVAL_HiPACE_openpmd_branch="${HiPACE_openpmd_branch}")
+target_compile_definitions(HiPACE PUBLIC HIPACEVAL_HiPACE_openpmd_repo="${HiPACE_openpmd_repo}")
+target_compile_definitions(HiPACE PUBLIC HIPACEVAL_CMAKE_CXX_COMPILER_ID="${CMAKE_CXX_COMPILER_ID}.${CMAKE_CXX_COMPILER_VERSION}.${CMAKE_CXX_COMPILER_WRAPPER}")
+
 # fancy binary name for build variants
 set_hipace_binary_name()
 

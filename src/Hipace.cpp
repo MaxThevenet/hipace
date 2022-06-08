@@ -173,6 +173,7 @@ Hipace::Hipace () :
 
 Hipace::~Hipace ()
 {
+    OutputConfig();
 #ifdef AMREX_USE_MPI
     if (m_physical_time < m_max_time) {
         NotifyFinish();
@@ -1564,4 +1565,19 @@ Hipace::CheckGhostSlice (int it)
             }
             );
     }
+}
+
+void
+Hipace::OutputConfig ()
+{
+    amrex::Print()<<"CMAKE_BUILD_TYPE "<<HIPACEVAL_CMAKE_BUILD_TYPE<<'\n';
+    amrex::Print()<<"HiPACE_COMPUTE "<<HIPACEVAL_HiPACE_COMPUTE<<'\n';
+    amrex::Print()<<"HiPACE_MPI "<<HIPACEVAL_HiPACE_MPI<<'\n';
+    amrex::Print()<<"HiPACE_OPENPMD "<<HIPACEVAL_HiPACE_OPENPMD<<'\n';
+    amrex::Print()<<"HiPACE_PRECISION "<<HIPACEVAL_HiPACE_PRECISION<<'\n';
+    amrex::Print()<<"HiPACE_amrex_branch "<<HIPACEVAL_HiPACE_amrex_branch<<'\n';
+    amrex::Print()<<"HiPACE_amrex_repo "<<HIPACEVAL_HiPACE_amrex_repo<<'\n';
+    amrex::Print()<<"HiPACE_openpmd_branch "<<HIPACEVAL_HiPACE_openpmd_branch<<'\n';
+    amrex::Print()<<"HiPACE_openpmd_repo "<<HIPACEVAL_HiPACE_openpmd_repo<<'\n';
+    amrex::Print()<<"CMAKE_CXX_COMPILER_ID "<<HIPACEVAL_CMAKE_CXX_COMPILER_ID<<'\n';
 }

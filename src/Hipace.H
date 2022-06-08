@@ -204,6 +204,10 @@ public:
      */
     void FillBoundaryChargeCurrents (int lev);
 
+    /** Output compilation configuration */
+    void
+    OutputConfig ();
+
     /**
        \brief Returns true on the head rank, otherwise false.
      */
