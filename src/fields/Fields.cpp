@@ -160,12 +160,12 @@ Fields::AllocData (
         m_poisson_solver.push_back(std::unique_ptr<FFTPoissonSolverDirichlet>(
             new FFTPoissonSolverDirichlet(getSlices(lev, WhichSlice::This).boxArray(),
                                           getSlices(lev, WhichSlice::This).DistributionMap(),
-                                          geom[lev])) );
+                                          geom[lev], m_poisson_nguards)) );
     } else {
-        m_poisson_solver.push_back(std::unique_ptr<FFTPoissonSolverPeriodic>(
-            new FFTPoissonSolverPeriodic(getSlices(lev, WhichSlice::This).boxArray(),
+        m_poisson_solver.push_back(std::unique_ptr<FFTPoissonSolverPeriodic<amrex::MultiFab>>(
+                                       new FFTPoissonSolverPeriodic<amrex::MultiFab>(getSlices(lev, WhichSlice::This).boxArray(),
                                          getSlices(lev, WhichSlice::This).DistributionMap(),
-                                         geom[lev]))  );
+                                         geom[lev], m_poisson_nguards))  );
     }
     int num_threads = 1;
 #ifdef AMREX_USE_OMP
@@ -623,7 +623,7 @@ Fields::SetBoundaryCondition (amrex::Vector<amrex::Geometry> const& geom, const 
         // Coarsest level: use Taylor expansion of the Green's function
         // to get Dirichlet boundary conditions
 
-        amrex::MultiFab staging_area = getStagingArea(lev);
+        amrex::MultiFab staging_area = getStagingArea<amrex::MultiFab>(lev);
         AMREX_ALWAYS_ASSERT_WITH_MESSAGE(staging_area.size() == 1,
             "Open Boundaries only work for lev0 with everything in one box");
         amrex::FArrayBox& staging_area_fab = staging_area[0];
@@ -695,7 +695,7 @@ Fields::SetBoundaryCondition (amrex::Vector<amrex::Geometry> const& geom, const 
             {getField(lev-1, WhichSlice::This, component),
             getField(lev-1, WhichSlice::Previous1, component),
             rel_z}, geom[lev-1]};
-        amrex::MultiFab staging_area = getStagingArea(lev);
+        amrex::MultiFab staging_area = getStagingArea<amrex::MultiFab>(lev);
 
         for (amrex::MFIter mfi(staging_area, false); mfi.isValid(); ++mfi)
         {
@@ -784,7 +784,7 @@ Fields::SolvePoissonExmByAndEypBx (amrex::Vector<amrex::Geometry> const& geom,
         // Add beam rho-Jz/c contribution to the RHS
         // for predictor corrector the beam deposits directly to rho and jz
         if (field_name == "_beam" && !Hipace::m_do_beam_jz_minus_rho) continue;
-        LinCombination(m_source_nguard, getStagingArea(lev),
+        LinCombination(m_source_nguard, getStagingArea<amrex::MultiFab>(lev),
             1._rt/(phys_const.c*phys_const.ep0), getField(lev, WhichSlice::This, "jz"+field_name),
             -1._rt/(phys_const.ep0), getField(lev, WhichSlice::This, "rho"+field_name), do_add);
         do_add = true;
@@ -845,7 +845,7 @@ Fields::SolvePoissonEz (amrex::Vector<amrex::Geometry> const& geom, const int le
     // from the slice MF, and store in the staging area of poisson_solver
     bool do_add = false;
     for (const std::string& field_name : m_all_charge_currents_names) {
-        LinCombination(m_source_nguard, getStagingArea(lev),
+        LinCombination(m_source_nguard, getStagingArea<amrex::MultiFab>(lev),
             1._rt/(phys_const.ep0*phys_const.c),
             derivative<Direction::x>{getField(lev, WhichSlice::This, "jx"+field_name), geom[lev]},
             1._rt/(phys_const.ep0*phys_const.c),
@@ -873,7 +873,7 @@ Fields::SolvePoissonBx (amrex::MultiFab& Bx_iter, amrex::Vector<amrex::Geometry>
     // Right-Hand Side for Poisson equation: compute -mu_0*d_y(jz) from the slice MF,
     // and store in the staging area of poisson_solver
     // only used with predictor corrector solver
-    LinCombination(m_source_nguard, getStagingArea(lev),
+    LinCombination(m_source_nguard, getStagingArea<amrex::MultiFab>(lev),
                    -phys_const.mu0,
                    derivative<Direction::y>{getField(lev, WhichSlice::This, "jz"), geom[lev]},
                    phys_const.mu0,
@@ -899,7 +899,7 @@ Fields::SolvePoissonBy (amrex::MultiFab& By_iter, amrex::Vector<amrex::Geometry>
     // Right-Hand Side for Poisson equation: compute mu_0*d_x(jz) from the slice MF,
     // and store in the staging area of poisson_solver
     // only used with predictor corrector solver
-    LinCombination(m_source_nguard, getStagingArea(lev),
+    LinCombination(m_source_nguard, getStagingArea<amrex::MultiFab>(lev),
                    phys_const.mu0,
                    derivative<Direction::x>{getField(lev, WhichSlice::This, "jz"), geom[lev]},
                    -phys_const.mu0,
@@ -928,7 +928,7 @@ Fields::SolvePoissonBz (amrex::Vector<amrex::Geometry> const& geom, const int le
     // from the slice MF, and store in the staging area of m_poisson_solver
     bool do_add = false;
     for (const std::string& field_name : m_all_charge_currents_names) {
-        LinCombination(m_source_nguard, getStagingArea(lev),
+        LinCombination(m_source_nguard, getStagingArea<amrex::MultiFab>(lev),
             phys_const.mu0,
             derivative<Direction::y>{getField(lev, WhichSlice::This, "jx"+field_name), geom[lev]},
             -phys_const.mu0,

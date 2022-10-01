@@ -103,7 +103,7 @@ public:
         const amrex::DistributionMapping& slice_dm, int bin_size);
 
     /** Class to handle transverse FFT Poisson solver on 1 slice */
-    amrex::Vector<std::unique_ptr<FFTPoissonSolver>> m_poisson_solver;
+    amrex::Vector<std::unique_ptr<FFTPoissonSolver<amrex::MultiFab>>> m_poisson_solver;
     /** get function for the 2D slices */
     amrex::Vector<std::array<amrex::MultiFab, m_nslices>>& getSlices () {return m_slices; }
     /** get function for the 2D slices
@@ -131,9 +131,19 @@ public:
     /** get amrex::MultiFab of the poisson staging area
      * \param[in] lev MR level
      */
-    amrex::MultiFab getStagingArea (const int lev) {
+    template <class StagingType>
+    StagingType getStagingArea (const int lev){
+        return StagingType(m_poisson_solver[lev]->StagingArea(), amrex::make_alias, 0, 1);
+    }
+
+    template <>
+    amrex::MultiFab getStagingArea<amrex::MultiFab> (const int lev){
         return amrex::MultiFab(m_poisson_solver[lev]->StagingArea(), amrex::make_alias, 0, 1);
     }
+
+//    template <>
+//    amrex::MultiFab getStagingArea<amrex::MultiFab> (const int lev) {
+//    }
     /** Return reference to density tile arrays */
     amrex::Vector<amrex::FArrayBox>& getTmpDensities() { return m_tmp_densities; }
     /** check whether the fields are initialized correctly */

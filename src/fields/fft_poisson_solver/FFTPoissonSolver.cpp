@@ -7,11 +7,22 @@
  */
 #include "FFTPoissonSolver.H"
 
-FFTPoissonSolver::~FFTPoissonSolver ()
-{}
+//template<class StagingType>
+//FFTPoissonSolver<StagingType>::~FFTPoissonSolver ()
+//{}
 
-amrex::MultiFab&
-FFTPoissonSolver::StagingArea ()
-{
-    return m_stagingArea;
-}
+//template<>
+//FFTPoissonSolver<amrex::MultiFab>::~FFTPoissonSolver ()
+//{}
+
+// template<class StagingType>
+// StagingType& FFTPoissonSolver<StagingType>::StagingArea ()
+// {
+//     return m_stagingArea;
+// }
+
+//template<>
+//amrex::MultiFab& FFTPoissonSolver<amrex::MultiFab>::StagingArea ()
+//{
+//    return m_stagingArea;
+//}

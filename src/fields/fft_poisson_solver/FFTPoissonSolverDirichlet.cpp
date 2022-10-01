@@ -14,17 +14,21 @@
 FFTPoissonSolverDirichlet::FFTPoissonSolverDirichlet (
     amrex::BoxArray const& realspace_ba,
     amrex::DistributionMapping const& dm,
-    amrex::Geometry const& gm )
+    amrex::Geometry const& gm,
+    amrex::IntVect const nguards)
 {
-    define(realspace_ba, dm, gm);
+    define(realspace_ba, dm, gm, nguards);
 }
 
 void
 FFTPoissonSolverDirichlet::define (amrex::BoxArray const& a_realspace_ba,
                                    amrex::DistributionMapping const& dm,
-                                   amrex::Geometry const& gm )
+                                   amrex::Geometry const& gm,
+                                   amrex::IntVect const nguards)
 {
     using namespace amrex::literals;
+
+    m_nguards = nguards;
 
     HIPACE_PROFILE("FFTPoissonSolverDirichlet::define()");
     // If we are going to support parallel FFT, the constructor needs to take a communicator.
@@ -36,11 +40,11 @@ FFTPoissonSolverDirichlet::define (amrex::BoxArray const& a_realspace_ba,
     // These arrays will store the data just before/after the FFT
     // The stagingArea is also created from 0 to nx, because the real space array may have
     // an offset for levels > 0
-    m_stagingArea = amrex::MultiFab(a_realspace_ba, dm, 1, Fields::m_poisson_nguards);
-    m_tmpSpectralField = amrex::MultiFab(a_realspace_ba, dm, 1, Fields::m_poisson_nguards);
-    m_eigenvalue_matrix = amrex::MultiFab(a_realspace_ba, dm, 1, Fields::m_poisson_nguards);
-    m_stagingArea.setVal(0.0, Fields::m_poisson_nguards); // this is not required
-    m_tmpSpectralField.setVal(0.0, Fields::m_poisson_nguards);
+    m_stagingArea = amrex::MultiFab(a_realspace_ba, dm, 1, m_nguards);
+    m_tmpSpectralField = amrex::MultiFab(a_realspace_ba, dm, 1, m_nguards);
+    m_eigenvalue_matrix = amrex::MultiFab(a_realspace_ba, dm, 1, m_nguards);
+    m_stagingArea.setVal(0.0, m_nguards); // this is not required
+    m_tmpSpectralField.setVal(0.0, m_nguards);
 
     // This must be true even for parallel FFT.
     AMREX_ALWAYS_ASSERT_WITH_MESSAGE(m_stagingArea.local_size() == 1,

@@ -23,6 +23,7 @@
  * 2. Call FFTPoissonSolver::SolvePoissonEquation(mf), which will solve Poisson equation with RHS
  *    in the staging area and return the LHS in mf.
  */
+template <typename StagingType>
 class FFTPoissonSolver
 {
 public:
@@ -31,7 +32,7 @@ public:
     FFTPoissonSolver () = default;
 
     /** Abstract class needs a virtual destructor */
-    virtual ~FFTPoissonSolver () = 0;
+    virtual ~FFTPoissonSolver () {}
 
     /**
      * \brief Define real space and spectral space boxes and multifabs, multiplier
@@ -44,7 +45,8 @@ public:
      */
     virtual void define ( amrex::BoxArray const& realspace_ba,
                           amrex::DistributionMapping const& dm,
-                          amrex::Geometry const& gm) = 0;
+                          amrex::Geometry const& gm,
+                          amrex::IntVect const nguards) = 0;
 
     /**
      * Solve Poisson equation. The source term must be stored in the staging area m_stagingArea prior to this call.
@@ -54,13 +56,16 @@ public:
     virtual void SolvePoissonEquation (amrex::MultiFab& lhs_mf) = 0;
 
     /** Get reference to the taging area */
-    amrex::MultiFab& StagingArea ();
+    StagingType& StagingArea () {
+        return m_stagingArea;
+    }
 protected:
     /** BoxArray for the spectral fields */
     amrex::BoxArray m_spectralspace_ba;
     /** Staging area, contains (real) field in real space.
      * This is where the source term is stored before calling the Poisson solver */
     amrex::MultiFab m_stagingArea;
+    amrex::IntVect m_nguards;
 };
 
 #endif

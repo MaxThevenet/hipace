@@ -23,13 +23,14 @@
  * 2. Call FFTPoissonSolver::SolvePoissonEquation(mf), which will solve Poisson equation with RHS
  *    in the staging area and return the LHS in mf.
  */
-class FFTPoissonSolverDirichlet final : public FFTPoissonSolver
+class FFTPoissonSolverDirichlet final : public FFTPoissonSolver<amrex::MultiFab>
 {
 public:
     /** Constructor */
     FFTPoissonSolverDirichlet ( amrex::BoxArray const& a_realspace_ba,
                                 amrex::DistributionMapping const& dm,
-                                amrex::Geometry const& gm);
+                                amrex::Geometry const& gm,
+                                amrex::IntVect const nguards);
 
     /** virtual destructor */
     virtual ~FFTPoissonSolverDirichlet () override final {}
@@ -45,7 +46,8 @@ public:
      */
     virtual void define ( amrex::BoxArray const& realspace_ba,
                           amrex::DistributionMapping const& dm,
-                          amrex::Geometry const& gm) override final;
+                          amrex::Geometry const& gm,
+                          amrex::IntVect const nguards) override final;
 
     /**
      * Solve Poisson equation. The source term must be stored in the staging area m_stagingArea prior to this call.

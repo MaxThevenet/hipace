@@ -10,8 +10,9 @@
 #include "fft/AnyFFT.H"
 #include "utils/Constants.H"
 #include "utils/HipaceProfilerWrapper.H"
-
-FFTPoissonSolverPeriodic::FFTPoissonSolverPeriodic (
+/*
+template<typename StagingType>
+FFTPoissonSolverPeriodic<StagingType>::FFTPoissonSolverPeriodic (
     amrex::BoxArray const& realspace_ba,
     amrex::DistributionMapping const& dm,
     amrex::Geometry const& gm )
@@ -19,12 +20,15 @@ FFTPoissonSolverPeriodic::FFTPoissonSolverPeriodic (
     define(realspace_ba, dm, gm);
 }
 
+template<typename StagingType>
 void
-FFTPoissonSolverPeriodic::define ( amrex::BoxArray const& realspace_ba,
+FFTPoissonSolverPeriodic<StagingType>::define ( amrex::BoxArray const& realspace_ba,
                                    amrex::DistributionMapping const& dm,
                                    amrex::Geometry const& gm )
 {
     using namespace amrex::literals;
+    using FFTPoissonSolver<StagingType>::m_spectralspace_ba;
+    using FFTPoissonSolver<StagingType>::m_stagingArea;
 
     HIPACE_PROFILE("FFTPoissonSolverPeriodic::define()");
     // If we are going to support parallel FFT, the constructor needs to take a communicator.
@@ -75,7 +79,7 @@ FFTPoissonSolverPeriodic::define ( amrex::BoxArray const& realspace_ba,
         amrex::Box const& bx = mfi.validbox();  // The lower corner of the "2D" slice Box is zero.
         int const Ny = bx.length(1);
         int const mid_point_y = (Ny+1)/2;
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int /* k */) noexcept
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
         {
             // kx is always positive (first axis of the real-to-complex FFT)
             amrex::Real kx = dkx*i;
@@ -113,10 +117,14 @@ FFTPoissonSolverPeriodic::define ( amrex::BoxArray const& realspace_ba,
 }
 
 
+template<typename StagingType>
 void
-FFTPoissonSolverPeriodic::SolvePoissonEquation (amrex::MultiFab& lhs_mf)
+FFTPoissonSolverPeriodic<StagingType>::SolvePoissonEquation (amrex::MultiFab& lhs_mf)
 {
     HIPACE_PROFILE("FFTPoissonSolverPeriodic::SolvePoissonEquation()");
+
+    using FFTPoissonSolver<StagingType>::m_spectralspace_ba;
+    using FFTPoissonSolver<StagingType>::m_stagingArea;
 
     // Loop over boxes
     for ( amrex::MFIter mfi(m_stagingArea); mfi.isValid(); ++mfi ){
@@ -149,3 +157,4 @@ FFTPoissonSolverPeriodic::SolvePoissonEquation (amrex::MultiFab& lhs_mf)
 
     }
 }
+*/
