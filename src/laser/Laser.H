@@ -135,7 +135,7 @@ public:
      * \param[in] dt time step of the simulation
      * \param[in] step current iteration. Needed because step 0 needs a specific treatment.
      */
-    void AdvanceSlice (const Fields& fields, const amrex::Geometry& geom, amrex::Real dt, int step);
+    void AdvanceSlice (const Fields& fields, const amrex::Geometry& geom, amrex::Real dt, int step, int islice);
 
     /** Advance a laser slice by 1 time step using a multigrid solver.
      * The complex phase of the envelope is evaluated on-axis only, but can be generalized to everywhere.
@@ -145,7 +145,7 @@ public:
      * \param[in] dt time step of the simulation
      * \param[in] step current iteration. Needed because step 0 needs a specific treatment.
      */
-    void AdvanceSliceMG (const Fields& fields, const amrex::Geometry& geom, amrex::Real dt, int step);
+    void AdvanceSliceMG (const Fields& fields, const amrex::Geometry& geom, amrex::Real dt, int step, int islice);
 
     /** Advance a laser slice by 1 time step using a FFT solver.
      * The complex phase of the envelope is evaluated on-axis only.
@@ -155,7 +155,9 @@ public:
      * \param[in] dt time step of the simulation
      * \param[in] step current iteration. Needed because step 0 needs a specific treatment.
      */
-    void AdvanceSliceFFT (const Fields& fields, const amrex::Geometry& geom, amrex::Real dt, int step);
+    void AdvanceSliceFFT (const Fields& fields, const amrex::Geometry& geom, amrex::Real dt, int step, int islice);
+
+    void StoreChirp ();
 
     /** Initialize 1 longitudinal slice of the laser, and store it in n00j00 (current time step)
      * and nm1j00 (previous time step).
@@ -183,6 +185,9 @@ private:
     amrex::IntVect m_slices_nguards = {-1, -1, -1};
     std::string m_solver_type = "multigrid";
     amrex::Box m_slice_box;
+    /** internally, laser chirp stored as dtheta/dz to hlep numerical stability */
+    amrex::Real m_chirp {0.};
+    amrex::Vector<amrex::Real> m_phase;
 
     /** Nb fields in 3D array: new_real, new_imag, old_real, old_imag */
     int m_nfields_3d {4};

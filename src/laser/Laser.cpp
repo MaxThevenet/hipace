@@ -124,6 +124,8 @@ Laser::InitData (const amrex::BoxArray& slice_ba,
             FFTW_BACKWARD, FFTW_ESTIMATE);
 #endif
     }
+    amrex::Print();
+    m_phase.resize(bx.numPts(Direction::z));
 }
 
 void
@@ -221,22 +223,22 @@ Laser::Copy (int isl, bool to3d)
 }
 
 void
-Laser::AdvanceSlice (const Fields& fields, const amrex::Geometry& geom, amrex::Real dt, int step)
+Laser::AdvanceSlice (const Fields& fields, const amrex::Geometry& geom, amrex::Real dt, int step, int islice)
 {
 
     if (!m_use_laser) return;
 
     if (m_solver_type == "multigrid") {
-        AdvanceSliceMG(fields, geom, dt, step);
+        AdvanceSliceMG(fields, geom, dt, step, islice);
     } else if (m_solver_type == "fft") {
-        AdvanceSliceFFT(fields, geom, dt, step);
+        AdvanceSliceFFT(fields, geom, dt, step, islice);
     } else {
         amrex::Abort("laser.solver_type must be fft or multigrid");
     }
 }
 
 void
-Laser::AdvanceSliceMG (const Fields& fields, const amrex::Geometry& geom, amrex::Real dt, int step)
+Laser::AdvanceSliceMG (const Fields& fields, const amrex::Geometry& geom, amrex::Real dt, int step, int islice)
 {
 
     HIPACE_PROFILE("Laser::AdvanceSliceMG()");
@@ -330,9 +332,16 @@ Laser::AdvanceSliceMG (const Fields& fields, const amrex::Geometry& geom, amrex:
         });
         // ... and taking the argument of the resulting complex number.
         ReduceTuple hv = reduce_data.value(reduce_op);
-        const amrex::Real tj00 = std::atan2(amrex::get<1>(hv), amrex::get<0>(hv));
-        const amrex::Real tjp1 = std::atan2(amrex::get<3>(hv), amrex::get<2>(hv));
-        const amrex::Real tjp2 = std::atan2(amrex::get<5>(hv), amrex::get<4>(hv));
+        amrex::Real tj00 = std::atan2(amrex::get<1>(hv), amrex::get<0>(hv));
+        amrex::Real tjp1 = std::atan2(amrex::get<3>(hv), amrex::get<2>(hv));
+        amrex::Real tjp2 = std::atan2(amrex::get<5>(hv), amrex::get<4>(hv));
+
+        // Store d_phase
+        m_phase[islice] = tj00;
+        // Add linear chirp contribution: phase = m_phase + z*chirp
+        tj00 += m_chirp * islice     * dz;
+        tjp1 += m_chirp * (islice+1) * dz;
+        tjp2 += m_chirp * (islice+2) * dz;
 
         amrex::Real dt1 = tj00 - tjp1;
         amrex::Real dt2 = tjp1 - tjp2;
@@ -445,7 +454,16 @@ Laser::AdvanceSliceMG (const Fields& fields, const amrex::Geometry& geom, amrex:
 }
 
 void
-Laser::AdvanceSliceFFT (const Fields& fields, const amrex::Geometry& geom, const amrex::Real dt, int step)
+Laser::StoreChirp ()
+{
+    // Get new d_chirp
+    
+    // Remove new d_chirp from laser array
+    // Add new d_chirp to m_chipr    
+}
+
+void
+Laser::AdvanceSliceFFT (const Fields& fields, const amrex::Geometry& geom, const amrex::Real dt, int step, int islice)
 {
 
     HIPACE_PROFILE("Laser::AdvanceSliceFFT()");

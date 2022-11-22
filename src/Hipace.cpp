@@ -504,6 +504,9 @@ Hipace::Evolve ()
             // Delete ghost particles
             m_multi_beam.RemoveGhosts();
 
+            // Store laser chirp into Real, remove from envelope.
+            m_laser.StoreChirp
+
             if (m_physical_time < m_max_time) {
                 m_adaptive_time_step.Calculate(m_dt, m_multi_beam, m_multi_plasma.maxDensity(),
                                                it, m_box_sorters, false);
@@ -591,7 +594,7 @@ Hipace::SolveOneSlice (int islice_coarse, const int ibox, int step,
         } // end for (int isubslice = nsubslice-1; isubslice >= 0; --isubslice)
 
         // Advance laser slice by 1 step and store result to 3D array
-        m_laser.AdvanceSlice(m_fields, Geom(0), m_dt, step);
+        m_laser.AdvanceSlice(m_fields, Geom(0), m_dt, step, islice);
         m_laser.Copy(islice_coarse, true);
 
         // After this, the parallel context is the full 3D communicator again
