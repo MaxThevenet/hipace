@@ -134,6 +134,10 @@ public:
 
     amrex::Parser m_parser; /**< owns data for m_density_func */
     amrex::ParserExecutor<3> m_density_func; /**< Density function for the plasma */
+    amrex::Parser m_parser_xy; /**< owns data for m_density_func */
+    amrex::ParserExecutor<2> m_density_func_xy; /**< Density function for the plasma */
+    amrex::Parser m_parser_z; /**< owns data for m_density_func */
+    amrex::ParserExecutor<1> m_density_func_z; /**< Density function for the plasma */
     amrex::Real m_min_density {0.}; /**< minimal density at which particles are injected */
     bool m_use_density_table; /**< if a density value table was specified */
     /** plasma density value table, key: position=c*time, value=density function string */

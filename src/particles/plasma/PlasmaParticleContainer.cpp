@@ -83,8 +83,15 @@ PlasmaParticleContainer::ReadParameters ()
                     "The same functionality can be obtained with the parser using "
                     "density(x,y,z) = <density> * (1 + <parabolic_curvature>*(x^2 + y^2) )" );
 
+    density_func_str = "0.";
     bool density_func_specified = queryWithParserAlt(pp, "density(x,y,z)", density_func_str, pp_alt);
     m_density_func = makeFunctionWithParser<3>(density_func_str, m_parser, {"x", "y", "z"});
+    density_func_str = "0.";
+    bool density_func_specified_xy = queryWithParserAlt(pp, "density(x,y)", density_func_str, pp_alt);
+    m_density_func_xy = makeFunctionWithParser<2>(density_func_str, m_parser_xy, {"x", "y"});
+    density_func_str = "0.";
+    bool density_func_specified_z = queryWithParserAlt(pp, "density(z)", density_func_str, pp_alt);
+    m_density_func_z = makeFunctionWithParser<1>(density_func_str, m_parser_z, {"z"});
 
     queryWithParserAlt(pp, "min_density", m_min_density, pp_alt);
 

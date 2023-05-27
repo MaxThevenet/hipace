@@ -64,6 +64,8 @@ InitParticles (const amrex::IntVect& a_num_particles_per_cell,
 
         UpdateDensityFunction();
         auto density_func = m_density_func;
+        auto density_func_xy = m_density_func_xy;
+        auto density_func_z = m_density_func_z;
         const amrex::Real c_light = get_phys_const().c;
         const amrex::Real c_t = c_light * Hipace::m_physical_time;
         const amrex::Real min_density = m_min_density;
@@ -88,7 +90,8 @@ InitParticles (const amrex::IntVect& a_num_particles_per_cell,
                         y >= a_bounds.hi(1) || y < a_bounds.lo(1) ||
                         rsq > a_radius*a_radius ||
                         rsq < a_hollow_core_radius*a_hollow_core_radius ||
-                        density_func(x, y, c_t) <= min_density) continue;
+                        density_func_xy(x, y) * density_func_z(c_t) <= min_density) continue;
+//                        density_func(x, y, c_t) <= min_density) continue;
 
                     num_particles_cell += 1;
                 }
@@ -141,7 +144,8 @@ InitParticles (const amrex::IntVect& a_num_particles_per_cell,
                     y >= a_bounds.hi(1) || y < a_bounds.lo(1) ||
                     rsq > a_radius*a_radius ||
                     rsq < a_hollow_core_radius*a_hollow_core_radius ||
-                    density_func(x, y, c_t) <= min_density) return;
+                    density_func_xy(x, y)*density_func_z(c_t) <= min_density) return;
+//                    density_func(x, y, c_t) <= min_density) return;
 
                 int ix = i - lo.x;
                 int iy = j - lo.y;
@@ -216,7 +220,8 @@ InitParticles (const amrex::IntVect& a_num_particles_per_cell,
                     y >= a_bounds.hi(1) || y < a_bounds.lo(1) ||
                     rsq > a_radius*a_radius ||
                     rsq < a_hollow_core_radius*a_hollow_core_radius ||
-                    density_func(x, y, c_t) <= min_density) return;
+                    density_func_xy(x, y)*density_func_z(c_t) <= min_density) return;
+//                    density_func(x, y, c_t) <= min_density) return;
 
                 amrex::Real u[3] = {0.,0.,0.};
                 ParticleUtil::get_gaussian_random_momentum(u, a_u_mean, a_u_std, engine);
@@ -228,7 +233,8 @@ InitParticles (const amrex::IntVect& a_num_particles_per_cell,
                 p.pos(1) = y;
                 p.pos(2) = z;
 
-                arrdata[PlasmaIdx::w        ][pidx] = scale_fac * density_func(x, y, c_t);
+//                arrdata[PlasmaIdx::w        ][pidx] = scale_fac * density_func(x, y, c_t);
+                arrdata[PlasmaIdx::w        ][pidx] = scale_fac * density_func_xy(x, y) * density_func_z(c_t);
                 arrdata[PlasmaIdx::ux       ][pidx] = u[0] * c_light;
                 arrdata[PlasmaIdx::uy       ][pidx] = u[1] * c_light;
                 arrdata[PlasmaIdx::psi][pidx] = std::sqrt(1._rt+u[0]*u[0]+u[1]*u[1]+u[2]*u[2])-u[2];
