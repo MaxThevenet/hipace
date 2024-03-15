@@ -18,10 +18,12 @@
 void
 AdvanceBeamParticlesSlice (
     BeamParticleContainer& beam, const Fields& fields, amrex::Vector<amrex::Geometry> const& gm,
-    const int slice, int const current_N_level)
+    const int slice, int const current_N_level, const MultiLaser& multi_laser,
+    amrex::Real undulator_period, amrex::Real undulator_phase, amrex::Real undulator_B0)
 {
     HIPACE_PROFILE("AdvanceBeamParticlesSlice()");
     using namespace amrex::literals;
+    const bool use_laser = multi_laser.m_use_laser;
 
     const PhysConst phys_const = get_phys_const();
 
@@ -32,8 +34,6 @@ AdvanceBeamParticlesSlice (
     const amrex::Real dt = Hipace::GetInstance().m_dt / n_subcycles;
     const amrex::Real background_density_SI = Hipace::m_background_density_SI;
     const bool normalized_units = Hipace::m_normalized_units;
-    const bool spin_tracking = beam.m_do_spin_tracking;
-    const amrex::Real spin_anom = beam.m_spin_anom;
 
     if (normalized_units && radiation_reaction) {
         AMREX_ALWAYS_ASSERT_WITH_MESSAGE(background_density_SI!=0,
@@ -57,10 +57,15 @@ AdvanceBeamParticlesSlice (
     const amrex::FArrayBox& slice_fab_lev0 = fields.getSlices(lev0_idx)[0];
     const amrex::FArrayBox& slice_fab_lev1 = fields.getSlices(lev1_idx)[0];
     const amrex::FArrayBox& slice_fab_lev2 = fields.getSlices(lev2_idx)[0];
+    const amrex::MultiFab& a_mf = multi_laser.getSlices();
 
     Array3<const amrex::Real> const slice_arr_lev0 = slice_fab_lev0.const_array();
     Array3<const amrex::Real> const slice_arr_lev1 = slice_fab_lev1.const_array();
     Array3<const amrex::Real> const slice_arr_lev2 = slice_fab_lev2.const_array();
+    Array3<const amrex::Real> const& a_arr = use_laser ?
+            a_mf[0].const_array(WhichLaserSlice::n00j00_r) : amrex::Array4<const amrex::Real>();
+    const amrex::Real k0 = 2.*MathConst::pi/multi_laser.GetLambda0();
+    const amrex::Real ku = 2.*MathConst::pi/undulator_period;
 
     // Extract properties associated with physical size of the box
     const amrex::Real dx_inv_lev0 = gm[lev0_idx].InvCellSize(0);
@@ -142,13 +147,6 @@ AdvanceBeamParticlesSlice (
 
             int i = ptd.idata(BeamIdx::nsubcycles)[ip];
 
-            amrex::RealVect spin {0._rt, 0._rt, 0._rt};
-            if (spin_tracking) {
-                spin[0] = ptd.m_runtime_rdata[0][ip];
-                spin[1] = ptd.m_runtime_rdata[1][ip];
-                spin[2] = ptd.m_runtime_rdata[2][ip];
-            }
-
             for (; i < n_subcycles; i++) {
 
                 if (zp < min_z) {
@@ -197,13 +195,18 @@ AdvanceBeamParticlesSlice (
                 amrex::ParticleReal Bxp = 0._rt, Byp = 0._rt, Bzp = 0._rt;
 
                 // field gather for a single particle
-                doGatherShapeN<depos_order.value>(xp, yp, ExmByp, EypBxp, Ezp, Bxp, Byp, Bzp,
-                    slice_arr, psi_comp, ez_comp, bx_comp, by_comp, bz_comp,
-                    dx_inv, dy_inv, x_pos_offset, y_pos_offset);
+//                doGatherShapeN<depos_order.value>(xp, yp, ExmByp, EypBxp, Ezp, Bxp, Byp, Bzp,
+//                    slice_arr, psi_comp, ez_comp, bx_comp, by_comp, bz_comp,
+//                    dx_inv, dy_inv, x_pos_offset, y_pos_offset);
 
                 if (c_use_external_fields.value) {
                     ApplyExternalField(xp, yp, zp, time, clight, ExmByp, EypBxp, Ezp, Bxp, Byp, Bzp,
                         external_fields);
+                }
+                if (undulator_B0 > 0) {
+                    amrex::Real By = undulator_B0*std::cos( ku*clight*(time + zp/clight*0._rt) + undulator_phase );
+                    Byp += By;
+                    ExmByp -= clight * By;
                 }
 
                 // use intermediate fields to calculate next (n+1) transverse momenta
@@ -211,43 +214,29 @@ AdvanceBeamParticlesSlice (
                     * ( ExmByp + ( clight - uz * gammap_inv ) * Byp + uy*gammap_inv*Bzp);
                 amrex::ParticleReal uy_next = uy + dt * charge_mass_ratio
                     * ( EypBxp + ( uz * gammap_inv - clight ) * Bxp - ux*gammap_inv*Bzp);
+                amrex::ParticleReal uz_next = uz + dt * charge_mass_ratio
+                    * ( Ezp + ( ux * Byp - uy * Bxp ) * gammap_inv );
+
+                if (use_laser) {
+                    amrex::ParticleReal Arp = 0._rt;
+                    amrex::ParticleReal betaz = uz * gammap_inv / phys_const.c;
+                    amrex::ParticleReal betax = ux * gammap_inv / phys_const.c;
+                    doMyLaserGatherShapeN<depos_order.value>(
+                        xp, yp, Arp, a_arr,
+                        dx_inv, dy_inv, x_pos_offset, y_pos_offset);
+                    ux_next += dt * charge_mass_ratio * (1._rt-betaz) * Arp;
+                    uz_next += dt * charge_mass_ratio * (   betax   ) * Arp;
+                }
 
                 // Now computing new longitudinal momentum
                 const amrex::ParticleReal ux_intermediate = ( ux_next + ux ) * 0.5_rt;
                 const amrex::ParticleReal uy_intermediate = ( uy_next + uy ) * 0.5_rt;
-                const amrex::ParticleReal uz_intermediate = uz
-                    + dt * 0.5_rt * charge_mass_ratio * Ezp;
+                const amrex::ParticleReal uz_intermediate = ( uz_next + uz ) * 0.5_rt;
 
                 const amrex::ParticleReal gamma_intermediate_inv = 1._rt / std::sqrt( 1._rt
                     + ( ux_intermediate*ux_intermediate
                        + uy_intermediate*uy_intermediate
                        + uz_intermediate*uz_intermediate )*inv_c2 );
-
-                if (spin_tracking) {
-                    const amrex::RealVect E {ExmByp + clight*Byp, EypBxp - clight*Bxp, Ezp};
-                    const amrex::RealVect B {Bxp, Byp, Bzp};
-                    const amrex::RealVect u {ux_intermediate*inv_clight, uy_intermediate*inv_clight,
-                                             uz_intermediate*inv_clight};
-                    const amrex::RealVect beta = u*gamma_intermediate_inv;
-                    const amrex::Real gamma_inv_p1 =
-                        gamma_intermediate_inv / (1._rt + gamma_intermediate_inv);
-
-                    const amrex::RealVect omega = std::abs(charge_mass_ratio) * (
-                        B * gamma_intermediate_inv - beta.crossProduct(E) * inv_clight * gamma_inv_p1
-                        + spin_anom * (
-                            B - gamma_inv_p1 * u * beta.dotProduct(B) - beta.crossProduct(E) * inv_clight
-                        )
-                    );
-
-                    const amrex::RealVect h = omega * dt * 0.5_rt;
-                    const amrex::RealVect s_prime = spin + h.crossProduct(spin);
-                    const amrex::Real o = 1._rt / (1._rt + h.dotProduct(h));
-                    spin = o * (s_prime + (h.dotProduct(s_prime) * h + h.crossProduct(s_prime)));
-                }
-
-                amrex::ParticleReal uz_next = uz + dt * charge_mass_ratio
-                    * ( Ezp + ( ux_intermediate * Byp - uy_intermediate * Bxp )
-                    * gamma_intermediate_inv );
 
                 if (radiation_reaction) {
 
@@ -331,11 +320,5 @@ AdvanceBeamParticlesSlice (
             ptd.rdata(BeamIdx::ux)[ip] = ux;
             ptd.rdata(BeamIdx::uy)[ip] = uy;
             ptd.rdata(BeamIdx::uz)[ip] = uz;
-
-            if (spin_tracking) {
-                ptd.m_runtime_rdata[0][ip] = spin[0];
-                ptd.m_runtime_rdata[1][ip] = spin[1];
-                ptd.m_runtime_rdata[2][ip] = spin[2];
-            }
         });
 }

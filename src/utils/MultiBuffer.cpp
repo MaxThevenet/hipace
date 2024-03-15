@@ -8,7 +8,6 @@
 #include "MultiBuffer.H"
 #include "Hipace.H"
 #include "HipaceProfilerWrapper.H"
-#include "Parser.H"
 
 
 std::size_t MultiBuffer::get_metadata_size () {
@@ -25,7 +24,7 @@ std::size_t* MultiBuffer::get_metadata_location (int slice) {
 
 void MultiBuffer::allocate_buffer (int slice) {
     AMREX_ALWAYS_ASSERT(m_datanodes[slice].m_location == memory_location::nowhere);
-    if (!m_buffer_on_gpu) {
+    if (m_buffer_on_host) {
         m_datanodes[slice].m_buffer = reinterpret_cast<char*>(amrex::The_Pinned_Arena()->alloc(
             m_datanodes[slice].m_buffer_size * sizeof(storage_type)
         ));
@@ -50,9 +49,9 @@ void MultiBuffer::free_buffer (int slice) {
     m_datanodes[slice].m_buffer_size = 0;
 }
 
-void MultiBuffer::initialize (int nslices, int nbeams, bool use_laser, amrex::Box laser_box) {
-
-    amrex::ParmParse pp("comms_buffer");
+void MultiBuffer::initialize (int nslices, int nbeams, bool buffer_on_host, bool use_laser,
+                              amrex::Box laser_box, int max_leading_slices,
+                              int max_trailing_slices) {
 
     m_comm = amrex::ParallelDescriptor::Communicator();
     const int rank_id = amrex::ParallelDescriptor::MyProc();
@@ -60,6 +59,7 @@ void MultiBuffer::initialize (int nslices, int nbeams, bool use_laser, amrex::Bo
 
     m_nslices = nslices;
     m_nbeams = nbeams;
+    m_buffer_on_host = buffer_on_host;
     m_use_laser = use_laser;
     m_laser_slice_box = laser_box;
 
@@ -73,15 +73,8 @@ void MultiBuffer::initialize (int nslices, int nbeams, bool use_laser, amrex::Bo
     m_tag_buffer_start = 1;
     m_tag_metadata_start = m_tag_buffer_start + m_nslices;
 
-    queryWithParser(pp, "on_gpu", m_buffer_on_gpu);
-    queryWithParser(pp, "max_leading_slices", m_max_leading_slices);
-    queryWithParser(pp, "max_trailing_slices", m_max_trailing_slices);
-
-    AMREX_ALWAYS_ASSERT_WITH_MESSAGE(
-        ((double(m_max_trailing_slices) * n_ranks) > nslices)
-        || (Hipace::m_max_step < amrex::ParallelDescriptor::NProcs()),
-        "comms_buffer.max_trailing_slices must be large enough"
-        " to distribute all slices between all ranks if there are more timesteps than ranks");
+    m_max_leading_slices = max_leading_slices;
+    m_max_trailing_slices = max_trailing_slices;
 
     for (int p = 0; p < comm_progress::nprogress; ++p) {
         m_async_metadata_slice[p] = m_nslices - 1;
@@ -635,10 +628,10 @@ void MultiBuffer::pack_data (int slice, MultiBeam& beams, MultiLaser& laser, int
         // copy real and imag components in one operation
         memcpy_to_buffer(slice, get_buffer_offset(slice, offset_type::laser, beams, 0, 0),
                          laser.getSlices()[0].dataPtr(laser_comp_0_1),
-                         2 * m_laser_slice_box.numPts() * sizeof(amrex::Real));
-        memcpy_to_buffer(slice, get_buffer_offset(slice, offset_type::laser, beams, 0, 2),
+                         m_laser_slice_box.numPts() * sizeof(amrex::Real));
+        memcpy_to_buffer(slice, get_buffer_offset(slice, offset_type::laser, beams, 0, 1),
                          laser.getSlices()[0].dataPtr(laser_comp_2_3),
-                         2 * m_laser_slice_box.numPts() * sizeof(amrex::Real));
+                         m_laser_slice_box.numPts() * sizeof(amrex::Real));
     }
     amrex::Gpu::streamSynchronize();
     for (int b = 0; b < m_nbeams; ++b) {
@@ -705,10 +698,10 @@ void MultiBuffer::unpack_data (int slice, MultiBeam& beams, MultiLaser& laser, i
         // copy real and imag components in one operation
         memcpy_from_buffer(slice, get_buffer_offset(slice, offset_type::laser, beams, 0, 0),
                            laser.getSlices()[0].dataPtr(laser_comp_0_1),
-                           2 * m_laser_slice_box.numPts() * sizeof(amrex::Real));
-        memcpy_from_buffer(slice, get_buffer_offset(slice, offset_type::laser, beams, 0, 2),
+                           m_laser_slice_box.numPts() * sizeof(amrex::Real));
+        memcpy_from_buffer(slice, get_buffer_offset(slice, offset_type::laser, beams, 0, 1),
                            laser.getSlices()[0].dataPtr(laser_comp_2_3),
-                           2 * m_laser_slice_box.numPts() * sizeof(amrex::Real));
+                           m_laser_slice_box.numPts() * sizeof(amrex::Real));
     }
     amrex::Gpu::streamSynchronize();
 }

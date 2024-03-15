@@ -136,12 +136,13 @@ public:
      *
      * \param[in,out] sol the initial guess and final solution
      * \param[in] rhs right hand side
+     * \param[in] acf_scalar scalar coefficient
      * \param[in] tol_rel relative tolerance
      * \param[in] tol_abs absolute tolerance
      * \param[in] nummaxiter maximum number of iterations
      * \param[in] verbose verbosity level
      */
-    void solve3 (amrex::FArrayBox& sol, amrex::FArrayBox const& rhs,
+    void solve3 (amrex::FArrayBox& sol, amrex::FArrayBox const& rhs, amrex::Real acf_scalar,
                  amrex::Real const tol_rel, amrex::Real const tol_abs, int const nummaxiter,
                  int const verbose);
 
@@ -194,7 +195,7 @@ public:
         switch (system_type) {
             case 1: return 1;
             case 2: return 2;
-            case 3: return 0;
+            case 3: return 1;
         }
         return 0;
     }

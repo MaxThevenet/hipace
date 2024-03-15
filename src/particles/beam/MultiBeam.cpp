@@ -17,6 +17,9 @@ MultiBeam::MultiBeam ()
 {
     amrex::ParmParse pp("beams");
     queryWithParser(pp, "names", m_names);
+    queryWithParser(pp, "undulator_period", m_undulator_period);
+    queryWithParser(pp, "undulator_phase", m_undulator_phase);
+    queryWithParser(pp, "undulator_B0", m_undulator_B0);
     if (m_names[0] == "no_beam") return;
     DeprecatedInput("beams", "insitu_freq", "insitu_period");
     DeprecatedInput("beams", "all_from_file",
@@ -69,10 +72,11 @@ MultiBeam::shiftSlippedParticles (const int slice, amrex::Geometry const& geom)
 void
 MultiBeam::AdvanceBeamParticlesSlice (
     const Fields& fields, amrex::Vector<amrex::Geometry> const& gm, const int slice,
-    int const current_N_level)
+    int const current_N_level, const MultiLaser& multi_laser)
 {
     for (int i=0; i<m_nbeams; i++) {
-        ::AdvanceBeamParticlesSlice(m_all_beams[i], fields, gm, slice, current_N_level);
+        ::AdvanceBeamParticlesSlice(m_all_beams[i], fields, gm, slice, current_N_level, multi_laser,
+                                    m_undulator_period, m_undulator_phase, m_undulator_B0);
     }
 }
 

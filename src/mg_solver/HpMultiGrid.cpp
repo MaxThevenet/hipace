@@ -209,7 +209,8 @@ void compute_residual (Box const& box, Array4<Real> const& res,
         hpmg::ParallelFor(valid_domain_box(box),
         [=] AMREX_GPU_DEVICE (int i, int j, int) noexcept
         {
-            res(i,j,0,0) = residual3(i, j, 0, ilo, jlo, ihi, jhi, phi, rhs(i,j,0,0), facx, facy);
+            res(i,j,0,0) = residual1(i, j, 0, ilo, jlo, ihi, jhi, phi, rhs(i,j,0,0),
+                                     acf(0,0,0), facx, facy);
         });
     }
 }
@@ -350,7 +351,7 @@ void gsrb (int icolor, Box const& box, Array4<Real> const& phi,
         [=] AMREX_GPU_DEVICE (int i, int j, int) noexcept
         {
             if ((i+j+icolor)%2 == 0) {
-                gs3(i, j, 0, ilo, jlo, ihi, jhi, phi, rhs(i,j,0,0), facx, facy);
+                gs1(i, j, 0, ilo, jlo, ihi, jhi, phi, rhs(i,j,0,0), acf(0,0,0), facx, facy);
             }
         });
     }
@@ -457,7 +458,11 @@ void gsrb_shared (Box const& box, Array4<Real> const& phi_out, Array4<Real const
                         rhs_num[nj][n] = rhs(i, j+nj, 0, n);
                     }
                     for (int n=0; n<num_comps_acf; ++n) {
-                        acf_num[nj][n] = acf(i, j+nj, 0, n);
+                        if (system_type == 3) {
+                            acf_num[nj][n] = acf(0, 0, 0);
+                        } else {
+                            acf_num[nj][n] = acf(i, j+nj, 0, n);
+                        }
                     }
                 }
             }
@@ -486,8 +491,8 @@ void gsrb_shared (Box const& box, Array4<Real> const& phi_out, Array4<Real const
                         gs2<is_cell_centered>(i, j_loc, ilo, jlo, ihi, jhi, phi_shared,
                             rhs_loc[0], rhs_loc[1], acf_loc[0], acf_loc[1], facx, facy);
                     } else if (system_type == 3) {
-                        gs3<is_cell_centered>(i, j_loc, 0, ilo, jlo, ihi, jhi, phi_shared,
-                            rhs_loc[0], facx, facy);
+                        gs1<is_cell_centered>(i, j_loc, 0, ilo, jlo, ihi, jhi, phi_shared,
+                            rhs_loc[0], acf_loc[0], facx, facy);
                     }
                 }
                 __syncthreads();
@@ -521,9 +526,9 @@ void gsrb_shared (Box const& box, Array4<Real> const& phi_out, Array4<Real const
                                                     rhs_num[nj][1], acf_num[nj][0], acf_num[nj][1],
                                                     facx, facy);
                         } else if (system_type == 3) {
-                            res(i, j+nj, 0, 0) = residual3(
+                            res(i, j+nj, 0, 0) = residual1(
                                                     i, j+nj, 0, ilo, jlo, ihi, jhi, phi_shared,
-                                                    rhs_num[nj][0], facx, facy);
+                                                    rhs_num[nj][0], acf_num[nj][0], facx, facy);
                         }
                     }
 
@@ -832,7 +837,11 @@ MultiGrid::MultiGrid (Real dx, Real dy, Box a_domain, int a_system_type)
 
     m_acf.reserve(m_num_mg_levels);
     for (int ilev = 0; ilev < m_num_mg_levels; ++ilev) {
-        m_acf.emplace_back(m_domain[ilev], m_num_comps_acf);
+        if (m_system_type == 3) {
+            m_acf.emplace_back(amrex::Box(amrex::IntVect{0,0,0}, amrex::IntVect{0,0,0}), 1);
+        } else {
+            m_acf.emplace_back(m_domain[ilev], m_num_comps_acf);
+        }
         if (ilev >= m_single_block_level_begin) {
             m_h_array4.push_back(m_acf[ilev].array());
         }
@@ -1006,12 +1015,21 @@ MultiGrid::solve2 (amrex::FArrayBox& sol, amrex::FArrayBox const& rhs,
 }
 
 void
-MultiGrid::solve3 (FArrayBox& a_sol, FArrayBox const& a_rhs,
+MultiGrid::solve3 (FArrayBox& a_sol, FArrayBox const& a_rhs, amrex::Real acf_scalar,
                    Real const tol_rel, Real const tol_abs, int const nummaxiter,
                    int const verbose)
 {
     HIPACE_PROFILE("hpmg::MultiGrid::solve3()");
     AMREX_ALWAYS_ASSERT(m_system_type == 3);
+
+    for (int i=0; i<m_acf.size(); ++i) {
+        auto const& array_m_acf = m_acf[i].array();
+        hpmg::ParallelFor(m_acf[i].box(),
+            [=] AMREX_GPU_DEVICE (int, int, int) noexcept
+            {
+                array_m_acf(0,0,0) = acf_scalar;
+            });
+    }
 
     solve_doit(a_sol, a_rhs, tol_rel, tol_abs, nummaxiter, verbose);
 }
@@ -1328,16 +1346,16 @@ MultiGrid::bottomsolve ()
             bottomsolve_gpu<nsweeps,3>(dx0, dy0, m_acf_a, m_res_a, m_cor_a, m_rescor_a, nlevs, corner_offset,
                 [] AMREX_GPU_DEVICE (int i, int j, int ilo, int jlo, int ihi, int jhi,
                                       Array4<Real> const& phi, Array4<Real> const& rhs,
-                                      Array4<Real> const&, Real facx, Real facy)
+                                      Array4<Real> const& acf, Real facx, Real facy)
                 {
-                    gs1(i, j, 0, ilo, jlo, ihi, jhi, phi, rhs(i,j,0,0), Real(0.), facx, facy);
+                    gs1(i, j, 0, ilo, jlo, ihi, jhi, phi, rhs(i,j,0,0), acf(0, 0, 0), facx, facy);
                 },
                 [] AMREX_GPU_DEVICE (int i, int j, Array4<Real> const& res,
                                       int ilo, int jlo, int ihi, int jhi,
                                       Array4<Real> const& phi, Array4<Real> const& rhs,
-                                      Array4<Real> const&, Real facx, Real facy)
+                                      Array4<Real> const& acf, Real facx, Real facy)
                 {
-                    res(i,j,0,0) = residual3(i, j, 0, ilo, jlo, ihi, jhi, phi, rhs(i,j,0,0), facx, facy);
+                    res(i,j,0,0) = residual1(i, j, 0, ilo, jlo, ihi, jhi, phi, rhs(i,j,0,0), acf(0,0,0), facx, facy);
                 });
         }
     } else

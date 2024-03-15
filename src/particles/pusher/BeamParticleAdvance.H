@@ -11,6 +11,7 @@
 #include "particles/beam/BeamParticleContainer.H"
 #include "fields/Fields.H"
 #include "Hipace.H"
+#include "laser/MultiLaser.H"
 
 /** Push beam particles contained in one z slice
  * \param[in,out] beam species of which the current is deposited
@@ -22,6 +23,7 @@
 void
 AdvanceBeamParticlesSlice (
     BeamParticleContainer& beam, const Fields& fields, amrex::Vector<amrex::Geometry> const& gm,
-    const int slice, int const current_N_level);
+    const int slice, int const current_N_level, const MultiLaser& multi_laser,
+    amrex::Real undulator_period, amrex::Real undulator_phase, amrex::Real undulator_B0);
 
 #endif //  BEAMPARTICLEADVANCE_H_

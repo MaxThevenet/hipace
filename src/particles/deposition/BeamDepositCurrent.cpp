@@ -143,12 +143,12 @@ DepositCurrentSlice (BeamParticleContainer& beam, Fields& fields,
                             isl_arr.ptr(i_cell+ix, j_cell+iy, jyb_cmp),
                             sx_cell[ix]*sy_cell[iy]*wqy);
                     }
-                    if (jzb_cmp != -1) { // do_beam_jz_deposition
+                    if (false) { // (jzb_cmp != -1) { // do_beam_jz_deposition
                         amrex::Gpu::Atomic::Add(
                             isl_arr.ptr(i_cell+ix, j_cell+iy, jzb_cmp),
                             sx_cell[ix]*sy_cell[iy]*wqz);
                     }
-                    if (rhomjzb_cmp != -1) { // do_beam_rhomjz_deposition
+                    if (false) { // (rhomjzb_cmp != -1) { // do_beam_rhomjz_deposition
                         amrex::Gpu::Atomic::Add(
                             isl_arr.ptr(i_cell+ix, j_cell+iy, rhomjzb_cmp),
                             sx_cell[ix]*sy_cell[iy]*wqrhomjz);
