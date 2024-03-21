@@ -111,7 +111,7 @@ private:
     int m_nslices = 0;
     int m_nbeams = 0;
     bool m_use_laser = false;
-    int m_laser_ncomp = 4;
+    int m_laser_ncomp = 2;
     amrex::Box m_laser_slice_box {};
     int m_max_leading_slices = std::numeric_limits<int>::max();
     int m_max_trailing_slices = std::numeric_limits<int>::max();

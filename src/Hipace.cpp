@@ -511,7 +511,7 @@ Hipace::SolveOneSlice (int islice, int step)
     }
 
     // Psi ExmBy EypBx Ez Bz solve
-    m_fields.SolvePoissonPsiExmByEypBxEzBz(m_3D_geom, current_N_level);
+    // m_fields.SolvePoissonPsiExmByEypBxEzBz(m_3D_geom, current_N_level);
 
     // Advance laser slice by 1 step using chi
     // no MR for laser
@@ -544,7 +544,7 @@ Hipace::SolveOneSlice (int islice, int step)
             m_multi_plasma.ExplicitDeposition(m_fields, m_multi_laser, m_3D_geom, lev);
 
             // Solves Bx, By using Sx, Sy and chi
-            ExplicitMGSolveBxBy(lev, WhichSlice::This);
+            // ExplicitMGSolveBxBy(lev, WhichSlice::This);
         }
     } else {
         // Solves Bx and By in the current slice and modifies the force terms of the plasma particles
@@ -587,7 +587,7 @@ Hipace::SolveOneSlice (int islice, int step)
     m_adaptive_time_step.GatherMinAccSlice(m_multi_beam, m_3D_geom[0], m_fields);
 
     // Push beam particles
-    m_multi_beam.AdvanceBeamParticlesSlice(m_fields, m_3D_geom, islice, current_N_level);
+    m_multi_beam.AdvanceBeamParticlesSlice(m_fields, m_3D_geom, islice, current_N_level, m_multi_laser);
 
     m_multi_beam.shiftSlippedParticles(islice, m_3D_geom[0]);
 

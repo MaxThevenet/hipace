@@ -628,10 +628,10 @@ void MultiBuffer::pack_data (int slice, MultiBeam& beams, MultiLaser& laser, int
         // copy real and imag components in one operation
         memcpy_to_buffer(slice, get_buffer_offset(slice, offset_type::laser, beams, 0, 0),
                          laser.getSlices()[0].dataPtr(laser_comp_0_1),
-                         2 * m_laser_slice_box.numPts() * sizeof(amrex::Real));
-        memcpy_to_buffer(slice, get_buffer_offset(slice, offset_type::laser, beams, 0, 2),
+                         m_laser_slice_box.numPts() * sizeof(amrex::Real));
+        memcpy_to_buffer(slice, get_buffer_offset(slice, offset_type::laser, beams, 0, 1),
                          laser.getSlices()[0].dataPtr(laser_comp_2_3),
-                         2 * m_laser_slice_box.numPts() * sizeof(amrex::Real));
+                         m_laser_slice_box.numPts() * sizeof(amrex::Real));
     }
     amrex::Gpu::streamSynchronize();
     for (int b = 0; b < m_nbeams; ++b) {
@@ -698,10 +698,10 @@ void MultiBuffer::unpack_data (int slice, MultiBeam& beams, MultiLaser& laser, i
         // copy real and imag components in one operation
         memcpy_from_buffer(slice, get_buffer_offset(slice, offset_type::laser, beams, 0, 0),
                            laser.getSlices()[0].dataPtr(laser_comp_0_1),
-                           2 * m_laser_slice_box.numPts() * sizeof(amrex::Real));
-        memcpy_from_buffer(slice, get_buffer_offset(slice, offset_type::laser, beams, 0, 2),
+                           m_laser_slice_box.numPts() * sizeof(amrex::Real));
+        memcpy_from_buffer(slice, get_buffer_offset(slice, offset_type::laser, beams, 0, 1),
                            laser.getSlices()[0].dataPtr(laser_comp_2_3),
-                           2 * m_laser_slice_box.numPts() * sizeof(amrex::Real));
+                           m_laser_slice_box.numPts() * sizeof(amrex::Real));
     }
     amrex::Gpu::streamSynchronize();
 }

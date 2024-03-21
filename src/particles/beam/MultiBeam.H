@@ -10,6 +10,7 @@
 
 #include "BeamParticleContainer.H"
 #include "fields/Fields.H"
+#include "laser/MultiLaser.H"
 
 class MultiBeam
 {
@@ -52,7 +53,7 @@ public:
      */
     void AdvanceBeamParticlesSlice (
         const Fields& fields, amrex::Vector<amrex::Geometry> const& gm, const int slice,
-        int const current_N_level);
+        int const current_N_level, const MultiLaser& multi_laser);
 
     /** Compute reduced beam diagnostics of current slice, store in member variable.
      * \param[in] step time step of simulation
@@ -132,6 +133,9 @@ private:
     int m_nbeams {0}; /**< number of beam containers */
     /** number of real particles per beam, as opposed to ghost particles */
     amrex::Vector<amrex::Long> m_n_real_particles;
+    amrex::Real m_undulator_period {0};
+    amrex::Real m_undulator_phase {0};
+    amrex::Real m_undulator_B0 {0};
 };
 
 #endif // MULTIBEAM_H_
