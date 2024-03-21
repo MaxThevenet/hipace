@@ -269,10 +269,6 @@ AdvanceBeamParticlesSlice (
                     spin = o * (s_prime + (h.dotProduct(s_prime) * h + h.crossProduct(s_prime)));
                 }
 
-                amrex::ParticleReal uz_next = uz + dt * charge_mass_ratio
-                    * ( Ezp + ( ux_intermediate * Byp - uy_intermediate * Bxp )
-                    * gamma_intermediate_inv );
-
                 if (radiation_reaction) {
 
                     amrex::ParticleReal Exp = ExmByp + clight*Byp;

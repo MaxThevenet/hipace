@@ -167,14 +167,6 @@ Real residual2i (int i, int j, int ilo, int jlo, int ihi, int jhi,
     return rhs + acf_i*phi(i,j,0,0) + acf_r*phi(i,j,0,1) - lap;
 }
 
-AMREX_GPU_DEVICE AMREX_FORCE_INLINE
-Real residual3 (int i, int j, int n, int ilo, int jlo, int ihi, int jhi,
-                Array4<Real> const& phi, Real rhs, Real facx, Real facy)
-{
-    Real lap = laplacian(i,j,n,ilo,jlo,ihi,jhi,phi,facx,facy);
-    return rhs - lap;
-}
-
 // res = rhs - L(phi)
 void compute_residual (Box const& box, Array4<Real> const& res,
                        Array4<Real> const& phi, Array4<Real const> const& rhs,
