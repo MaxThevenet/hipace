@@ -18,8 +18,7 @@ class MultiBuffer
 public:
 
     // initialize MultiBuffer and open initial receive requests
-    void initialize (int nslices, int nbeams, bool buffer_on_host, bool use_laser,
-                     amrex::Box laser_box, int max_leading_slices, int max_trailing_slices);
+    void initialize (int nslices, int nbeams, bool use_laser, amrex::Box laser_box);
 
     // receive data from previous rank and unpack it into MultiBeam and MultiLaser
     void get_data (int slice, MultiBeam& beams, MultiLaser& laser, int beam_slice);
@@ -95,6 +94,8 @@ private:
     amrex::Gpu::PinnedVector<std::size_t> m_metadata {};
     // per-slice data
     amrex::Vector<DataNode> m_datanodes {};
+    amrex::Gpu::DeviceVector<char> m_leading_gpu_buffer {};
+    amrex::Gpu::DeviceVector<char> m_trailing_gpu_buffer {};
 
     // MPI parameters
     bool m_is_head_rank = false;
@@ -107,13 +108,17 @@ private:
     MPI_Comm m_comm = MPI_COMM_NULL;
 
     // general parameters
-    bool m_buffer_on_host = true;
+    /** Whether MPI communication buffers should be allocated in device memory */
+    bool m_buffer_on_gpu = false;
+    bool m_async_memcpy = true;
     int m_nslices = 0;
     int m_nbeams = 0;
     bool m_use_laser = false;
     int m_laser_ncomp = 2;
     amrex::Box m_laser_slice_box {};
+    /** How many slices of beam particles can be received in advance */
     int m_max_leading_slices = std::numeric_limits<int>::max();
+    /** How many slices of beam particles can be stored before being sent */
     int m_max_trailing_slices = std::numeric_limits<int>::max();
 
     // parameters to send physical time
@@ -150,6 +155,14 @@ private:
     // copy buffer array at buffer_offset into gpu array, either htod or dtod
     void memcpy_from_buffer (int slice, std::size_t buffer_offset,
                              void* dst_ptr, std::size_t num_bytes);
+
+    // asynchronous copy between cpu buffer and gpu m_leading_gpu_buffer or m_trailing_gpu_buffer
+    void async_memcpy_to_buffer (int slice);
+    void async_memcpy_from_buffer (int slice);
+
+    // finish asynchronous copy (long) after it was initiated
+    void async_memcpy_to_buffer_finish ();
+    void async_memcpy_from_buffer_finish ();
 
     // pack MultiBeam and MultiLaser into buffer
     void pack_data (int slice, MultiBeam& beams, MultiLaser& laser, int beam_slice);
