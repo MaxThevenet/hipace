@@ -496,8 +496,10 @@ Hipace::SolveOneSlice (int islice, int step)
                 m_deposit_rho || m_deposit_rho_individual, true, true, m_3D_geom, lev);
 
             // deposit jz_beam and maybe rhomjz of the beam on This slice
-            m_multi_beam.DepositCurrentSlice(m_fields, m_3D_geom, lev, step,
-                false, true, m_do_beam_jz_minus_rho, WhichSlice::This, WhichBeamSlice::This);
+            if (!m_use_laser) {
+                m_multi_beam.DepositCurrentSlice(m_fields, m_3D_geom, lev, step,
+                    false, true, m_do_beam_jz_minus_rho, WhichSlice::This, WhichBeamSlice::This);
+            }
         } else {
             // deposit jx jy jz (maybe chi) and rhomjz
             m_multi_plasma.DepositCurrent(m_fields, WhichSlice::This, true, true,
@@ -516,7 +518,9 @@ Hipace::SolveOneSlice (int islice, int step)
     }
 
     // Psi ExmBy EypBx Ez Bz solve
-    // m_fields.SolvePoissonPsiExmByEypBxEzBz(m_3D_geom, current_N_level);
+    if (!m_use_laser) {
+        m_fields.SolvePoissonPsiExmByEypBxEzBz(m_3D_geom, current_N_level);
+    }
 
     // Advance laser slice by 1 step using chi
     // no MR for laser
@@ -542,14 +546,17 @@ Hipace::SolveOneSlice (int islice, int step)
             m_multi_beam.DepositCurrentSlice(m_fields, m_3D_geom, lev, step,
                 m_do_beam_jx_jy_deposition, false, false, WhichSlice::Next, WhichBeamSlice::Next);
 
-            // Set Sx and Sy to beam contribution
-            InitializeSxSyWithBeam(lev);
-
-            // Deposit Sx and Sy for every plasma species
-            m_multi_plasma.ExplicitDeposition(m_fields, m_3D_geom, lev);
-
             // Solves Bx, By using Sx, Sy and chi
-            // ExplicitMGSolveBxBy(lev, WhichSlice::This);
+            if (!m_use_laser) {
+                // Set Sx and Sy to beam contribution
+                InitializeSxSyWithBeam(lev);
+
+                // Deposit Sx and Sy for every plasma species
+                m_multi_plasma.ExplicitDeposition(m_fields, m_3D_geom, lev);
+
+                // Solves Bx, By using Sx, Sy and chi
+                ExplicitMGSolveBxBy(lev, WhichSlice::This);
+            }
         }
     } else {
         // Solves Bx and By in the current slice and modifies the force terms of the plasma particles

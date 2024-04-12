@@ -66,7 +66,7 @@ AdvanceBeamParticlesSlice (
     Array3<const amrex::Real> const slice_arr_lev2 = slice_fab_lev2.const_array();
     Array3<const amrex::Real> const& a_arr = use_laser ?
             a_mf[0].const_array(WhichLaserSlice::n00j00_r) : amrex::Array4<const amrex::Real>();
-    const amrex::Real k0 = 2.*MathConst::pi/multi_laser.GetLambda0();
+    //const amrex::Real k0 = 2.*MathConst::pi/multi_laser.GetLambda0();
     const amrex::Real ku = 2.*MathConst::pi/undulator_period;
 
     // Extract properties associated with physical size of the box
@@ -130,13 +130,16 @@ AdvanceBeamParticlesSlice (
     amrex::ParallelFor(
         amrex::TypeList<
             amrex::CompileTimeOptions<0, 1, 2, 3>,
+            amrex::CompileTimeOptions<false, true>,
             amrex::CompileTimeOptions<false, true>
         >{}, {
             Hipace::m_depos_order_xy,
-            use_external_fields
+            use_external_fields,
+            use_laser
         },
         beam.getNumParticlesIncludingSlipped(WhichBeamSlice::This),
-        [=] AMREX_GPU_DEVICE (int ip, auto depos_order, auto c_use_external_fields) {
+        [=] AMREX_GPU_DEVICE (int ip, auto depos_order, auto c_use_external_fields,
+                              auto c_use_laser) {
 
             if (!ptd.id(ip).is_valid()) return;
 
@@ -204,9 +207,11 @@ AdvanceBeamParticlesSlice (
                 amrex::ParticleReal Bxp = 0._rt, Byp = 0._rt, Bzp = 0._rt;
 
                 // field gather for a single particle
-//                doGatherShapeN<depos_order.value>(xp, yp, ExmByp, EypBxp, Ezp, Bxp, Byp, Bzp,
-//                    slice_arr, psi_comp, ez_comp, bx_comp, by_comp, bz_comp,
-//                    dx_inv, dy_inv, x_pos_offset, y_pos_offset);
+                if (!c_use_laser.value) {
+                    doGatherShapeN<depos_order.value>(xp, yp, ExmByp, EypBxp, Ezp, Bxp, Byp, Bzp,
+                        slice_arr, psi_comp, ez_comp, bx_comp, by_comp, bz_comp,
+                        dx_inv, dy_inv, x_pos_offset, y_pos_offset);
+                }
 
                 if (c_use_external_fields.value) {
                     ApplyExternalField(xp, yp, zp, time, clight, ExmByp, EypBxp, Ezp, Bxp, Byp, Bzp,
@@ -226,10 +231,10 @@ AdvanceBeamParticlesSlice (
                 amrex::ParticleReal uz_next = uz + dt * charge_mass_ratio
                     * ( Ezp + ( ux * Byp - uy * Bxp ) * gammap_inv );
 
-                if (use_laser) {
+                if (c_use_laser.value) {
                     amrex::ParticleReal Arp = 0._rt;
-                    amrex::ParticleReal betaz = uz * gammap_inv / phys_const.c;
-                    amrex::ParticleReal betax = ux * gammap_inv / phys_const.c;
+                    amrex::ParticleReal betaz = uz * gammap_inv * inv_clight;
+                    amrex::ParticleReal betax = ux * gammap_inv * inv_clight;
                     doMyLaserGatherShapeN<depos_order.value>(
                         xp, yp, Arp, a_arr,
                         dx_inv, dy_inv, x_pos_offset, y_pos_offset);

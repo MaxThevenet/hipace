@@ -617,7 +617,7 @@ MultiLaser::AdvanceSliceMG (const Fields& fields, amrex::Real dt, int step)
         const amrex::FArrayBox& isl_fab = fields.getSlices(lev)[mfi];
         Array3<amrex::Real const> const isl_arr = isl_fab.array();
         const int chi  = Comps[WhichSlice::This]["chi"];
-        const int jxm1 = Comps[WhichSlice::Next]["jx_beam"];
+        //const int jxm1 = Comps[WhichSlice::Next]["jx_beam"];
         const int jx00 = Comps[WhichSlice::This]["jx_beam"];
         const int jxp1 = Comps[WhichSlice::Previous]["jx_beam"];
         const int jxp2 = Comps[WhichSlice::Previous2]["jx_beam"];
@@ -808,7 +808,7 @@ MultiLaser::AdvanceSliceFFT (const Fields& fields, const amrex::Real dt, int ste
         const amrex::FArrayBox& isl_fab = fields.getSlices(lev)[mfi];
         Array3<amrex::Real const> const isl_arr = isl_fab.array();
         const int chi = Comps[WhichSlice::This]["chi"];
-        const int jxm1 = Comps[WhichSlice::Next]["jx_beam"];
+        //const int jxm1 = Comps[WhichSlice::Next]["jx_beam"];
         const int jx00 = Comps[WhichSlice::This]["jx_beam"];
         const int jxp1 = Comps[WhichSlice::Previous]["jx_beam"];
         const int jxp2 = Comps[WhichSlice::Previous2]["jx_beam"];

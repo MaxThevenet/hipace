@@ -34,6 +34,8 @@ MGPoissonSolverDirichlet::SolvePoissonEquation (amrex::MultiFab& lhs_mf)
 {
     HIPACE_PROFILE("MGPoissonSolverDirichlet::SolvePoissonEquation()");
 
+    amrex::Abort("MGDirichlet does not work in this version of HiPACE++");
+
     for ( amrex::MFIter mfi(m_stagingArea, DfltMfi); mfi.isValid(); ++mfi ){
         const int max_iters = 200;
         m_mg->solve3(lhs_mf[mfi], m_stagingArea[mfi], 0., m_MG_tolerance_rel, m_MG_tolerance_abs,

@@ -106,7 +106,9 @@ Fields::AllocData (
             Comps[isl].multi_emplace(N_Comps, "jx_beam", "jy_beam");
 
             isl = WhichSlice::Previous2;
-            Comps[isl].multi_emplace(N_Comps, "jx_beam");
+            if (Hipace::m_use_laser) {
+                Comps[isl].multi_emplace(N_Comps, "jx_beam");
+            }
 
             isl = WhichSlice::RhomJzIons;
             if (m_any_neutral_background) {
@@ -614,7 +616,9 @@ Fields::ShiftSlices (int lev)
 
     // only shift the slices that are allocated
     if (explicit_solve) {
-        shift(lev, WhichSlice::Previous2, WhichSlice::Previous, "jx_beam");
+        if (Hipace::m_use_laser) {
+            shift(lev, WhichSlice::Previous2, WhichSlice::Previous, "jx_beam");
+        }
         shift(lev, WhichSlice::Previous, WhichSlice::This, "jx_beam", "jy_beam");
         duplicate(lev, WhichSlice::This, {"jx_beam", "jy_beam", "jx"     , "jy"     },
                        WhichSlice::Next, {"jx_beam", "jy_beam", "jx_beam", "jy_beam"});
