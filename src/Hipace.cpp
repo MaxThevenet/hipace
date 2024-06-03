@@ -17,6 +17,7 @@
 #include "utils/GPUUtil.H"
 #include "particles/pusher/GetAndSetPosition.H"
 #include "mg_solver/HpMultiGrid.H"
+#include "fields/fft_poisson_solver/fft/AnyFFT.H"
 
 #include <AMReX_ParmParse.H>
 #include <AMReX_IntVect.H>
@@ -47,12 +48,17 @@ Hipace_early_init::Hipace_early_init (Hipace* instance)
     queryWithParser(pph, "depos_derivative_type", m_depos_derivative_type);
     AMREX_ALWAYS_ASSERT_WITH_MESSAGE(m_depos_order_xy != 0 || m_depos_derivative_type != 0,
                             "Analytic derivative with depos_order=0 would vanish");
-    queryWithParser(pph, "outer_depos_loop", m_outer_depos_loop);
 
     amrex::ParmParse pp_amr("amr");
     int max_level = 0;
     queryWithParser(pp_amr, "max_level", max_level);
     m_N_level = max_level + 1;
+    AnyFFT::setup();
+}
+
+Hipace_early_init::~Hipace_early_init ()
+{
+    AnyFFT::cleanup();
 }
 
 Hipace&
@@ -69,7 +75,7 @@ Hipace::Hipace () :
     m_multi_plasma(),
     m_adaptive_time_step(m_multi_beam.get_nbeams()),
     m_multi_laser(),
-    m_diags(m_N_level)
+    m_diags(m_N_level, m_multi_laser.UseLaser())
 {
     amrex::ParmParse pp;// Traditionally, max_step and stop_time do not have prefix.
     queryWithParser(pp, "max_step", m_max_step);
@@ -156,7 +162,10 @@ Hipace::Hipace () :
 
     MakeGeometry();
 
-    m_use_laser = m_multi_laser.m_use_laser;
+    // use level 0 as default for laser geometry
+    m_multi_laser.MakeLaserGeometry(m_3D_geom[0]);
+
+    m_use_laser = m_multi_laser.UseLaser();
 
     queryWithParser(pph, "collisions", m_collision_names);
     /** Initialize the collision objects */
@@ -190,15 +199,13 @@ Hipace::InitData ()
     amrex::Print() << "using the leapfrog plasma particle pusher\n";
 #endif
 
+    m_multi_laser.InitData();
+
     for (int lev=0; lev<m_N_level; ++lev) {
-        m_fields.AllocData(lev, m_3D_geom[lev], m_slice_ba[lev], m_slice_dm[lev],
-                       m_multi_plasma.m_sort_bin_size);
-        if (lev==0) {
-            // laser inits only on level 0
-            m_multi_laser.InitData(m_slice_ba[0], m_slice_dm[0], m_3D_geom[0]);
-        }
-        m_diags.Initialize(lev, m_multi_laser.m_use_laser);
+        m_fields.AllocData(lev, m_3D_geom[lev], m_slice_ba[lev], m_slice_dm[lev]);
     }
+
+    m_diags.Initialize(m_N_level, m_multi_laser.UseLaser());
 
     m_initial_time = m_multi_beam.InitData(m_3D_geom[0]);
 
@@ -212,10 +219,7 @@ Hipace::InitData ()
 
     m_fields.checkInit();
 
-    m_multi_buffer.initialize(m_3D_geom[0].Domain().length(2),
-                              m_multi_beam,
-                              m_use_laser,
-                              m_use_laser ? m_multi_laser.getSlices()[0].box() : amrex::Box{});
+    m_multi_buffer.initialize(m_3D_geom[0].Domain().length(2), m_multi_beam, m_multi_laser);
 
     amrex::ParmParse pph("hipace");
     bool do_output_input = false;
@@ -334,7 +338,7 @@ Hipace::Evolve ()
 
         const amrex::Box& bx = m_3D_ba[0][0];
 
-        if (m_multi_laser.m_use_laser) {
+        if (m_multi_laser.UseLaser()) {
             AMREX_ALWAYS_ASSERT(!m_adaptive_time_step.m_do_adaptive_time_step);
         }
 
@@ -378,6 +382,8 @@ Hipace::Evolve ()
         // Only reset plasma after receiving time step, to use proper density
         m_multi_plasma.InitData(m_slice_ba, m_slice_dm, m_slice_geom, m_3D_geom);
 
+        m_multi_laser.SetInitialChi(m_multi_plasma);
+
         // deposit neutralizing background
         if (m_interpolate_neutralizing_background) {
             if (m_do_tiling) {
@@ -420,7 +426,7 @@ Hipace::Evolve ()
         m_fields.InSituWriteToFile(step, m_physical_time, m_3D_geom[0], m_max_step, m_max_time);
         m_multi_beam.InSituWriteToFile(step, m_physical_time, m_3D_geom[0], m_max_step, m_max_time);
         m_multi_plasma.InSituWriteToFile(step, m_physical_time, m_3D_geom[0], m_max_step, m_max_time);
-        m_multi_laser.InSituWriteToFile(step, m_physical_time, m_3D_geom[0], m_max_step, m_max_time);
+        m_multi_laser.InSituWriteToFile(step, m_physical_time, m_max_step, m_max_time);
 
         if (!m_explicit) {
             // averaging predictor corrector loop diagnostics
@@ -483,7 +489,7 @@ Hipace::SolveOneSlice (int islice, int step)
     }
 
     // write laser aabs into fields MultiFab
-    m_multi_laser.UpdateLaserAabs(current_N_level, m_fields, m_3D_geom);
+    m_multi_laser.UpdateLaserAabs(islice, current_N_level, m_fields, m_3D_geom);
 
     // deposit current
     for (int lev=0; lev<current_N_level; ++lev) {
@@ -524,7 +530,7 @@ Hipace::SolveOneSlice (int islice, int step)
 
     // Advance laser slice by 1 step using chi
     // no MR for laser
-    m_multi_laser.AdvanceSlice(m_fields, m_dt, step);
+    m_multi_laser.AdvanceSlice(islice, m_fields, m_dt, step, m_3D_geom[0]);
 
     if (islice-1 >= m_3D_geom[0].Domain().smallEnd(2)) {
         m_multi_buffer.get_data(islice-1, m_multi_beam, m_multi_laser, WhichBeamSlice::Next);
@@ -578,12 +584,10 @@ Hipace::SolveOneSlice (int islice, int step)
     m_fields.InSituComputeDiags(step, m_physical_time, islice, m_3D_geom[0], m_max_step, m_max_time);
 
     // get laser insitu diagnostics
-    m_multi_laser.InSituComputeDiags(step, m_physical_time, islice, m_3D_geom[0], m_max_step, m_max_time);
+    m_multi_laser.InSituComputeDiags(step, m_physical_time, islice, m_max_step, m_max_time);
 
     // copy fields (and laser) to diagnostic array
-    for (int lev=0; lev<current_N_level; ++lev) {
-        FillFieldDiagnostics(lev, islice);
-    }
+    FillFieldDiagnostics(current_N_level, islice);
 
     // plasma ionization
     for (int lev=0; lev<current_N_level; ++lev) {
@@ -619,7 +623,7 @@ Hipace::SolveOneSlice (int islice, int step)
 
     m_multi_beam.shiftBeamSlices();
 
-    m_multi_laser.ShiftLaserSlices();
+    m_multi_laser.ShiftLaserSlices(islice);
 }
 
 void
@@ -970,18 +974,16 @@ Hipace::InitDiagnostics (const int step)
         m_openpmd_writer.InitBeamData(m_multi_beam, getDiagBeamNames());
     }
 #endif
-    for (int lev=0; lev<m_N_level; ++lev) {
-        m_diags.ResizeFDiagFAB(m_3D_geom[lev].Domain(), lev, m_3D_geom[lev],
-                               step, m_max_step, m_physical_time, m_max_time);
-    }
+    m_diags.ResizeFDiagFAB(m_3D_geom, m_multi_laser.GetLaserGeom(),
+                           step, m_max_step, m_physical_time, m_max_time);
 }
 
 void
-Hipace::FillFieldDiagnostics (const int lev, int islice)
+Hipace::FillFieldDiagnostics (const int current_N_level, int islice)
 {
     for (auto& fd : m_diags.getFieldData()) {
-        if (fd.m_level == lev && fd.m_has_field) {
-            m_fields.Copy(lev, islice, fd, m_3D_geom[lev], m_multi_laser);
+        if (fd.m_has_field) {
+            m_fields.Copy(current_N_level, islice, fd, m_3D_geom, m_multi_laser);
         }
     }
 }
