@@ -25,8 +25,7 @@ namespace WhichHelmholtzSlice {
         nm1j00_r,   nm1jp1_r,   nm1jp2_r,
         n00j00_r,   n00jp1_r,   n00jp2_r,
         np1j00_r,   np1jp1_r,   np1jp2_r,
-        chi,
-        chi_initial,
+        dz_jx,
         N
     };
 }
@@ -85,11 +84,11 @@ public:
     void UpdateHelmholtzAabs (const int islice, const int current_N_level, Fields& fields,
                           amrex::Vector<amrex::Geometry> const& field_geom);
 
-    /** Put Chi from the fields and initial chi into the chi component of the Helmholtz
+    /** Put Jx from the fields into the Jx component of the Helmholtz
      * \param[in] fields Field object
      * \param[in] geom_field_lev0 Geometry of the fields on MR level 0
      */
-    void InterpolateChi (const Fields& fields, amrex::Geometry const& geom_field_lev0);
+    void InterpolateJx (const Fields& fields, amrex::Geometry const& geom_field_lev0);
 
     /** Fill the chi_initial component of the Helmholtz using the Plasma density function
      * \param[in] multi_plasma multi plasma to get the density function, charge and mass

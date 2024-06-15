@@ -23,7 +23,7 @@ AdvanceBeamParticlesSlice (
 {
     HIPACE_PROFILE("AdvanceBeamParticlesSlice()");
     using namespace amrex::literals;
-    const bool use_laser = multi_laser.m_use_laser;
+    const bool use_laser = multi_laser.UseLaser();
 
     const PhysConst phys_const = get_phys_const();
 

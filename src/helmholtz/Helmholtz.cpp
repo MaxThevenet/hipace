@@ -185,53 +185,21 @@ Helmholtz::ShiftHelmholtzSlices (const int islice)
 }
 
 void
-Helmholtz::SetInitialChi (const MultiPlasma& multi_plasma)
+Helmholtz::InterpolateJx (const Fields& fields, amrex::Geometry const& geom_field_lev0)
 {
-    HIPACE_PROFILE("Helmholtz::SetInitialChi()");
+    HIPACE_PROFILE("Helmholtz::InterpolateJx()");
 
-    for ( amrex::MFIter mfi(m_slices, DfltMfi); mfi.isValid(); ++mfi ){
-        Array2<amrex::Real> helmholtz_arr_chi = m_slices.array(mfi, WhichHelmholtzSlice::chi_initial);
-
-        // put chi from the plasma density function on the helmholtz grid as if it were deposited there,
-        // this works even outside the field grid
-        // note that the effect of temperature / non-zero u is ignored here
-        for (auto& plasma : multi_plasma.m_all_plasmas) {
-
-            const PhysConst pc = get_phys_const();
-            const amrex::Real c_t = pc.c * Hipace::m_physical_time;
-            amrex::Real chi_factor = plasma.GetCharge() * plasma.GetCharge() * pc.mu0 / plasma.GetMass();
-            if (plasma.m_can_ionize) {
-                chi_factor *= plasma.m_init_ion_lev * plasma.m_init_ion_lev;
-            }
-
-            auto density_func = plasma.m_density_func;
-
-            const amrex::Real poff_helmholtz_x = GetPosOffset(0, m_helmholtz_geom_3D, m_helmholtz_geom_3D.Domain());
-            const amrex::Real poff_helmholtz_y = GetPosOffset(1, m_helmholtz_geom_3D, m_helmholtz_geom_3D.Domain());
-
-            const amrex::Real dx_helmholtz = m_helmholtz_geom_3D.CellSize(0);
-            const amrex::Real dy_helmholtz = m_helmholtz_geom_3D.CellSize(1);
-
-            amrex::ParallelFor(mfi.growntilebox(),
-                [=] AMREX_GPU_DEVICE(int i, int j, int) noexcept {
-                    const amrex::Real x = i * dx_helmholtz + poff_helmholtz_x;
-                    const amrex::Real y = j * dy_helmholtz + poff_helmholtz_y;
-
-                    helmholtz_arr_chi(i, j) += density_func(x, y, c_t) * chi_factor;
-                });
-        }
-    }
-}
-
-void
-Helmholtz::InterpolateChi (const Fields& fields, amrex::Geometry const& geom_field_lev0)
-{
-    HIPACE_PROFILE("Helmholtz::InterpolateChi()");
+    using namespace amrex::literals;
 
     for ( amrex::MFIter mfi(m_slices, DfltMfi); mfi.isValid(); ++mfi ){
         Array3<amrex::Real> helmholtz_arr = m_slices.array(mfi);
-        Array2<const amrex::Real> field_arr_chi =
-            fields.getSlices(0).array(mfi, Comps[WhichSlice::This]["chi"]);
+        Array3<const amrex::Real> field_arr = fields.getSlices(0).array(mfi);
+
+        const amrex::Real dz_inv = m_helmholtz_geom_3D.InvCellSize(2);
+
+        const int jx_this = Comps[WhichSlice::This]["jx_beam"];
+        const int jx_prev = Comps[WhichSlice::Previous]["jx_beam"];
+        const int jx_prev2 = Comps[WhichSlice::Previous2]["jx_beam"];
 
         const amrex::Real poff_helmholtz_x = GetPosOffset(0, m_helmholtz_geom_3D, m_helmholtz_geom_3D.Domain());
         const amrex::Real poff_helmholtz_y = GetPosOffset(1, m_helmholtz_geom_3D, m_helmholtz_geom_3D.Domain());
@@ -247,10 +215,7 @@ Helmholtz::InterpolateChi (const Fields& fields, amrex::Geometry const& geom_fie
         const amrex::Real dx_field_inv = geom_field_lev0.InvCellSize(0);
         const amrex::Real dy_field_inv = geom_field_lev0.InvCellSize(1);
 
-        amrex::Box field_box = fields.getSlices(0)[mfi].box();
-        // Even in the valid domain,
-        // chi near the boundaries is incorrect due to >0 deposition order.
-        field_box.grow(-2*Fields::m_slices_nguards);
+        const amrex::Box field_box = fields.getSlices(0)[mfi].box();
 
         const amrex::Real pos_x_lo = field_box.smallEnd(0) * dx_field + poff_field_x;
         const amrex::Real pos_x_hi = field_box.bigEnd(0) * dx_field + poff_field_x;
@@ -274,10 +239,12 @@ Helmholtz::InterpolateChi (const Fields& fields, amrex::Geometry const& geom_fie
                 const amrex::Real xmid = (x - poff_field_x) * dx_field_inv;
                 const amrex::Real ymid = (y - poff_field_y) * dy_field_inv;
 
-                amrex::Real chi = 0;
+                amrex::Real jx_t = 0._rt;
+                amrex::Real jx_p = 0._rt;
+                amrex::Real jx_p2 = 0._rt;
 
                 if (x_lo <= i && i <= x_hi && y_lo <= j && j <= y_hi) {
-                    // interpolate chi from fields to helmholtz
+                    // interpolate jx from fields to helmholtz
                     for (int iy=0; iy<=interp_order; ++iy) {
                         for (int ix=0; ix<=interp_order; ++ix) {
                             auto [shape_x, cell_x] =
@@ -285,15 +252,15 @@ Helmholtz::InterpolateChi (const Fields& fields, amrex::Geometry const& geom_fie
                             auto [shape_y, cell_y] =
                                 compute_single_shape_factor<false, interp_order>(ymid, iy);
 
-                            chi += shape_x*shape_y*field_arr_chi(cell_x, cell_y);
+                            jx_t += shape_x*shape_y*field_arr(cell_x, cell_y, jx_this);
+                            jx_p += shape_x*shape_y*field_arr(cell_x, cell_y, jx_prev);
+                            jx_p2 += shape_x*shape_y*field_arr(cell_x, cell_y, jx_prev2);
                         }
                     }
-                } else {
-                    // get initial chi outside the fields box
-                    chi = helmholtz_arr(i, j, WhichHelmholtzSlice::chi_initial);
                 }
 
-                helmholtz_arr(i, j, WhichHelmholtzSlice::chi) = chi;
+                helmholtz_arr(i, j, WhichHelmholtzSlice::dz_jx) =
+                    ( -3._rt*jx_t + 4._rt*jx_p - jx_p2 ) * 0.5_rt * dz_inv;
             });
     }
 }
@@ -305,7 +272,7 @@ Helmholtz::AdvanceSlice (const int islice, const Fields& fields, amrex::Real dt,
 
     if (!UseHelmholtz(islice)) return;
 
-    InterpolateChi(fields, geom_field_lev0);
+    InterpolateJx(fields, geom_field_lev0);
 
     AdvanceSliceFFT(dt, step);
 }
@@ -343,14 +310,6 @@ Helmholtz::AdvanceSliceFFT (const amrex::Real dt, int step)
 
         Array3<amrex::Real> arr = m_slices.array(mfi);
 
-        constexpr int lev = 0;
-        const amrex::FArrayBox& isl_fab = Hipace::GetInstance().m_fields.getSlices(lev)[mfi];
-        Array3<amrex::Real const> const isl_arr = isl_fab.array();
-
-        const int jx00 = Comps[WhichSlice::This]["jx_beam"];
-        const int jxp1 = Comps[WhichSlice::Previous]["jx_beam"];
-        const int jxp2 = Comps[WhichSlice::Previous2]["jx_beam"];
-
         int const Nx = bx.length(0);
         int const Ny = bx.length(1);
 
@@ -363,7 +322,7 @@ Helmholtz::AdvanceSliceFFT (const amrex::Real dt, int step)
             [=] AMREX_GPU_DEVICE(int i, int j, int) noexcept
             {
                 using namespace WhichHelmholtzSlice;
-                // Transverse Laplacian of real and imaginary parts of A_j^n-1
+                // Transverse Laplacian of A_j^n-1
                 amrex::Real lap;
                 if (step == 0) {
                     lap = i>imin && i<imax && j>jmin && j<jmax ?
@@ -386,7 +345,6 @@ Helmholtz::AdvanceSliceFFT (const amrex::Real dt, int step)
                     rhs =
                         + 8._rt/(c*dt*dz)*(-anp1jp1+an00jp1)
                         + 2._rt/(c*dt*dz)*(+anp1jp2-an00jp2)
-                        + 2._rt * arr(i, j, chi) * an00j00
                         - lap
                         + ( -6._rt/(c*dt*dz) ) * an00j00;
                 } else {
@@ -397,12 +355,10 @@ Helmholtz::AdvanceSliceFFT (const amrex::Real dt, int step)
                         + 4._rt/(c*dt*dz)*(-anp1jp1+anm1jp1)
                         + 1._rt/(c*dt*dz)*(+anp1jp2-anm1jp2)
                         - 4._rt/(c*c*dt*dt)*an00j00
-                        + 2._rt * arr(i, j, chi) * an00j00
                         - lap
                         + ( -3._rt/(c*dt*dz) + 2._rt/(c*c*dt*dt) ) * anm1j00;
                 }
-                const amrex::Real dzeta_jx = ( -3._rt*isl_arr(i,j,jx00) + 4._rt*isl_arr(i,j,jxp1) - isl_arr(i,j,jxp2) ) / (2._rt*dz);
-                rhs -= 2._rt * phc.mu0 * c * dzeta_jx;
+                rhs -= 2._rt * phc.mu0 * c * arr(i, j, dz_jx);
                 rhs_arr(i,j,0) = rhs;
             });
 
