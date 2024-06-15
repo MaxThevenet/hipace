@@ -773,7 +773,7 @@ MultiLaser::AdvanceSliceMG (amrex::Real dt, int step)
         Array3<amrex::Real> rhs_mg_arr = rhs_mg.array();
 
         constexpr int lev = 0;
-        const amrex::FArrayBox& isl_fab = fields.getSlices(lev)[mfi];
+        const amrex::FArrayBox& isl_fab = Hipace::GetInstance().m_fields.getSlices(lev)[mfi];
         Array3<amrex::Real const> const isl_arr = isl_fab.array();
         const int chi  = Comps[WhichSlice::This]["chi"];
         //const int jxm1 = Comps[WhichSlice::Next]["jx_beam"];
@@ -964,7 +964,7 @@ MultiLaser::AdvanceSliceFFT (const amrex::Real dt, int step)
         Array3<amrex::Real> arr = m_slices.array(mfi);
 
         constexpr int lev = 0;
-        const amrex::FArrayBox& isl_fab = fields.getSlices(lev)[mfi];
+        const amrex::FArrayBox& isl_fab = Hipace::GetInstance().m_fields.getSlices(lev)[mfi];
         Array3<amrex::Real const> const isl_arr = isl_fab.array();
         const int chi = Comps[WhichSlice::This]["chi"];
         //const int jxm1 = Comps[WhichSlice::Next]["jx_beam"];

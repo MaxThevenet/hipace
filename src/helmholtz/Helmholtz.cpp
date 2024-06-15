@@ -325,7 +325,6 @@ Helmholtz::AdvanceSliceFFT (const amrex::Real dt, int step)
 
     const PhysConst phc = get_phys_const();
     const amrex::Real c = phc.c;
-    const amrex::Real k0 = 0.; // 2.*MathConst::pi/m_lambda0;
 
     for ( amrex::MFIter mfi(m_slices, DfltMfi); mfi.isValid(); ++mfi ){
         const amrex::Box& bx = mfi.tilebox();
@@ -345,7 +344,7 @@ Helmholtz::AdvanceSliceFFT (const amrex::Real dt, int step)
         Array3<amrex::Real> arr = m_slices.array(mfi);
 
         constexpr int lev = 0;
-        const amrex::FArrayBox& isl_fab = fields.getSlices(lev)[mfi];
+        const amrex::FArrayBox& isl_fab = Hipace::GetInstance().m_fields.getSlices(lev)[mfi];
         Array3<amrex::Real const> const isl_arr = isl_fab.array();
 
         const int jx00 = Comps[WhichSlice::This]["jx_beam"];
@@ -359,8 +358,6 @@ Helmholtz::AdvanceSliceFFT (const amrex::Real dt, int step)
         int const imid = (Nx+1)/2;
         int const jmid = (Ny+1)/2;
 
-        // D_j^n as defined in Benedetti's 2017 paper
-        amrex::Real djn = ( -3._rt*dt1 + dt2 ) / (2._rt*dz);
         amrex::ParallelFor(
             bx,
             [=] AMREX_GPU_DEVICE(int i, int j, int) noexcept
@@ -391,7 +388,7 @@ Helmholtz::AdvanceSliceFFT (const amrex::Real dt, int step)
                         + 2._rt/(c*dt*dz)*(+anp1jp2-an00jp2)
                         + 2._rt * arr(i, j, chi) * an00j00
                         - lap
-                        + ( -6._rt/(c*dt*dz) + 4._rt*I*djn/(c*dt) + I*4._rt*k0/(c*dt) ) * an00j00;
+                        + ( -6._rt/(c*dt*dz) ) * an00j00;
                 } else {
                     const amrex::Real anm1jp1 = arr(i, j, nm1jp1_r);
                     const amrex::Real anm1jp2 = arr(i, j, nm1jp2_r);
@@ -402,7 +399,7 @@ Helmholtz::AdvanceSliceFFT (const amrex::Real dt, int step)
                         - 4._rt/(c*c*dt*dt)*an00j00
                         + 2._rt * arr(i, j, chi) * an00j00
                         - lap
-                        + ( -3._rt/(c*dt*dz) + 2._rt*I*djn/(c*dt) + 2._rt/(c*c*dt*dt) + I*2._rt*k0/(c*dt) ) * anm1j00;
+                        + ( -3._rt/(c*dt*dz) + 2._rt/(c*c*dt*dt) ) * anm1j00;
                 }
                 const amrex::Real dzeta_jx = ( -3._rt*isl_arr(i,j,jx00) + 4._rt*isl_arr(i,j,jxp1) - isl_arr(i,j,jxp2) ) / (2._rt*dz);
                 rhs -= 2._rt * phc.mu0 * c * dzeta_jx;
