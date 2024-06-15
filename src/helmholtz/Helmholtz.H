@@ -90,11 +90,6 @@ public:
      */
     void InterpolateJx (const Fields& fields, amrex::Geometry const& geom_field_lev0);
 
-    /** Fill the chi_initial component of the Helmholtz using the Plasma density function
-     * \param[in] multi_plasma multi plasma to get the density function, charge and mass
-     */
-    void SetInitialChi (const MultiPlasma& multi_plasma);
-
     /** Wrapper function to advance a Helmholtz slice by 1 time step.
      * \param[in] islice slice index
      * \param[in] fields Field object
@@ -116,10 +111,9 @@ public:
     /** Initialize 1 longitudinal slice of the Helmholtz, and store it in n00j00 (current time step)
      * and nm1j00 (previous time step).
      *
-     * \param[in] islice slice index
      * \param[in] comp Helmholtz component to initialize
      */
-    void InitHelmholtzSlice (const int islice, const int comp);
+    void InitHelmholtzSlice (const int comp);
 
     /** Compute in-situ Helmholtz diagnostics of current slice, store in member variable
      * \param[in] step current time step

@@ -114,7 +114,7 @@ Fields::AllocData (
             Comps[isl].multi_emplace(N_Comps, "jx_beam", "jy_beam");
 
             isl = WhichSlice::Previous2;
-            if (Hipace::m_use_laser) {
+            if (Hipace::m_use_helmholtz) {
                 Comps[isl].multi_emplace(N_Comps, "jx_beam");
             }
 
@@ -443,7 +443,8 @@ Multiply (const amrex::IntVect box_grow, amrex::MultiFab dst,
 
 void
 Fields::Copy (const int current_N_level, const int i_slice, FieldDiagnosticData& fd,
-              const amrex::Vector<amrex::Geometry>& field_geom, MultiLaser& multi_laser)
+              const amrex::Vector<amrex::Geometry>& field_geom, MultiLaser& multi_laser,
+              Helmholtz& helmholtz)
 {
     HIPACE_PROFILE("Fields::Copy()");
     constexpr int depos_order_xy = 1;
@@ -515,6 +516,9 @@ Fields::Copy (const int current_N_level, const int i_slice, FieldDiagnosticData&
     auto& laser_mf = multi_laser.getSlices();
     auto laser_func = interpolated_field_xy<depos_order_xy,
         guarded_field_xy>{{laser_mf}, multi_laser.GetLaserGeom()};
+    auto& helmholtz_mf = helmholtz.getSlices();
+    auto helmholtz_func = interpolated_field_xy<depos_order_xy,
+        guarded_field_xy>{{helmholtz_mf}, helmholtz.GetHelmholtzGeom()};
 
 #ifdef AMREX_USE_GPU
     // This async copy happens on the same stream as the ParallelFor below, which uses the copied array.
@@ -559,6 +563,19 @@ Fields::Copy (const int current_N_level, const int i_slice, FieldDiagnosticData&
                         rel_z_data[k-k_min] * laser_array(x,y,WhichLaserSlice::n00j00_i)
                     };
                 });
+        } else if (fd.m_base_geom_type == FieldDiagnosticData::geom_type::helmholtz &&
+                   helmholtz.UseHelmholtz(i_slice)) {
+            auto helmholtz_array = helmholtz_func.array(mfi);
+            amrex::Array4<amrex::Real> diag_array = fd.m_F.array();
+            amrex::ParallelFor(diag_box,
+                [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept
+                {
+                    const amrex::Real x = i * dx + poff_diag_x;
+                    const amrex::Real y = j * dy + poff_diag_y;
+                    diag_array(i,j,k) +=
+                        rel_z_data[k-k_min] * helmholtz_array(x, y, WhichHelmholtzSlice::n00j00_r);
+                });
+
         }
     }
 }
@@ -623,7 +640,7 @@ Fields::ShiftSlices (int lev)
 
     // only shift the slices that are allocated
     if (explicit_solve) {
-        if (Hipace::m_use_laser) {
+        if (Hipace::m_use_helmholtz) {
             shift(lev, WhichSlice::Previous2, WhichSlice::Previous, "jx_beam");
         }
         shift(lev, WhichSlice::Previous, WhichSlice::This, "jx_beam", "jy_beam");

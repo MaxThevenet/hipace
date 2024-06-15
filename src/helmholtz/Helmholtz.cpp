@@ -147,7 +147,7 @@ Helmholtz::InitSliceEnvelope (const int islice, const int comp)
 
     HIPACE_PROFILE("Helmholtz::InitSliceEnvelope()");
 
-    InitHelmholtzSlice(islice, comp);
+    InitHelmholtzSlice(comp);
 }
 
 void
@@ -401,7 +401,7 @@ Helmholtz::AdvanceSliceFFT (const amrex::Real dt, int step)
 }
 
 void
-Helmholtz::InitHelmholtzSlice (const int islice, const int comp)
+Helmholtz::InitHelmholtzSlice (const int comp)
 {
     HIPACE_PROFILE("Helmholtz::InitHelmholtzSlice()");
 

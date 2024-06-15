@@ -75,7 +75,8 @@ Hipace::Hipace () :
     m_multi_plasma(),
     m_adaptive_time_step(m_multi_beam.get_nbeams()),
     m_multi_laser(),
-    m_diags(m_N_level, m_multi_laser.UseLaser())
+    m_helmholtz(),
+    m_diags(m_N_level, m_multi_laser.UseLaser(), m_helmholtz.UseHelmholtz())
 {
     amrex::ParmParse pp;// Traditionally, max_step and stop_time do not have prefix.
     queryWithParser(pp, "max_step", m_max_step);
@@ -168,6 +169,10 @@ Hipace::Hipace () :
 
     m_use_laser = m_multi_laser.UseLaser();
 
+    m_helmholtz.MakeHelmholtzGeometry(m_3D_geom[0]);
+
+    m_use_helmholtz = m_helmholtz.UseHelmholtz();
+
     queryWithParser(pph, "collisions", m_collision_names);
     /** Initialize the collision objects */
     m_ncollisions = m_collision_names.size();
@@ -206,7 +211,9 @@ Hipace::InitData ()
         m_fields.AllocData(lev, m_3D_geom[lev], m_slice_ba[lev], m_slice_dm[lev]);
     }
 
-    m_diags.Initialize(m_N_level, m_multi_laser.UseLaser());
+    m_helmholtz.InitData();
+
+    m_diags.Initialize(m_N_level, m_multi_laser.UseLaser(), m_helmholtz.UseHelmholtz());
 
     m_initial_time = m_multi_beam.InitData(m_3D_geom[0]);
 
@@ -339,7 +346,7 @@ Hipace::Evolve ()
 
         const amrex::Box& bx = m_3D_ba[0][0];
 
-        if (m_multi_laser.UseLaser()) {
+        if (m_multi_laser.UseLaser() || m_helmholtz.UseHelmholtz()) {
             AMREX_ALWAYS_ASSERT(!m_adaptive_time_step.m_do_adaptive_time_step);
         }
 
@@ -503,7 +510,7 @@ Hipace::SolveOneSlice (int islice, int step)
                 m_deposit_rho || m_deposit_rho_individual, true, true, m_3D_geom, lev);
 
             // deposit jz_beam and maybe rhomjz of the beam on This slice
-            if (!m_use_laser) {
+            if (!m_use_helmholtz) {
                 m_multi_beam.DepositCurrentSlice(m_fields, m_3D_geom, lev, step,
                     false, true, m_do_beam_jz_minus_rho, WhichSlice::This, WhichBeamSlice::This);
             }
@@ -525,7 +532,7 @@ Hipace::SolveOneSlice (int islice, int step)
     }
 
     // Psi ExmBy EypBx Ez Bz solve
-    if (!m_use_laser) {
+    if (!m_use_helmholtz) {
         m_fields.SolvePoissonPsiExmByEypBxEzBz(m_3D_geom, current_N_level);
     }
 
@@ -554,7 +561,7 @@ Hipace::SolveOneSlice (int islice, int step)
                 m_do_beam_jx_jy_deposition, false, false, WhichSlice::Next, WhichBeamSlice::Next);
 
             // Solves Bx, By using Sx, Sy and chi
-            if (!m_use_laser) {
+            if (!m_use_helmholtz) {
                 // Set Sx and Sy to beam contribution
                 InitializeSxSyWithBeam(lev);
 
@@ -632,6 +639,10 @@ Hipace::ResetAllQuantities ()
 {
     if (m_use_laser) {
         m_multi_laser.getSlices().setVal(0.);
+    }
+
+    if (m_use_helmholtz) {
+        m_helmholtz.getSlices().setVal(0.);
     }
 
     for (int lev=0; lev<m_N_level; ++lev) {
@@ -975,7 +986,7 @@ Hipace::InitDiagnostics (const int step)
         m_openpmd_writer.InitBeamData(m_multi_beam, getDiagBeamNames());
     }
 #endif
-    m_diags.ResizeFDiagFAB(m_3D_geom, m_multi_laser.GetLaserGeom(),
+    m_diags.ResizeFDiagFAB(m_3D_geom, m_multi_laser.GetLaserGeom(), m_helmholtz.GetHelmholtzGeom(),
                            step, m_max_step, m_physical_time, m_max_time);
 }
 
@@ -984,7 +995,7 @@ Hipace::FillFieldDiagnostics (const int current_N_level, int islice)
 {
     for (auto& fd : m_diags.getFieldData()) {
         if (fd.m_has_field) {
-            m_fields.Copy(current_N_level, islice, fd, m_3D_geom, m_multi_laser);
+            m_fields.Copy(current_N_level, islice, fd, m_3D_geom, m_multi_laser, m_helmholtz);
         }
     }
 }

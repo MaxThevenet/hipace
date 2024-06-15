@@ -22,7 +22,8 @@ struct FieldDiagnosticData
     std::string m_diag_name; /**< name used for input parameters and in the output */
     enum struct geom_type {
         field,
-        laser
+        laser,
+        helmholtz
     } m_base_geom_type = geom_type::field;  /**< which geometry the diagnostics is based on */
     int m_level = 0; /**< MR level when field_geom is used */
     int m_slice_dir; /**< Slicing direction */
@@ -57,10 +58,10 @@ class Diagnostic
 public:
 
     /** \brief Constructor */
-    explicit Diagnostic (int nlev, bool use_laser);
+    explicit Diagnostic (int nlev, bool use_laser, bool use_helmholtz);
 
     /** \brief Determine which data to output */
-    void Initialize (int nlev, bool use_laser);
+    void Initialize (int nlev, bool use_laser, bool use_helmholtz);
 
     /** \brief return names of the beams to output */
     amrex::Vector<std::string>& getBeamNames () { return m_output_beam_names; }
@@ -150,13 +151,16 @@ public:
      *
      * \param[in] field_geom geometry of the full simulation domain for all field MR levels
      * \param[in] laser_geom geometry of the full simulation domain for the laser
+     * \param[in] helmholtz_geom geometry of the full simulation domain for the helmholtz grid
      * \param[in] output_step current step index
      * \param[in] max_step last step index
      * \param[in] output_time physical time of current step
      * \param[in] max_time physical time of last step
      */
     void ResizeFDiagFAB (amrex::Vector<amrex::Geometry>& field_geom,
-                         amrex::Geometry const& laser_geom, int output_step, int max_step,
+                         amrex::Geometry const& laser_geom,
+                         amrex::Geometry const& helmholtz_geom,
+                         int output_step, int max_step,
                          amrex::Real output_time, amrex::Real max_time);
 
 private:
