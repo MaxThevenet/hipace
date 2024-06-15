@@ -575,7 +575,6 @@ Fields::Copy (const int current_N_level, const int i_slice, FieldDiagnosticData&
                     diag_array(i,j,k) +=
                         rel_z_data[k-k_min] * helmholtz_array(x, y, WhichHelmholtzSlice::n00j00_r);
                 });
-
         }
     }
 }
