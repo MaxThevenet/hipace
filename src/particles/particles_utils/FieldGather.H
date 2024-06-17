@@ -337,7 +337,6 @@ void doLaserGatherShapeN (const amrex::Real xp,
  * \param[in] xp Particle position x
  * \param[in] yp Particle position y
  * \param[in,out] Ar Real part of laser field on particle: Re(a)
- * \param[in,out] Ai Imag part of laser field on particle: Im(a)
  * \param[in] a_arr field array for field a
  * \param[in] dx_inv inverse cell spacing in x direction
  * \param[in] dy_inv inverse cell spacing in y direction
