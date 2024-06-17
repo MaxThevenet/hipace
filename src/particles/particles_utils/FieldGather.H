@@ -331,7 +331,7 @@ void doLaserGatherShapeN (const amrex::Real xp,
 }
 
 /**
- * \brief Laser field gather for a single particle
+ * \brief Helmholtz field gather for a single particle
  *
  * \tparam depos_order_xy Order of the transverse shape factor for the field gather
  * \param[in] xp Particle position x
@@ -346,14 +346,14 @@ void doLaserGatherShapeN (const amrex::Real xp,
  */
 template <int depos_order_xy>
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-void doMyLaserGatherShapeN (const amrex::Real xp,
-                          const amrex::Real yp,
-                          amrex::Real& Ar,
-                          Array3<amrex::Real const> const& a_arr,
-                          const amrex::Real dx_inv,
-                          const amrex::Real dy_inv,
-                          const amrex::Real x_pos_offset,
-                          const amrex::Real y_pos_offset)
+void doHelmholtzGatherShapeN (const amrex::Real xp,
+                              const amrex::Real yp,
+                              amrex::Real& Ar,
+                              Array3<amrex::Real const> const& a_arr,
+                              const amrex::Real dx_inv,
+                              const amrex::Real dy_inv,
+                              const amrex::Real x_pos_offset,
+                              const amrex::Real y_pos_offset)
 {
     // x,y direction
     const amrex::Real x = (xp-x_pos_offset)*dx_inv;

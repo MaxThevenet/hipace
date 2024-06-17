@@ -11,7 +11,7 @@
 #include "particles/beam/BeamParticleContainer.H"
 #include "fields/Fields.H"
 #include "Hipace.H"
-#include "laser/MultiLaser.H"
+#include "helmholtz/Helmholtz.H"
 
 /** Push beam particles contained in one z slice
  * \param[in,out] beam species of which the current is deposited
@@ -19,11 +19,12 @@
  * \param[in] gm Geometry of the simulation, to get the cell size etc.
  * \param[in] slice longitudinal slice
  * \param[in] current_N_level number of MR levels active on the current slice
+ * \param[in] helmholtz the helmholtz grid
  */
 void
 AdvanceBeamParticlesSlice (
     BeamParticleContainer& beam, const Fields& fields, amrex::Vector<amrex::Geometry> const& gm,
-    const int slice, int const current_N_level, const MultiLaser& multi_laser,
+    const int slice, int const current_N_level, const Helmholtz& helmholtz,
     amrex::Real undulator_period, amrex::Real undulator_phase, amrex::Real undulator_B0);
 
 #endif //  BEAMPARTICLEADVANCE_H_

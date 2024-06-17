@@ -18,12 +18,12 @@
 void
 AdvanceBeamParticlesSlice (
     BeamParticleContainer& beam, const Fields& fields, amrex::Vector<amrex::Geometry> const& gm,
-    const int slice, int const current_N_level, const MultiLaser& multi_laser,
+    const int slice, int const current_N_level, const Helmholtz& helmholtz,
     amrex::Real undulator_period, amrex::Real undulator_phase, amrex::Real undulator_B0)
 {
     HIPACE_PROFILE("AdvanceBeamParticlesSlice()");
     using namespace amrex::literals;
-    const bool use_laser = multi_laser.UseLaser();
+    const bool use_helmholtz = helmholtz.UseHelmholtz();
 
     const PhysConst phys_const = get_phys_const();
 
@@ -59,14 +59,13 @@ AdvanceBeamParticlesSlice (
     const amrex::FArrayBox& slice_fab_lev0 = fields.getSlices(lev0_idx)[0];
     const amrex::FArrayBox& slice_fab_lev1 = fields.getSlices(lev1_idx)[0];
     const amrex::FArrayBox& slice_fab_lev2 = fields.getSlices(lev2_idx)[0];
-    const amrex::MultiFab& a_mf = multi_laser.getSlices();
+    const amrex::MultiFab& a_mf = helmholtz.getSlices();
 
     Array3<const amrex::Real> const slice_arr_lev0 = slice_fab_lev0.const_array();
     Array3<const amrex::Real> const slice_arr_lev1 = slice_fab_lev1.const_array();
     Array3<const amrex::Real> const slice_arr_lev2 = slice_fab_lev2.const_array();
-    Array3<const amrex::Real> const& a_arr = use_laser ?
-            a_mf[0].const_array(WhichLaserSlice::n00j00_r) : amrex::Array4<const amrex::Real>();
-    //const amrex::Real k0 = 2.*MathConst::pi/multi_laser.GetLambda0();
+    Array3<const amrex::Real> const& a_arr = use_helmholtz ?
+            a_mf[0].const_array(WhichHelmholtzSlice::n00j00_r) : amrex::Array4<const amrex::Real>();
     const amrex::Real ku = 2.*MathConst::pi/undulator_period;
 
     // Extract properties associated with physical size of the box
@@ -135,11 +134,11 @@ AdvanceBeamParticlesSlice (
         >{}, {
             Hipace::m_depos_order_xy,
             use_external_fields,
-            use_laser
+            use_helmholtz
         },
         beam.getNumParticlesIncludingSlipped(WhichBeamSlice::This),
         [=] AMREX_GPU_DEVICE (int ip, auto depos_order, auto c_use_external_fields,
-                              auto c_use_laser) {
+                              auto c_use_helmholtz) {
 
             if (!ptd.id(ip).is_valid()) return;
 
@@ -207,7 +206,7 @@ AdvanceBeamParticlesSlice (
                 amrex::ParticleReal Bxp = 0._rt, Byp = 0._rt, Bzp = 0._rt;
 
                 // field gather for a single particle
-                if (!c_use_laser.value) {
+                if (!c_use_helmholtz.value) {
                     doGatherShapeN<depos_order.value>(xp, yp, ExmByp, EypBxp, Ezp, Bxp, Byp, Bzp,
                         slice_arr, psi_comp, ez_comp, bx_comp, by_comp, bz_comp,
                         dx_inv, dy_inv, x_pos_offset, y_pos_offset);
@@ -231,11 +230,11 @@ AdvanceBeamParticlesSlice (
                 amrex::ParticleReal uz_next = uz + dt * charge_mass_ratio
                     * ( Ezp + ( ux * Byp - uy * Bxp ) * gammap_inv );
 
-                if (c_use_laser.value) {
+                if (c_use_helmholtz.value) {
                     amrex::ParticleReal Arp = 0._rt;
                     amrex::ParticleReal betaz = uz * gammap_inv * inv_clight;
                     amrex::ParticleReal betax = ux * gammap_inv * inv_clight;
-                    doMyLaserGatherShapeN<depos_order.value>(
+                    doHelmholtzGatherShapeN<depos_order.value>(
                         xp, yp, Arp, a_arr,
                         dx_inv, dy_inv, x_pos_offset, y_pos_offset);
                     ux_next += dt * charge_mass_ratio * (1._rt-betaz) * Arp;

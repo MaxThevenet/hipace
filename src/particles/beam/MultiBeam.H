@@ -10,7 +10,7 @@
 
 #include "BeamParticleContainer.H"
 #include "fields/Fields.H"
-#include "laser/MultiLaser.H"
+#include "helmholtz/Helmholtz.H"
 
 class MultiBeam
 {
@@ -50,10 +50,11 @@ public:
      * \param[in] gm Geometry object at level lev
      * \param[in] slice longitudinal slice
      * \param[in] current_N_level number of MR levels active on the current slice
+     * \param[in] helmholtz the helmholtz grid
      */
     void AdvanceBeamParticlesSlice (
         const Fields& fields, amrex::Vector<amrex::Geometry> const& gm, const int slice,
-        int const current_N_level, const MultiLaser& multi_laser);
+        int const current_N_level, const Helmholtz& helmholtz);
 
     /** Compute reduced beam diagnostics of current slice, store in member variable.
      * \param[in] step time step of simulation
