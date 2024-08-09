@@ -261,10 +261,14 @@ Helmholtz::InterpolateJx (const Fields& fields, amrex::Geometry const& geom_fiel
                             jx_p2 += shape_x*shape_y*field_arr(cell_x, cell_y, jx_prev2);
                         }
                     }
-                    for (int ix=0; ix<=interp_order + derivative_type; ++ix) {
-                        auto [shape_x, shape_dx, cell_x] =
-                            single_derivative_shape_factor<derivative_type, interp_order>(xmid, ix);
-                        dx_jz += shape_dx*field_arr(cell_x, j, jz_this);
+                    for (int iy=0; iy<=interp_order; ++iy) {
+                        for (int ix=0; ix<=interp_order + derivative_type; ++ix) {
+                            auto [shape_x, shape_dx, cell_x] =
+                                single_derivative_shape_factor<derivative_type, interp_order>(xmid, ix);
+                            auto [shape_y, cell_y] =
+                                compute_single_shape_factor<false, interp_order>(ymid, iy);
+                            dx_jz += shape_dx*shape_y*field_arr(cell_x, cell_y, jz_this);
+                        }
                     }
                 }
                 helmholtz_arr(i, j, WhichHelmholtzSlice::dz_jx) =
