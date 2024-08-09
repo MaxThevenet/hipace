@@ -195,8 +195,10 @@ Helmholtz::InterpolateJx (const Fields& fields, amrex::Geometry const& geom_fiel
         Array3<amrex::Real> helmholtz_arr = m_slices.array(mfi);
         Array3<const amrex::Real> field_arr = fields.getSlices(0).array(mfi);
 
+        const amrex::Real dx_inv = m_helmholtz_geom_3D.InvCellSize(0);
         const amrex::Real dz_inv = m_helmholtz_geom_3D.InvCellSize(2);
 
+        const int jz_this = Comps[WhichSlice::This]["jz_beam"];
         const int jx_this = Comps[WhichSlice::This]["jx_beam"];
         const int jx_prev = Comps[WhichSlice::Previous]["jx_beam"];
         const int jx_prev2 = Comps[WhichSlice::Previous2]["jx_beam"];
@@ -239,6 +241,9 @@ Helmholtz::InterpolateJx (const Fields& fields, amrex::Geometry const& geom_fiel
                 const amrex::Real xmid = (x - poff_field_x) * dx_field_inv;
                 const amrex::Real ymid = (y - poff_field_y) * dy_field_inv;
 
+                constexpr int derivative_type = 1;
+
+                amrex::Real dx_jz = 0._rt;
                 amrex::Real jx_t = 0._rt;
                 amrex::Real jx_p = 0._rt;
                 amrex::Real jx_p2 = 0._rt;
@@ -251,16 +256,20 @@ Helmholtz::InterpolateJx (const Fields& fields, amrex::Geometry const& geom_fiel
                                 compute_single_shape_factor<false, interp_order>(xmid, ix);
                             auto [shape_y, cell_y] =
                                 compute_single_shape_factor<false, interp_order>(ymid, iy);
-
                             jx_t += shape_x*shape_y*field_arr(cell_x, cell_y, jx_this);
                             jx_p += shape_x*shape_y*field_arr(cell_x, cell_y, jx_prev);
                             jx_p2 += shape_x*shape_y*field_arr(cell_x, cell_y, jx_prev2);
                         }
                     }
+                    for (int ix=0; ix<=interp_order + derivative_type; ++ix) {
+                        auto [shape_x, shape_dx, cell_x] =
+                            single_derivative_shape_factor<derivative_type, interp_order>(xmid, ix);
+                        dx_jz += shape_dx*field_arr(cell_x, j, jz_this);
+                    }
                 }
-
                 helmholtz_arr(i, j, WhichHelmholtzSlice::dz_jx) =
                     ( -3._rt*jx_t + 4._rt*jx_p - jx_p2 ) * 0.5_rt * dz_inv;
+                helmholtz_arr(i, j, WhichHelmholtzSlice::dx_jz) = dx_jz * dx_inv;
             });
     }
 }
@@ -359,6 +368,7 @@ Helmholtz::AdvanceSliceFFT (const amrex::Real dt, int step)
                         + ( -3._rt/(c*dt*dz) + 2._rt/(c*c*dt*dt) ) * anm1j00;
                 }
                 rhs -= 2._rt * phc.mu0 * c * arr(i, j, dz_jx);
+                rhs += 2._rt * phc.mu0 * c * arr(i, j, dx_jz); // From Ex equation
                 rhs_arr(i,j,0) = rhs;
             });
 

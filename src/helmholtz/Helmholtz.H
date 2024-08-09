@@ -25,7 +25,7 @@ namespace WhichHelmholtzSlice {
         nm1j00_r,   nm1jp1_r,   nm1jp2_r,
         n00j00_r,   n00jp1_r,   n00jp2_r,
         np1j00_r,   np1jp1_r,   np1jp2_r,
-        dz_jx,
+        dz_jx, dx_jz,
         N
     };
 }
