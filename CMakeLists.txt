@@ -1,4 +1,4 @@
-# Copyright 2020-2022
+# Copyright 2020-2024
 #
 # This file is part of HiPACE++.
 #
@@ -9,7 +9,7 @@
 # Preamble ####################################################################
 #
 cmake_minimum_required(VERSION 3.18.0)
-project(HiPACE VERSION 24.06)
+project(HiPACE VERSION 24.08)
 
 # helper functions
 include(${HiPACE_SOURCE_DIR}/cmake/HiPACEFunctions.cmake)
@@ -436,6 +436,15 @@ if(BUILD_TESTING)
                             $<TARGET_FILE:HiPACE> ${HiPACE_SOURCE_DIR}
                     WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
             )
+
+        else()
+
+            add_test(NAME transverse_benchmark.1Rank
+                    COMMAND bash ${HiPACE_SOURCE_DIR}/tests/transverse_benchmark.1Rank.sh
+                            $<TARGET_FILE:HiPACE> ${HiPACE_SOURCE_DIR}
+                    WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
+            )
+
         endif()
     endif()
 endif()
