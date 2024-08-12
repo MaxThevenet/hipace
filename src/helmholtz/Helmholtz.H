@@ -133,9 +133,6 @@ public:
      */
     void InSituWriteToFile (int step, amrex::Real time, int max_step, amrex::Real max_time);
 
-    /** Get the central wavelength */
-    amrex::Real GetLambda0 () const { return m_lambda0; }
-
     /** Get the geometry of the Helmholtz Box */
     const amrex::Geometry& GetHelmholtzGeom () const { return m_helmholtz_geom_3D; }
 
@@ -158,8 +155,6 @@ public:
 private:
 
     bool m_use_helmholtz {false}; /**< whether a helmholtz is used or not */
-    /** helmholtz central wavelength. */
-    amrex::Real m_lambda0 {0.};
     /** Number of guard cells for slices MultiFab */
     amrex::IntVect m_slices_nguards = {-1, -1, -1};
     /** 3D helmholtz Geometry */

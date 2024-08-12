@@ -32,7 +32,6 @@ Helmholtz::ReadParameters ()
 
     if (!m_use_helmholtz) return;
 
-    getWithParser(pp, "lambda0", m_lambda0);
     queryWithParser(pp, "interp_order", m_interp_order);
     AMREX_ALWAYS_ASSERT(m_interp_order <= 3 && m_interp_order >= 0);
     queryWithParser(pp, "insitu_period", m_insitu_period);
