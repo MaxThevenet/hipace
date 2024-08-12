@@ -17,9 +17,11 @@ MultiBeam::MultiBeam ()
 {
     amrex::ParmParse pp("beams");
     queryWithParser(pp, "names", m_names);
-    queryWithParser(pp, "undulator_period", m_undulator_period);
-    queryWithParser(pp, "undulator_phase", m_undulator_phase);
-    queryWithParser(pp, "undulator_B0", m_undulator_B0);
+    amrex::Real mag_period, mag_phase, mag_B0;
+    queryWithParser(pp, "mag_period", mag_period);
+    queryWithParser(pp, "mag_phase", mag_phase);
+    queryWithParser(pp, "mag_B0", mag_B0);
+    m_mag = Mag(mag_period, mag_phase, mag_B0);
     if (m_names[0] == "no_beam") return;
     DeprecatedInput("beams", "insitu_freq", "insitu_period");
     DeprecatedInput("beams", "all_from_file",
@@ -75,8 +77,8 @@ MultiBeam::AdvanceBeamParticlesSlice (
     int const current_N_level, const Helmholtz& helmholtz)
 {
     for (int i=0; i<m_nbeams; i++) {
-        ::AdvanceBeamParticlesSlice(m_all_beams[i], fields, gm, slice, current_N_level, helmholtz,
-                                    m_undulator_period, m_undulator_phase, m_undulator_B0);
+        ::AdvanceBeamParticlesSlice(
+            m_all_beams[i], fields, gm, slice, current_N_level, helmholtz, m_mag);
     }
 }
 

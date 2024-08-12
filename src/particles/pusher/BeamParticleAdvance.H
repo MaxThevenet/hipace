@@ -24,7 +24,6 @@
 void
 AdvanceBeamParticlesSlice (
     BeamParticleContainer& beam, const Fields& fields, amrex::Vector<amrex::Geometry> const& gm,
-    const int slice, int const current_N_level, const Helmholtz& helmholtz,
-    amrex::Real undulator_period, amrex::Real undulator_phase, amrex::Real undulator_B0);
+    const int slice, int const current_N_level, const Helmholtz& helmholtz, Mag mag);
 
 #endif //  BEAMPARTICLEADVANCE_H_

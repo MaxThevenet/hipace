@@ -18,8 +18,7 @@
 void
 AdvanceBeamParticlesSlice (
     BeamParticleContainer& beam, const Fields& fields, amrex::Vector<amrex::Geometry> const& gm,
-    const int slice, int const current_N_level, const Helmholtz& helmholtz,
-    amrex::Real undulator_period, amrex::Real undulator_phase, amrex::Real undulator_B0)
+    const int slice, int const current_N_level, const Helmholtz& helmholtz, Mag mag)
 {
     HIPACE_PROFILE("AdvanceBeamParticlesSlice()");
     using namespace amrex::literals;
@@ -36,6 +35,11 @@ AdvanceBeamParticlesSlice (
     const bool normalized_units = Hipace::m_normalized_units;
     const bool spin_tracking = beam.m_do_spin_tracking;
     const amrex::Real spin_anom = beam.m_spin_anom;
+    const amrex::Real mag_period = mag.m_period;
+    const amrex::Real mag_phase = mag.m_phase;
+    const amrex::Real mag_B0 = mag.m_B0;
+    const amrex::Real mag_kx = mag.m_kx;
+    const amrex::Real mag_ky = mag.m_ky;
 
     if (normalized_units && radiation_reaction) {
         AMREX_ALWAYS_ASSERT_WITH_MESSAGE(background_density_SI!=0,
@@ -66,7 +70,7 @@ AdvanceBeamParticlesSlice (
     Array3<const amrex::Real> const slice_arr_lev2 = slice_fab_lev2.const_array();
     Array3<const amrex::Real> const& a_arr = use_helmholtz ?
             a_mf[0].const_array(WhichHelmholtzSlice::n00j00_r) : amrex::Array4<const amrex::Real>();
-    const amrex::Real ku = 2.*MathConst::pi/undulator_period;
+    const amrex::Real ku = 2.*MathConst::pi/mag_period;
 
     // Extract properties associated with physical size of the box
     const amrex::Real dx_inv_lev0 = gm[lev0_idx].InvCellSize(0);
@@ -216,10 +220,17 @@ AdvanceBeamParticlesSlice (
                     ApplyExternalField(xp, yp, zp, time, clight, ExmByp, EypBxp, Ezp, Bxp, Byp, Bzp,
                         external_fields);
                 }
-                if (undulator_B0 > 0) {
-                    amrex::Real By = undulator_B0*std::cos( ku*clight*(time + zp/clight*0._rt) + undulator_phase );
+                if (mag_B0 > 0) {
+                    amrex::Real zprop = clight*time + zp/clight*0._rt;
+                    amrex::Real Bx = mag_B0*std::cos( ku*zprop + mag_phase ) * mag_kx*mag_kx*xp*yp;
+                    amrex::Real By = mag_B0*std::cos( ku*zprop + mag_phase ) *
+                        (1._rt + mag_kx*mag_kx*xp*xp/2._rt + mag_ky*mag_ky*yp*yp/2._rt);
+                    amrex::Real Bz =-mag_B0*std::sin( ku*zprop + mag_phase ) * ku*yp;
+                    Bxp += Bx;
                     Byp += By;
+                    Bzp += Bz;
                     ExmByp -= clight * By;
+                    EypBxp += clight * Bx;
                 }
 
                 // use intermediate fields to calculate next (n+1) transverse momenta

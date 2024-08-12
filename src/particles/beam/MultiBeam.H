@@ -12,6 +12,32 @@
 #include "fields/Fields.H"
 #include "helmholtz/Helmholtz.H"
 
+struct Mag
+{
+    Mag () : m_period(0.), m_phase(0.), m_B0(0.), m_kx(0.), m_ky(0.) {};
+
+    Mag (amrex::Real const period, amrex::Real const phase, amrex::Real const B0) :
+        m_period(period),
+        m_phase(phase),
+        m_B0(B0),
+        m_kx(0.),
+        m_ky(2.*MathConst::pi/period) {};
+
+    Mag (amrex::Real const period, amrex::Real const phase, amrex::Real const B0,
+         amrex::Real const kx, amrex::Real const ky) :
+        m_period(period),
+        m_phase(phase),
+        m_B0(B0),
+        m_kx(kx),
+        m_ky(ky) {};
+
+    amrex::Real m_period {0};
+    amrex::Real m_phase {0};
+    amrex::Real m_B0 {0};
+    amrex::Real m_kx {0};
+    amrex::Real m_ky {0};
+};
+
 class MultiBeam
 {
 
@@ -132,11 +158,9 @@ public:
 private:
 
     int m_nbeams {0}; /**< number of beam containers */
+    Mag m_mag;
     /** number of real particles per beam, as opposed to ghost particles */
     amrex::Vector<amrex::Long> m_n_real_particles;
-    amrex::Real m_undulator_period {0};
-    amrex::Real m_undulator_phase {0};
-    amrex::Real m_undulator_B0 {0};
 };
 
 #endif // MULTIBEAM_H_
