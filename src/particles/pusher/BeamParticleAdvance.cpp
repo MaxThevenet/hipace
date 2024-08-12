@@ -38,8 +38,10 @@ AdvanceBeamParticlesSlice (
     const amrex::Real mag_period = mag.m_period;
     const amrex::Real mag_phase = mag.m_phase;
     const amrex::Real mag_B0 = mag.m_B0;
+    const amrex::Real mag_correction = mag.m_correction;
     const amrex::Real mag_kx = mag.m_kx;
     const amrex::Real mag_ky = mag.m_ky;
+    const bool use_mag = mag.m_use_mag;
 
     if (normalized_units && radiation_reaction) {
         AMREX_ALWAYS_ASSERT_WITH_MESSAGE(background_density_SI!=0,
@@ -220,12 +222,16 @@ AdvanceBeamParticlesSlice (
                     ApplyExternalField(xp, yp, zp, time, clight, ExmByp, EypBxp, Ezp, Bxp, Byp, Bzp,
                         external_fields);
                 }
-                if (mag_B0 > 0) {
+                if (use_mag > 0) {
                     amrex::Real zprop = clight*time + zp/clight*0._rt;
-                    amrex::Real Bx = mag_B0*std::cos( ku*zprop + mag_phase ) * mag_kx*mag_kx*xp*yp;
-                    amrex::Real By = mag_B0*std::cos( ku*zprop + mag_phase ) *
-                        (1._rt + mag_kx*mag_kx*xp*xp/2._rt + mag_ky*mag_ky*yp*yp/2._rt);
-                    amrex::Real Bz =-mag_B0*std::sin( ku*zprop + mag_phase ) * ku*yp;
+                    amrex::Real Bx = 0._rt;
+                    amrex::Real By = mag_B0*std::cos( ku*zprop + mag_phase );
+                    amrex::Real Bz = 0._rt;
+                    if (mag_correction) {
+                        Bx += mag_B0 * std::cos( ku*zprop + mag_phase ) * mag_kx*mag_kx*xp*yp;
+                        By *= (1._rt + mag_kx*mag_kx*xp*xp/2._rt + mag_ky*mag_ky*yp*yp/2._rt);
+                        Bz -= mag_B0 * std::sin( ku*zprop + mag_phase ) * ku*yp;
+                    }
                     Bxp += Bx;
                     Byp += By;
                     Bzp += Bz;

@@ -17,11 +17,14 @@ MultiBeam::MultiBeam ()
 {
     amrex::ParmParse pp("beams");
     queryWithParser(pp, "names", m_names);
-    amrex::Real mag_period, mag_phase, mag_B0;
+    amrex::Real mag_period{0.}, mag_phase{0.}, mag_B0{0.}, mag_correction{0.};
+    bool use_mag = false;
+    queryWithParser(pp, "use_mag", use_mag);
     queryWithParser(pp, "mag_period", mag_period);
     queryWithParser(pp, "mag_phase", mag_phase);
     queryWithParser(pp, "mag_B0", mag_B0);
-    m_mag = Mag(mag_period, mag_phase, mag_B0);
+    queryWithParser(pp, "mag_correction", mag_correction);
+    m_mag = Mag(use_mag, mag_period, mag_phase, mag_B0, mag_correction);
     if (m_names[0] == "no_beam") return;
     DeprecatedInput("beams", "insitu_freq", "insitu_period");
     DeprecatedInput("beams", "all_from_file",
