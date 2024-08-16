@@ -306,6 +306,8 @@ Helmholtz::AdvanceSliceFFT (const amrex::Real dt, int step)
     using namespace amrex::literals;
     using Complex = amrex::GpuComplex<amrex::Real>;
 
+    const bool use_jz_correction = m_use_jz_correction;
+
     const amrex::Real dx = m_helmholtz_geom_3D.CellSize(0);
     const amrex::Real dy = m_helmholtz_geom_3D.CellSize(1);
     const amrex::Real dz = m_helmholtz_geom_3D.CellSize(2);
@@ -379,7 +381,7 @@ Helmholtz::AdvanceSliceFFT (const amrex::Real dt, int step)
                         + ( -3._rt/(c*dt*dz) + 2._rt/(c*c*dt*dt) ) * anm1j00;
                 }
                 rhs -= 2._rt * phc.mu0 * c * arr(i, j, dz_jx);
-                if (m_use_jz_correction) {
+                if (use_jz_correction) {
                     rhs += 2._rt * phc.mu0 * c * arr(i, j, dx_jz); // From Ex equation
                 }
                 rhs_arr(i,j,0) = rhs;
