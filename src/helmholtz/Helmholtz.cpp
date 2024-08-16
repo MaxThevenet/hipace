@@ -191,6 +191,8 @@ Helmholtz::InterpolateJx (const Fields& fields, amrex::Geometry const& geom_fiel
 
     using namespace amrex::literals;
 
+    const bool use_jz_correction = m_use_jz_correction;
+
     for ( amrex::MFIter mfi(m_slices, DfltMfi); mfi.isValid(); ++mfi ){
         Array3<amrex::Real> helmholtz_arr = m_slices.array(mfi);
         Array3<const amrex::Real> field_arr = fields.getSlices(0).array(mfi);
@@ -265,7 +267,7 @@ Helmholtz::InterpolateJx (const Fields& fields, amrex::Geometry const& geom_fiel
                 helmholtz_arr(i, j, WhichHelmholtzSlice::dz_jx) =
                     ( -3._rt*jx_t + 4._rt*jx_p - jx_p2 ) * 0.5_rt * dz_inv;
 
-                if (!m_use_jz_correction) return;
+                if (!use_jz_correction) return;
 
                 if (x_lo + derivative_type <= i && i <= x_hi - derivative_type && y_lo <= j && j <= y_hi) {
                     for (int iy=0; iy<=interp_order; ++iy) {
