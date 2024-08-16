@@ -18,7 +18,10 @@
 void
 AdvanceBeamParticlesSlice (
     BeamParticleContainer& beam, const Fields& fields, amrex::Vector<amrex::Geometry> const& gm,
-    const int slice, int const current_N_level, const Helmholtz& helmholtz, Mag mag)
+    const int slice, int const current_N_level, const Helmholtz& helmholtz, Mag mag,
+    const std::array<amrex::Real, 4> chicBs,
+    const std::array<amrex::Real, 4> chicLs,
+    const std::array<amrex::Real, 4> chicZs)
 {
     HIPACE_PROFILE("AdvanceBeamParticlesSlice()");
     using namespace amrex::literals;
@@ -42,6 +45,9 @@ AdvanceBeamParticlesSlice (
     const amrex::Real mag_kx = mag.m_kx;
     const amrex::Real mag_ky = mag.m_ky;
     const bool use_mag = mag.m_use_mag;
+    const amrex::GpuArray<amrex::Real, 4> Bs = {chicBs[0], chicBs[1], chicBs[2], chicBs[3]};
+    const amrex::GpuArray<amrex::Real, 4> Ls = {chicLs[0], chicLs[1], chicLs[2], chicLs[3]};
+    const amrex::GpuArray<amrex::Real, 4> Zs = {chicZs[0], chicZs[1], chicZs[2], chicZs[3]};
 
     if (normalized_units && radiation_reaction) {
         AMREX_ALWAYS_ASSERT_WITH_MESSAGE(background_density_SI!=0,
@@ -237,6 +243,14 @@ AdvanceBeamParticlesSlice (
                     Bzp += Bz;
                     ExmByp -= clight * By;
                     EypBxp += clight * Bx;
+                }
+
+                for (int i=0; i<4; ++i) {
+                    amrex::Real zprop = clight*time + zp/clight*0._rt;
+                    if ((zprop >= Zs[i]) && (zprop < (Zs[i] + Ls[i]))) {
+                        Byp += Bs[i];
+                        ExmByp -= clight * Bs[i];
+                    }
                 }
 
                 // use intermediate fields to calculate next (n+1) transverse momenta

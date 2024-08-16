@@ -24,6 +24,9 @@
 void
 AdvanceBeamParticlesSlice (
     BeamParticleContainer& beam, const Fields& fields, amrex::Vector<amrex::Geometry> const& gm,
-    const int slice, int const current_N_level, const Helmholtz& helmholtz, Mag mag);
+    const int slice, int const current_N_level, const Helmholtz& helmholtz, Mag mag,
+    const std::array<amrex::Real, 4> chicBs,
+    const std::array<amrex::Real, 4> chicLs,
+    const std::array<amrex::Real, 4> chicZs);
 
 #endif //  BEAMPARTICLEADVANCE_H_
