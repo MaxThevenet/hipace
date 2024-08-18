@@ -15,13 +15,62 @@
 #include "utils/HipaceProfilerWrapper.H"
 #include "utils/GPUUtil.H"
 
+#include <AMReX_GpuComplex.H>
+
+AMREX_GPU_DEVICE AMREX_FORCE_INLINE
+amrex::Real LaserE (const amrex::GpuArray<amrex::Real, 8>& params,
+                    amrex::Real x, amrex::Real y, amrex::Real z, amrex::Real t)
+{
+    using namespace amrex::literals;
+    using namespace amrex;
+    using Complex = amrex::GpuComplex<amrex::Real>;
+
+    const amrex::Real c = get_phys_const().c;
+    // amrex::Real do_laser    = params[0];
+    amrex::Real wavelength     = params[1];
+    amrex::Real duration       = params[2];
+    amrex::Real z_peak         = params[3];
+    amrex::Real focal_distance = params[4];
+    amrex::Real waist          = params[5];
+    amrex::Real e_max          = params[6];
+    amrex::Real phi0           = params[7];
+
+    const Complex I(0,1);
+    // Calculate a few factors which are independent of the macroparticle
+    const Real k0 = 2._rt*MathConst::pi/wavelength;
+    const Real inv_tau2 = 1._rt /(duration * duration);
+    const Real oscillation_phase = k0 * c * ( t + 2._rt*z/c ) + phi0;
+    // The coefficients below contain info about Gouy phase,
+    // laser diffraction, and phase front curvature
+    const Complex diffract_factor = 1._rt + I * focal_distance * 2._rt/( k0 * waist * waist );
+    const Complex inv_complex_waist_2 = 1._rt /(waist*waist * diffract_factor );
+
+    // Amplitude and monochromatic oscillations
+    const Complex t_prefactor = e_max * amrex::exp( I * oscillation_phase );
+    const Complex prefactor = t_prefactor / diffract_factor;
+    const Complex stretch_factor = 1._rt;
+
+    // z + ct = 2*zeta + ct for counter-propagating laser pulse
+    const Complex stc_exponent = 1._rt / stretch_factor * inv_tau2 *
+        ( (z - z_peak)/c + 2._rt*t ) *
+        ( (z - z_peak)/c + 2._rt*t );
+    // stcfactor = everything but complex transverse envelope
+    const Complex stcfactor = prefactor * amrex::exp( - stc_exponent );
+    // Exp argument for transverse envelope
+    const Complex exp_argument = - ( x*x + y*y ) * inv_complex_waist_2;
+
+    // stcfactor + transverse envelope
+    return ( stcfactor * amrex::exp( exp_argument ) ).real();
+}
+
 void
 AdvanceBeamParticlesSlice (
     BeamParticleContainer& beam, const Fields& fields, amrex::Vector<amrex::Geometry> const& gm,
     const int slice, int const current_N_level, const Helmholtz& helmholtz, Mag mag,
-    const std::array<amrex::Real, 4> chicBs,
-    const std::array<amrex::Real, 4> chicLs,
-    const std::array<amrex::Real, 4> chicZs)
+    const std::array<amrex::Real, 4>& chicBs,
+    const std::array<amrex::Real, 4>& chicLs,
+    const std::array<amrex::Real, 4>& chicZs,
+    const std::array<amrex::Real, 8>& laser_params)
 {
     HIPACE_PROFILE("AdvanceBeamParticlesSlice()");
     using namespace amrex::literals;
@@ -48,6 +97,9 @@ AdvanceBeamParticlesSlice (
     const amrex::GpuArray<amrex::Real, 4> Bs = {chicBs[0], chicBs[1], chicBs[2], chicBs[3]};
     const amrex::GpuArray<amrex::Real, 4> Ls = {chicLs[0], chicLs[1], chicLs[2], chicLs[3]};
     const amrex::GpuArray<amrex::Real, 4> Zs = {chicZs[0], chicZs[1], chicZs[2], chicZs[3]};
+    const amrex::GpuArray<amrex::Real, 8> LaserParams = {
+        laser_params[0], laser_params[1], laser_params[2], laser_params[3],
+        laser_params[4], laser_params[5], laser_params[6], laser_params[7]};
 
     if (normalized_units && radiation_reaction) {
         AMREX_ALWAYS_ASSERT_WITH_MESSAGE(background_density_SI!=0,
@@ -251,6 +303,9 @@ AdvanceBeamParticlesSlice (
                         Byp += Bs[i];
                         ExmByp -= clight * Bs[i];
                     }
+                }
+                if (LaserParams[0] > 0._rt) {
+                    ExmByp += LaserE(LaserParams, xp, yp, zp, time);
                 }
 
                 // use intermediate fields to calculate next (n+1) transverse momenta

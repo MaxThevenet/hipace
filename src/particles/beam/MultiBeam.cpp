@@ -29,6 +29,7 @@ MultiBeam::MultiBeam ()
     queryWithParser(pp, "chicBs", m_chicBs);
     queryWithParser(pp, "chicLs", m_chicLs);
     queryWithParser(pp, "chicZs", m_chicZs);
+    queryWithParser(pp, "laser_params", m_laser_params);
 
     if (m_names[0] == "no_beam") return;
     DeprecatedInput("beams", "insitu_freq", "insitu_period");
@@ -87,7 +88,7 @@ MultiBeam::AdvanceBeamParticlesSlice (
     for (int i=0; i<m_nbeams; i++) {
         ::AdvanceBeamParticlesSlice(
             m_all_beams[i], fields, gm, slice, current_N_level, helmholtz, m_mag,
-            m_chicBs, m_chicLs, m_chicZs);
+            m_chicBs, m_chicLs, m_chicZs, m_laser_params);
     }
 }
 
