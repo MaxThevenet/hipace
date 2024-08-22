@@ -94,7 +94,7 @@ private:
     };
     /** Named Beam runtime SoA attributes */
     amrex::Vector<std::string> m_real_names_prev {
-        "pux", "puy", "puz"
+        "prev_ux", "prev_uy", "prev_uz"
     };
 
     /** vector over levels of openPMD-api Series object for output */
