@@ -392,6 +392,9 @@ BeamParticleContainer::intializeSlice (int slice, int which_slice) {
                 ptd.rdata(BeamIdx::ux)[ip] = ptd_init.rdata(BeamIdx::ux)[idx_src];
                 ptd.rdata(BeamIdx::uy)[ip] = ptd_init.rdata(BeamIdx::uy)[idx_src];
                 ptd.rdata(BeamIdx::uz)[ip] = ptd_init.rdata(BeamIdx::uz)[idx_src];
+                ptd.rdata(BeamIdx::pux)[ip] = ptd_init.rdata(BeamIdx::ux)[idx_src];
+                ptd.rdata(BeamIdx::puy)[ip] = ptd_init.rdata(BeamIdx::uy)[idx_src];
+                ptd.rdata(BeamIdx::puz)[ip] = ptd_init.rdata(BeamIdx::uz)[idx_src];
 
                 ptd.idcpu(ip) = ptd_init.idcpu(idx_src);
                 ptd.idata(BeamIdx::nsubcycles)[ip] = 0;
