@@ -30,6 +30,7 @@ Helmholtz::ReadParameters ()
 
     queryWithParser(pp, "use_helmholtz", m_use_helmholtz);
     queryWithParser(pp, "use_jz_correction", m_use_jz_correction);
+    queryWithParser(pp, "use_dt_jx", m_use_dt_jx);
 
     if (!m_use_helmholtz) return;
 
@@ -204,6 +205,7 @@ Helmholtz::InterpolateJx (const Fields& fields, amrex::Geometry const& geom_fiel
         const int jx_this = Comps[WhichSlice::This]["jx_beam"];
         const int jx_prev = Comps[WhichSlice::Previous]["jx_beam"];
         const int jx_prev2 = Comps[WhichSlice::Previous2]["jx_beam"];
+        const int dt_jx_this = Comps[WhichSlice::This]["dt_jx"];
 
         const amrex::Real poff_helmholtz_x = GetPosOffset(0, m_helmholtz_geom_3D, m_helmholtz_geom_3D.Domain());
         const amrex::Real poff_helmholtz_y = GetPosOffset(1, m_helmholtz_geom_3D, m_helmholtz_geom_3D.Domain());
@@ -249,6 +251,7 @@ Helmholtz::InterpolateJx (const Fields& fields, amrex::Geometry const& geom_fiel
                 amrex::Real jx_t = 0._rt;
                 amrex::Real jx_p = 0._rt;
                 amrex::Real jx_p2 = 0._rt;
+                amrex::Real dt_jx = 0._rt;
 
                 if (x_lo <= i && i <= x_hi && y_lo <= j && j <= y_hi) {
                     // interpolate jx from fields to helmholtz
@@ -258,14 +261,16 @@ Helmholtz::InterpolateJx (const Fields& fields, amrex::Geometry const& geom_fiel
                                 compute_single_shape_factor<false, interp_order>(xmid, ix);
                             auto [shape_y, cell_y] =
                                 compute_single_shape_factor<false, interp_order>(ymid, iy);
-                            jx_t += shape_x*shape_y*field_arr(cell_x, cell_y, jx_this);
-                            jx_p += shape_x*shape_y*field_arr(cell_x, cell_y, jx_prev);
+                            jx_t  += shape_x*shape_y*field_arr(cell_x, cell_y, jx_this);
+                            jx_p  += shape_x*shape_y*field_arr(cell_x, cell_y, jx_prev);
                             jx_p2 += shape_x*shape_y*field_arr(cell_x, cell_y, jx_prev2);
+                            dt_jx += shape_x*shape_y*field_arr(cell_x, cell_y, dt_jx_this);
                         }
                     }
                 }
                 helmholtz_arr(i, j, WhichHelmholtzSlice::dz_jx) =
                     ( -3._rt*jx_t + 4._rt*jx_p - jx_p2 ) * 0.5_rt * dz_inv;
+                helmholtz_arr(i, j, WhichHelmholtzSlice::dt_jx) = dt_jx;
 
                 if (!use_jz_correction) return;
 
@@ -307,6 +312,7 @@ Helmholtz::AdvanceSliceFFT (const amrex::Real dt, int step)
     using Complex = amrex::GpuComplex<amrex::Real>;
 
     const bool use_jz_correction = m_use_jz_correction;
+    const bool use_dt_jx = m_use_dt_jx;
 
     const amrex::Real dx = m_helmholtz_geom_3D.CellSize(0);
     const amrex::Real dy = m_helmholtz_geom_3D.CellSize(1);
@@ -380,9 +386,13 @@ Helmholtz::AdvanceSliceFFT (const amrex::Real dt, int step)
                         - lap
                         + ( -3._rt/(c*dt*dz) + 2._rt/(c*c*dt*dt) ) * anm1j00;
                 }
-                rhs -= 2._rt * phc.mu0 * c * arr(i, j, dz_jx);
-                if (use_jz_correction) {
-                    rhs += 2._rt * phc.mu0 * c * arr(i, j, dx_jz); // From Ex equation
+                if (use_dt_jx) {
+                    rhs += 2._rt * phc.mu0 * arr(i, j, dt_jx) / dt;
+                } else {
+                    rhs -= 2._rt * phc.mu0 * c * arr(i, j, dz_jx);
+                    if (use_jz_correction) {
+                        rhs += 2._rt * phc.mu0 * c * arr(i, j, dx_jz); // From Ex equation
+                    }
                 }
                 rhs_arr(i,j,0) = rhs;
             });

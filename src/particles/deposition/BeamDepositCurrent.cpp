@@ -57,6 +57,7 @@ DepositCurrentSlice (BeamParticleContainer& beam, Fields& fields,
     const int     jyb_cmp = do_beam_jx_jy_deposition  ? Comps[which_slice]["jy"    +beam_str] : -1;
     const int     jzb_cmp = do_beam_jz_deposition     ? Comps[which_slice]["jz"    +beam_str] : -1;
     const int rhomjzb_cmp = do_beam_rhomjz_deposition ? Comps[which_slice]["rhomjz"+beam_str] : -1;
+    const int   dtjxb_cmp = Comps[which_slice]["dt_jx"];
 
     // Offset for converting positions to indexes
     amrex::Real const x_pos_offset = GetPosOffset(0, gm[lev], isl_fab.box());
@@ -124,6 +125,13 @@ DepositCurrentSlice (BeamParticleContainer& beam, Fields& fields,
             const amrex::Real wqz = wq*vz;
             const amrex::Real wqrhomjz = wq*(1._rt-vz*clightinv);
 
+            const amrex::Real pux = ptd.rdata(BeamIdx::pux)[ip];
+            const amrex::Real puy = ptd.rdata(BeamIdx::puy)[ip];
+            const amrex::Real puz = ptd.rdata(BeamIdx::puz)[ip];
+            const amrex::Real pgaminv = 1.0_rt/std::sqrt(
+                1.0_rt + pux*pux*clightsq + puy*puy*clightsq + puz*puz*clightsq);
+            const amrex::Real pwqx = wq*pux*pgaminv;
+
             // --- Compute shape factors
             // x direction
             const amrex::Real xmid = (ptd.pos(0, ip) - x_pos_offset)*dxi;
@@ -146,6 +154,10 @@ DepositCurrentSlice (BeamParticleContainer& beam, Fields& fields,
                         amrex::Gpu::Atomic::Add(
                             isl_arr.ptr(i_cell+ix, j_cell+iy, jyb_cmp),
                             sx_cell[ix]*sy_cell[iy]*wqy);
+                        // This is NOT clean, not centered.
+                        amrex::Gpu::Atomic::Add(
+                            isl_arr.ptr(i_cell+ix, j_cell+iy, dtjxb_cmp),
+                            sx_cell[ix]*sy_cell[iy]*(wqx-pwqx));
                     }
                     if (jzb_cmp != -1) { // do_beam_jz_deposition
                         amrex::Gpu::Atomic::Add(

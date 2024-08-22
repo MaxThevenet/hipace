@@ -25,7 +25,7 @@ namespace WhichHelmholtzSlice {
         nm1j00_r,   nm1jp1_r,   nm1jp2_r,
         n00j00_r,   n00jp1_r,   n00jp2_r,
         np1j00_r,   np1jp1_r,   np1jp2_r,
-        dz_jx, dx_jz,
+        dz_jx, dx_jz, dt_jx,
         N
     };
 }
@@ -158,6 +158,7 @@ private:
 
     bool m_use_helmholtz {false}; /**< whether a helmholtz is used or not */
     bool m_use_jz_correction {false}; /** whether to include source term in d_x jz_beam */
+    bool m_use_dt_jx {false}; /** whether to include source term in d_t jx_beam */
     /** Number of guard cells for slices MultiFab */
     amrex::IntVect m_slices_nguards = {-1, -1, -1};
     /** 3D helmholtz Geometry */

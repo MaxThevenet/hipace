@@ -97,7 +97,7 @@ Fields::AllocData (
             }
             Comps[isl].multi_emplace(N_Comps, "Sy", "Sx", "ExmBy", "EypBx", "Ez",
                 "Bx", "By", "Bz", "Psi",
-                "jx_beam", "jy_beam", "jz_beam", "jx", "jy", "rhomjz");
+                "jx_beam", "jy_beam", "jz_beam", "jx", "jy", "rhomjz", "dt_jx");
             if (Hipace::m_use_laser) {
                 Comps[isl].multi_emplace(N_Comps, "aabs");
             }
@@ -623,6 +623,7 @@ Fields::InitializeSlices (int lev, int islice, const amrex::Vector<amrex::Geomet
     if (Hipace::m_deposit_rho) {
         setVal(0., lev, WhichSlice::This, "rho");
     }
+    setVal(0., lev, WhichSlice::This, "dt_jx");
     if (Hipace::m_deposit_rho_individual) {
         for (auto& plasma_name : Hipace::GetInstance().m_multi_plasma.GetNames()) {
             setVal(0., lev, WhichSlice::This, "rho_" + plasma_name);

@@ -51,6 +51,9 @@ namespace
         ptd.rdata(BeamIdx::ux )[ip] = ux * speed_of_light;
         ptd.rdata(BeamIdx::uy )[ip] = uy * speed_of_light;
         ptd.rdata(BeamIdx::uz )[ip] = uz * speed_of_light;
+        ptd.rdata(BeamIdx::pux)[ip] = ux * speed_of_light;
+        ptd.rdata(BeamIdx::puy)[ip] = uy * speed_of_light;
+        ptd.rdata(BeamIdx::puz)[ip] = uz * speed_of_light;
         ptd.rdata(BeamIdx::w  )[ip] = std::abs(weight);
 
         ptd.idcpu(ip) = pid + ip;
@@ -86,6 +89,9 @@ namespace
         ptd.rdata(BeamIdx::ux )[ip] = ux * speed_of_light;
         ptd.rdata(BeamIdx::uy )[ip] = uy * speed_of_light;
         ptd.rdata(BeamIdx::uz )[ip] = uz * speed_of_light;
+        ptd.rdata(BeamIdx::pux)[ip] = ux * speed_of_light;
+        ptd.rdata(BeamIdx::puy)[ip] = uy * speed_of_light;
+        ptd.rdata(BeamIdx::puz)[ip] = uz * speed_of_light;
         ptd.rdata(BeamIdx::w  )[ip] = std::abs(weight);
 
         ptd.idcpu(ip) = pid + ip;

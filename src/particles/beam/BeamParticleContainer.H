@@ -26,6 +26,7 @@ struct BeamIdx
         x=0, y, z,  // position
         w,          // weight
         ux, uy, uz, // momentum
+        pux, puy, puz, // previous momentum
         real_nattribs_in_buffer,
         real_nattribs=real_nattribs_in_buffer
     };
