@@ -185,11 +185,11 @@ OpenPMDWriter::InitBeamData (MultiBeam& beams, const amrex::Vector< std::string 
                 });
         }
 
-        if (beams.getBeam(ibeam).m_do_spin_tracking) {
-            m_real_beam_data[ibeam].resize(m_real_names.size() + m_real_names_spin.size());
-        } else {
-            m_real_beam_data[ibeam].resize(m_real_names.size());
-        }
+        int real_beam_size = m_real_names.size();
+        if (beams.getBeam(ibeam).m_do_spin_tracking) real_beam_size += m_real_names_spin.size();
+        if ( true ) real_beam_size += m_real_names_prev.size();
+        std::cout<<"real_beam_size "<<real_beam_size<<'\n';
+        m_real_beam_data[ibeam].resize(real_beam_size);
 
         for (std::size_t idx=0; idx<m_real_beam_data[ibeam].size(); idx++) {
             m_real_beam_data[ibeam][idx].reset(
@@ -229,6 +229,9 @@ OpenPMDWriter::WriteBeamParticleData (MultiBeam& beams, openPMD::Iteration itera
         amrex::Vector<std::string> real_names = m_real_names;
         if (beam.m_do_spin_tracking) {
             real_names.insert(real_names.end(), m_real_names_spin.begin(), m_real_names_spin.end());
+        }
+        if ( true ) {
+            real_names.insert(real_names.end(), m_real_names_prev.begin(), m_real_names_prev.end());
         }
 
         // initialize beam IO on first slice
@@ -299,9 +302,9 @@ OpenPMDWriter::CopyBeams (MultiBeam& beams, const amrex::Vector< std::string > b
                     m_uint64_beam_data[ibeam][idx].get() + m_offset[ibeam]);
             }
 
-//            AMREX_ALWAYS_ASSERT_WITH_MESSAGE(
-//                int(m_real_beam_data[ibeam].size()) == soa.NumRealComps(),
-//                "List of real names in openPMD Writer class does not match the beam");
+            AMREX_ALWAYS_ASSERT_WITH_MESSAGE(
+                int(m_real_beam_data[ibeam].size()) == soa.NumRealComps(),
+                "List of real names in openPMD Writer class does not match the beam");
 
             for (std::size_t idx=0; idx<m_real_beam_data[ibeam].size(); idx++) {
                 amrex::Gpu::copyAsync(amrex::Gpu::deviceToHost,
@@ -419,7 +422,7 @@ OpenPMDWriter::SetupRealProperties (openPMD::ParticleSpecies& currSpecies,
                 currRecord.setAttribute( "macroWeighted", 0u );
             }
 
-            if( record_name == "weighting" || record_name == "momentum" || record_name == "spin") {
+            if( record_name == "weighting" || record_name == "momentum" || record_name == "spin" || record_name == "prev") {
                 currRecord.setAttribute( "weightingPower", 1.0 );
             } else {
                 currRecord.setAttribute( "weightingPower", 0.0 );

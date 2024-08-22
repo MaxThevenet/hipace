@@ -26,7 +26,6 @@ struct BeamIdx
         x=0, y, z,  // position
         w,          // weight
         ux, uy, uz, // momentum
-        pux, puy, puz, // previous momentum
         real_nattribs_in_buffer,
         real_nattribs=real_nattribs_in_buffer
     };
@@ -194,7 +193,7 @@ public:
     }
 
     int numRealComponents () const {
-        return BeamIdx::real_nattribs + (m_do_spin_tracking ? 3 : 0);
+        return BeamIdx::real_nattribs + (m_do_spin_tracking ? 3 : 0) + (true ? 3 : 0);
     }
     int numIntComponents () const { return BeamIdx::int_nattribs; }
 

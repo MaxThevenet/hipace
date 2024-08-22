@@ -124,9 +124,9 @@ DepositCurrentSlice (BeamParticleContainer& beam, Fields& fields,
             const amrex::Real wqz = wq*vz;
             const amrex::Real wqrhomjz = wq*(1._rt-vz*clightinv);
 
-            const amrex::Real pux = ptd.rdata(BeamIdx::pux)[ip];
-            const amrex::Real puy = ptd.rdata(BeamIdx::puy)[ip];
-            const amrex::Real puz = ptd.rdata(BeamIdx::puz)[ip];
+            const amrex::Real pux = ptd.m_runtime_rdata[0][ip];
+            const amrex::Real puy = ptd.m_runtime_rdata[1][ip];
+            const amrex::Real puz = ptd.m_runtime_rdata[2][ip];
             const amrex::Real pgaminv = 1.0_rt/std::sqrt(
                 1.0_rt + pux*pux*clightsq + puy*puy*clightsq + puz*puz*clightsq);
             const amrex::Real pwqx = wq*pux*pgaminv;

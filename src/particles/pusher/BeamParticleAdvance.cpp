@@ -160,9 +160,9 @@ AdvanceBeamParticlesSlice (
             amrex::Real ux = ptd.rdata(BeamIdx::ux)[ip];
             amrex::Real uy = ptd.rdata(BeamIdx::uy)[ip];
             amrex::Real uz = ptd.rdata(BeamIdx::uz)[ip];
-            ptd.rdata(BeamIdx::pux)[ip] = ux;
-            ptd.rdata(BeamIdx::puy)[ip] = uy;
-            ptd.rdata(BeamIdx::puz)[ip] = uz;
+            ptd.m_runtime_rdata[0][ip] = ux;
+            ptd.m_runtime_rdata[1][ip] = uy;
+            ptd.m_runtime_rdata[2][ip] = uz;
 
             int i = ptd.idata(BeamIdx::nsubcycles)[ip];
 

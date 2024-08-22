@@ -111,6 +111,12 @@ BeamParticleContainer::ReadParameters ()
             beam_tile.define(3, 0);
         }
     }
+    if ( true ) {
+        for (auto& beam_tile : m_slices) {
+            // Use 3 real and 0 int runtime components
+            beam_tile.define(3, 0);
+        }
+    }
 }
 
 amrex::Real
@@ -392,9 +398,6 @@ BeamParticleContainer::intializeSlice (int slice, int which_slice) {
                 ptd.rdata(BeamIdx::ux)[ip] = ptd_init.rdata(BeamIdx::ux)[idx_src];
                 ptd.rdata(BeamIdx::uy)[ip] = ptd_init.rdata(BeamIdx::uy)[idx_src];
                 ptd.rdata(BeamIdx::uz)[ip] = ptd_init.rdata(BeamIdx::uz)[idx_src];
-                ptd.rdata(BeamIdx::pux)[ip] = ptd_init.rdata(BeamIdx::ux)[idx_src];
-                ptd.rdata(BeamIdx::puy)[ip] = ptd_init.rdata(BeamIdx::uy)[idx_src];
-                ptd.rdata(BeamIdx::puz)[ip] = ptd_init.rdata(BeamIdx::uz)[idx_src];
 
                 ptd.idcpu(ip) = ptd_init.idcpu(idx_src);
                 ptd.idata(BeamIdx::nsubcycles)[ip] = 0;
@@ -414,6 +417,16 @@ BeamParticleContainer::intializeSlice (int slice, int which_slice) {
                 ptd.m_runtime_rdata[0][ip] = initial_spin_norm[0];
                 ptd.m_runtime_rdata[1][ip] = initial_spin_norm[1];
                 ptd.m_runtime_rdata[2][ip] = initial_spin_norm[2];
+            }
+        );
+    }
+    if ( true ) {
+        auto ptd = getBeamSlice(which_slice).getParticleTileData();
+        amrex::ParallelFor(getNumParticles(which_slice),
+            [=] AMREX_GPU_DEVICE (const int ip) {
+                ptd.m_runtime_rdata[0][ip] = 0.;
+                ptd.m_runtime_rdata[1][ip] = 0.;
+                ptd.m_runtime_rdata[2][ip] = 0.;
             }
         );
     }
