@@ -424,9 +424,9 @@ BeamParticleContainer::intializeSlice (int slice, int which_slice) {
         auto ptd = getBeamSlice(which_slice).getParticleTileData();
         amrex::ParallelFor(getNumParticles(which_slice),
             [=] AMREX_GPU_DEVICE (const int ip) {
-                ptd.m_runtime_rdata[0][ip] = 0.;
-                ptd.m_runtime_rdata[1][ip] = 0.;
-                ptd.m_runtime_rdata[2][ip] = 0.;
+                ptd.m_runtime_rdata[0][ip] = ptd.rdata(BeamIdx::ux)[ip];
+                ptd.m_runtime_rdata[1][ip] = ptd.rdata(BeamIdx::uy)[ip];
+                ptd.m_runtime_rdata[2][ip] = ptd.rdata(BeamIdx::uz)[ip];
             }
         );
     }
