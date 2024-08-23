@@ -270,7 +270,7 @@ Helmholtz::InterpolateJx (const Fields& fields, amrex::Geometry const& geom_fiel
                 }
                 helmholtz_arr(i, j, WhichHelmholtzSlice::dz_jx) =
                     ( -3._rt*jx_t + 4._rt*jx_p - jx_p2 ) * 0.5_rt * dz_inv;
-                 helmholtz_arr(i, j, WhichHelmholtzSlice::dt_jx) = dt_jx;
+                helmholtz_arr(i, j, WhichHelmholtzSlice::dt_jx) = dt_jx;
 
                 if (!use_jz_correction) return;
 
@@ -388,8 +388,7 @@ Helmholtz::AdvanceSliceFFT (const amrex::Real dt, int step)
                 }
                 if (use_dt_jx) {
                     rhs += 2._rt * phc.mu0 * arr(i, j, dt_jx) / dt;
-                } else
-                {
+                } else {
                     rhs -= 2._rt * phc.mu0 * c * arr(i, j, dz_jx);
                     if (use_jz_correction) {
                         rhs += 2._rt * phc.mu0 * c * arr(i, j, dx_jz); // From Ex equation
