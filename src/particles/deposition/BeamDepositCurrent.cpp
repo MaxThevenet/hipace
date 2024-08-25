@@ -147,13 +147,9 @@ DepositCurrentSlice (BeamParticleContainer& beam, Fields& fields,
             for (int iy=0; iy<=depos_order_xy; iy++){
                 for (int ix=0; ix<=depos_order_xy; ix++){
                     if (jxb_cmp != -1) { // do_beam_jx_jy_deposition
-                        // amrex::Gpu::Atomic::Add(
-                        //     isl_arr.ptr(i_cell+ix, j_cell+iy, jxb_cmp),
-                        //     sx_cell[ix]*sy_cell[iy]*wqx);
-                        // hijack jx component to store rho
                         amrex::Gpu::Atomic::Add(
                             isl_arr.ptr(i_cell+ix, j_cell+iy, jxb_cmp),
-                            sx_cell[ix]*sy_cell[iy]*wq);
+                            sx_cell[ix]*sy_cell[iy]*wqx);
                         // This is NOT clean, and not centered.
                         // hijacking jy component to store dt_jx
                         amrex::Gpu::Atomic::Add(
