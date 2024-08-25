@@ -386,6 +386,9 @@ Helmholtz::AdvanceSliceFFT (const amrex::Real dt, int step)
                         - lap
                         + ( -3._rt/(c*dt*dz) + 2._rt/(c*c*dt*dt) ) * anm1j00;
                 }
+                // Here dz_jx is actually dz_rho
+                rhs += 2._rt * phc.mu0 * c * c * arr(i, j, dz_jx);
+                /*
                 if (use_dt_jx) {
                     rhs += 2._rt * phc.mu0 * arr(i, j, dt_jx) / dt;
                 } else {
@@ -394,6 +397,7 @@ Helmholtz::AdvanceSliceFFT (const amrex::Real dt, int step)
                         rhs += 2._rt * phc.mu0 * c * arr(i, j, dx_jz); // From Ex equation
                     }
                 }
+                */
                 rhs_arr(i,j,0) = rhs;
             });
 
