@@ -286,7 +286,9 @@ Helmholtz::InterpolateJx (const Fields& fields, amrex::Geometry const& geom_fiel
                         }
                     }
                 }
-                helmholtz_arr(i, j, WhichHelmholtzSlice::dx_jz) = dx_jz * dx_inv;
+                // The - sign is because I suspect single_derivative_shape_factor actually computes
+                // MINUS the derivative.
+                helmholtz_arr(i, j, WhichHelmholtzSlice::dx_jz) = - dx_jz * dx_inv;
             });
     }
 }
