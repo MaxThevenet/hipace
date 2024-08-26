@@ -152,13 +152,14 @@ public:
      */
     bool UseHelmholtz (const int islice) const { return m_use_helmholtz && HasSlice(islice); }
 
-    bool UseJzCorrection () const { return m_use_helmholtz && m_use_jz_correction; }
+    bool UseDxJz () const { return m_use_helmholtz && m_use_dx_jz; }
 
 private:
 
     bool m_use_helmholtz {false}; /**< whether a helmholtz is used or not */
-    bool m_use_jz_correction {false}; /** whether to include source term in d_x jz_beam */
-    bool m_use_dt_jx {false}; /** whether to include source term in d_t jx_beam */
+    bool m_use_dx_jz {true};
+    bool m_use_dz_jx {false};
+    bool m_use_dt_jx {false};
     /** Number of guard cells for slices MultiFab */
     amrex::IntVect m_slices_nguards = {-1, -1, -1};
     /** 3D helmholtz Geometry */

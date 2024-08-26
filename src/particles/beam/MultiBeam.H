@@ -157,6 +157,7 @@ private:
     std::array<amrex::Real, 4> m_chicBs {0., 0., 0., 0.};
     std::array<amrex::Real, 4> m_chicLs {0., 0., 0., 0.};
     std::array<amrex::Real, 4> m_chicZs {0., 0., 0., 0.};
+    amrex::Real m_tstart_push {0.};
     Mag m_mag;
     /** number of real particles per beam, as opposed to ghost particles */
     amrex::Vector<amrex::Long> m_n_real_particles;

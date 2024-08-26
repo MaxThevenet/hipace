@@ -511,7 +511,7 @@ Hipace::SolveOneSlice (int islice, int step)
                 m_deposit_rho || m_deposit_rho_individual, true, true, m_3D_geom, lev);
 
             // deposit jz_beam and maybe rhomjz of the beam on This slice
-            if (!m_use_helmholtz || m_helmholtz.UseJzCorrection()) {
+            if (!m_use_helmholtz || m_helmholtz.UseDxJz()) {
                 m_multi_beam.DepositCurrentSlice(m_fields, m_3D_geom, lev, step,
                     false, true, m_do_beam_jz_minus_rho, WhichSlice::This, WhichBeamSlice::This);
             }

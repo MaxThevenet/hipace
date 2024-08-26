@@ -29,7 +29,8 @@ Helmholtz::ReadParameters ()
     amrex::ParmParse pp("helmholtzs");
 
     queryWithParser(pp, "use_helmholtz", m_use_helmholtz);
-    queryWithParser(pp, "use_jz_correction", m_use_jz_correction);
+    queryWithParser(pp, "use_dx_jz", m_use_dx_jz);
+    queryWithParser(pp, "use_dz_jx", m_use_dz_jx);
     queryWithParser(pp, "use_dt_jx", m_use_dt_jx);
 
     if (!m_use_helmholtz) return;
@@ -192,7 +193,7 @@ Helmholtz::InterpolateJx (const Fields& fields, amrex::Geometry const& geom_fiel
 
     using namespace amrex::literals;
 
-    const bool use_jz_correction = m_use_jz_correction;
+    const bool use_dx_jz = m_use_dx_jz;
 
     for ( amrex::MFIter mfi(m_slices, DfltMfi); mfi.isValid(); ++mfi ){
         Array3<amrex::Real> helmholtz_arr = m_slices.array(mfi);
@@ -272,7 +273,7 @@ Helmholtz::InterpolateJx (const Fields& fields, amrex::Geometry const& geom_fiel
                     ( -3._rt*jx_t + 4._rt*jx_p - jx_p2 ) * 0.5_rt * dz_inv;
                 helmholtz_arr(i, j, WhichHelmholtzSlice::dt_jx) = dt_jx;
 
-                if (!use_jz_correction) return;
+                if (!use_dx_jz) return;
 
                 if (x_lo + derivative_type <= i && i <= x_hi - derivative_type && y_lo <= j && j <= y_hi) {
                     for (int iy=0; iy<=interp_order; ++iy) {
@@ -311,7 +312,8 @@ Helmholtz::AdvanceSliceFFT (const amrex::Real dt, int step)
     using namespace amrex::literals;
     using Complex = amrex::GpuComplex<amrex::Real>;
 
-    const bool use_jz_correction = m_use_jz_correction;
+    const bool use_dx_jz = m_use_dx_jz;
+    const bool use_dz_jx = m_use_dz_jx;
     const bool use_dt_jx = m_use_dt_jx;
 
     const amrex::Real dx = m_helmholtz_geom_3D.CellSize(0);
@@ -386,13 +388,14 @@ Helmholtz::AdvanceSliceFFT (const amrex::Real dt, int step)
                         - lap
                         + ( -3._rt/(c*dt*dz) + 2._rt/(c*c*dt*dt) ) * anm1j00;
                 }
+                if (use_dx_jz) {
+                    rhs += 2._rt * phc.mu0 * c * arr(i, j, dx_jz);
+                }
                 if (use_dt_jx) {
                     rhs += 2._rt * phc.mu0 * arr(i, j, dt_jx) / dt;
-                } else {
+                }
+                if (use_dz_jx) {
                     rhs -= 2._rt * phc.mu0 * c * arr(i, j, dz_jx);
-                    if (use_jz_correction) {
-                        rhs += 2._rt * phc.mu0 * c * arr(i, j, dx_jz); // From Ex equation
-                    }
                 }
                 rhs_arr(i,j,0) = rhs;
             });
