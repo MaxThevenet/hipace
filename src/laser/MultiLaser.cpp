@@ -608,6 +608,8 @@ MultiLaser::UpdateLaserAabs (const int islice, const int current_N_level, Fields
 void
 MultiLaser::SetInitialChi (const MultiPlasma& multi_plasma)
 {
+    if (!UseLaser()) return;
+
     HIPACE_PROFILE("MultiLaser::SetInitialChi()");
 
     for ( amrex::MFIter mfi(m_slices, DfltMfi); mfi.isValid(); ++mfi ){
@@ -725,6 +727,8 @@ MultiLaser::AdvanceSlice (const int islice, const Fields& fields, amrex::Real dt
 {
 
     if (!UseLaser(islice)) return;
+
+    Hipace::m_num_laser_cells_updated += m_slice_box.d_numPts();
 
     InterpolateChi(fields, geom_field_lev0);
 
