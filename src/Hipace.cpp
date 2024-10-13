@@ -99,7 +99,10 @@ Hipace::Hipace () :
 
     std::string str_dt {""};
     queryWithParser(pph, "dt", str_dt);
-    if (str_dt != "adaptive") queryWithParser(pph, "dt", m_dt);
+    if (str_dt != "adaptive") {
+        queryWithParser(pph, "dt", m_dt);
+        m_max_time = std::copysign(m_max_time, m_dt);
+    }
     queryWithParser(pph, "max_time", m_max_time);
     queryWithParser(pph, "verbose", m_verbose);
     m_numprocs = amrex::ParallelDescriptor::NProcs();
@@ -153,7 +156,9 @@ Hipace::Hipace () :
     queryWithParser(pph, "MG_tolerance_abs", m_MG_tolerance_abs);
     queryWithParser(pph, "MG_verbose", m_MG_verbose);
     queryWithParser(pph, "use_amrex_mlmg", m_use_amrex_mlmg);
+    queryWithParser(pph, "do_shared_depos", m_do_shared_depos);
     queryWithParser(pph, "do_tiling", m_do_tiling);
+    queryWithParser(pph, "tile_size", m_tile_size);
 #ifdef AMREX_USE_GPU
     AMREX_ALWAYS_ASSERT_WITH_MESSAGE(m_do_tiling==0, "Tiling must be turned off to run on GPU.");
 #endif
@@ -412,7 +417,7 @@ Hipace::Evolve ()
 
         m_physical_time = step == 0 ? m_initial_time : m_multi_buffer.get_time();
 
-        if (m_physical_time > m_max_time) {
+        if (m_physical_time == std::numeric_limits<amrex::Real>::infinity()) {
             if (step+1 <= m_max_step && !m_has_last_step) {
                 m_multi_buffer.put_time(m_physical_time);
             }
@@ -427,8 +432,9 @@ Hipace::Evolve ()
         if (m_physical_time == m_max_time) {
             m_has_last_step = true;
             m_dt = 0.;
-            next_time = 2. * m_max_time + 1.;
-        } else if (m_physical_time + m_dt >= m_max_time) {
+            next_time = std::numeric_limits<amrex::Real>::infinity();
+        } else if ((m_physical_time + m_dt >= m_max_time && m_physical_time < m_max_time) ||
+                   (m_physical_time + m_dt <= m_max_time && m_physical_time > m_max_time)) {
             m_dt = m_max_time - m_physical_time;
             next_time = m_max_time;
         } else {
@@ -454,9 +460,6 @@ Hipace::Evolve ()
 
         // deposit neutralizing background
         if (m_interpolate_neutralizing_background) {
-            if (m_do_tiling) {
-                m_multi_plasma.TileSort(m_slice_geom[0].Domain(), m_slice_geom[0]);
-            }
             // Store charge density of (immobile) ions into WhichSlice::RhomJzIons of level 0
             m_multi_plasma.DepositNeutralizingBackground(
                 m_fields, WhichSlice::RhomJzIons, m_3D_geom, 0);
@@ -469,9 +472,6 @@ Hipace::Evolve ()
                 m_multi_plasma.TagByLevel(m_N_level, m_3D_geom);
             }
             for (int lev=0; lev<m_N_level; ++lev) {
-                if (m_do_tiling) {
-                    m_multi_plasma.TileSort(m_slice_geom[lev].Domain(), m_slice_geom[lev]);
-                }
                 // Store charge density of (immobile) ions into WhichSlice::RhomJzIons
                 m_multi_plasma.DepositNeutralizingBackground(
                     m_fields, WhichSlice::RhomJzIons, m_3D_geom, lev);
@@ -599,7 +599,7 @@ Hipace::SolveOneSlice (int islice, int step)
         m_multi_plasma.TagByLevel(current_N_level, m_3D_geom);
     }
 
-    // reorder plasma before TileSort
+    // reorder plasma
     m_multi_plasma.ReorderParticles(islice);
 
     // prepare/initialize fields
@@ -612,9 +612,6 @@ Hipace::SolveOneSlice (int islice, int step)
 
     // deposit current
     for (int lev=0; lev<current_N_level; ++lev) {
-        // tiling used by plasma current deposition
-        if (m_do_tiling) m_multi_plasma.TileSort(m_slice_geom[lev].Domain(), m_slice_geom[lev]);
-
         if (m_explicit) {
             // deposit jx, jy, chi and rhomjz for all plasmas
             m_multi_plasma.DepositCurrent(m_fields, WhichSlice::This, true, false,
@@ -738,7 +735,7 @@ Hipace::SolveOneSlice (int islice, int step)
     // get minimum beam uz after push
     m_adaptive_time_step.GatherMinUzSlice(m_multi_beam, false);
 
-    bool is_last_step = (step == m_max_step) || (m_physical_time >= m_max_time);
+    bool is_last_step = (step == m_max_step) || (m_physical_time == m_max_time);
     m_multi_buffer.put_data(islice, m_multi_beam, m_multi_laser, m_helmholtz, WhichBeamSlice::This, is_last_step);
 
     // shift all levels
@@ -1004,7 +1001,6 @@ Hipace::PredictorCorrectorLoopToSolveBxBy (const int islice, const int current_N
         }
 
         for (int lev=0; lev<current_N_level; ++lev) {
-            if (m_do_tiling) m_multi_plasma.TileSort(m_slice_geom[lev].Domain(), m_slice_geom[lev]);
             // plasmas deposit jx jy to next temp slice
             m_multi_plasma.DepositCurrent(m_fields, WhichSlice::Next,
                 true, false, false, false, false, m_3D_geom, lev);

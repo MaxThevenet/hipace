@@ -237,6 +237,10 @@ public:
 #else
     inline static bool m_do_tiling = false;
 #endif
+    /** Tile size for particle operations when using tiling */
+    inline static int m_tile_size = 32;
+    /** Whether to use shared memory for current deposition */
+    inline static bool m_do_shared_depos = false;
     /** Whether the explicit field solver is used */
     inline static bool m_explicit = true;
     /** Relative tolerance for the multigrid solver, when using the explicit solver */
@@ -255,7 +259,7 @@ public:
      * or radiation reaction in normalized units */
     inline static amrex::Real m_background_density_SI = 0.;
     /** Time step for the beam evolution */
-    amrex::Real m_dt = 0.0;
+    amrex::Real m_dt = +0.0;
     /** Number of binary collisions */
     inline static int m_ncollisions = 0;
     /** Adaptive time step instance */
