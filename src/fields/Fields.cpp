@@ -547,7 +547,7 @@ Fields::Copy (const int current_N_level, const int i_slice, FieldDiagnosticData&
                     const amrex::Real x = i * dx + poff_diag_x;
                     const amrex::Real y = j * dy + poff_diag_y;
                     diag_array(i,j,k) +=
-                        rel_z_data[k-k_min] * helmholtz_array(x, y, WhichHelmholtzSlice::n00j00_r);
+                        rel_z_data[k-k_min] * helmholtz_array(x, y, WhichHelmholtzSlice::Ex_n00j00);
                 });
         }
     }

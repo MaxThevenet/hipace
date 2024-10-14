@@ -462,7 +462,7 @@ void MultiBuffer::get_data (int slice, MultiBeam& beams, MultiLaser& laser, Helm
         }
         if (helmholtz.UseHelmholtz(slice)) {
             using namespace WhichHelmholtzSlice;
-            const int helmholtz_comp = (beam_slice == WhichBeamSlice::Next) ? n00jp2_r : n00j00_r;
+            const int helmholtz_comp = (beam_slice == WhichBeamSlice::Next) ? Ex_n00jp2 : Ex_n00j00;
             helmholtz.InitSliceEnvelope(slice, helmholtz_comp);
         }
     } else {
@@ -878,8 +878,8 @@ void MultiBuffer::pack_data (int slice, MultiBeam& beams, MultiLaser& laser, Hel
     }
     if (helmholtz.UseHelmholtz(slice)) {
         using namespace WhichHelmholtzSlice;
-        const int helmholtz_comp_0_1 = (beam_slice == WhichBeamSlice::Next) ? np1jp2_r : np1j00_r;
-        const int helmholtz_comp_2_3 = (beam_slice == WhichBeamSlice::Next) ? n00jp2_r : n00j00_r;
+        const int helmholtz_comp_0_1 = (beam_slice == WhichBeamSlice::Next) ? Ex_np1jp2 : Ex_np1j00;
+        const int helmholtz_comp_2_3 = (beam_slice == WhichBeamSlice::Next) ? Ex_n00jp2 : Ex_n00j00;
         // copy real and imag components in one operation
         memcpy_to_buffer(slice, get_buffer_offset(slice, offset_type::helmholtz, beams, laser,
                                                   helmholtz, 0, 0),
@@ -968,8 +968,8 @@ void MultiBuffer::unpack_data (int slice, MultiBeam& beams, MultiLaser& laser, H
     }
     if (helmholtz.UseHelmholtz(slice)) {
         using namespace WhichHelmholtzSlice;
-        const int helmholtz_comp_0_1 = (beam_slice == WhichBeamSlice::Next) ? n00jp2_r : n00j00_r;
-        const int helmholtz_comp_2_3 = (beam_slice == WhichBeamSlice::Next) ? nm1jp2_r : nm1j00_r;
+        const int helmholtz_comp_0_1 = (beam_slice == WhichBeamSlice::Next) ? Ex_n00jp2 : Ex_n00j00;
+        const int helmholtz_comp_2_3 = (beam_slice == WhichBeamSlice::Next) ? Ex_nm1jp2 : Ex_nm1j00;
         // copy real and imag components in one operation
         memcpy_from_buffer(slice, get_buffer_offset(slice, offset_type::helmholtz, beams, laser,
                                                     helmholtz, 0, 0),

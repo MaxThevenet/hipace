@@ -28,6 +28,11 @@ namespace WhichHelmholtzSlice {
     static constexpr bool use_By = true;
     static constexpr bool use_Bz = true;
 
+    static constexpr int num_fields = int(use_Ex) + int(use_Ey) + int(use_Ez) +
+                                      int(use_Bx) + int(use_By) + int(use_Bz);
+
+    static constexpr int num_comps_per_field = 9;
+
     enum slice {
         Ex_nm1j00 = 0,
                     Ex_nm1jp1,  Ex_nm1jp2,
@@ -65,18 +70,15 @@ namespace WhichHelmholtzSlice {
         Bz_np1j00,  Bz_np1jp1,  Bz_np1jp2,
 
 
-        dz_jx, dx_jz, dt_jx,
-
-
         jx_n00jm1,  jx_n00j00,  jx_n00jp1,
         jy_n00jm1,  jy_n00j00,  jy_n00jp1,
         jz_n00jm1,  jz_n00j00,  jz_n00jp1,
         rho_n00jm1, rho_n00j00, rho_n00jp1,
 
+        dtau_jx_n00j00,
+        dtau_jy_n00j00,
+        dtau_jz_n00j00,
 
-
-        dz_jx, dz_jy, dz_jz,
-        dt_jx, dt_jy, dt_jz
         N
     };
 }
@@ -126,30 +128,12 @@ public:
      */
     void ShiftHelmholtzSlices (const int islice);
 
-    /** Write Aabs into Fields MultiFab
-     * \param[in] islice slice index
-     * \param[in] current_N_level number of MR levels active on the current slice
-     * \param[in] fields Field object
-     * \param[in] field_geom Geometry of the problem
-     */
-    void UpdateHelmholtzAabs (const int islice, const int current_N_level, Fields& fields,
-                          amrex::Vector<amrex::Geometry> const& field_geom);
-
-    /** Put Jx from the fields into the Jx component of the Helmholtz
-     * \param[in] fields Field object
-     * \param[in] geom_field_lev0 Geometry of the fields on MR level 0
-     */
-    void InterpolateJx (const Fields& fields, amrex::Geometry const& geom_field_lev0);
-
     /** Wrapper function to advance a Helmholtz slice by 1 time step.
      * \param[in] islice slice index
-     * \param[in] fields Field object
      * \param[in] dt time step of the simulation
      * \param[in] step current iteration. Needed because step 0 needs a specific treatment.
-     * \param[in] geom_field_lev0 Geometry of the fields on MR level 0
      */
-    void AdvanceSlice (const int islice, const Fields& fields, amrex::Real dt, int step,
-                       amrex::Geometry const& geom_field_lev0);
+    void AdvanceSlice (const int islice, amrex::Real dt, int step);
 
     /** Advance a Helmholtz slice by 1 time step using a FFT solver.
      * The complex phase of the envelope is evaluated on-axis only.
@@ -203,14 +187,9 @@ public:
      */
     bool UseHelmholtz (const int islice) const { return m_use_helmholtz && HasSlice(islice); }
 
-    bool UseDxJz () const { return m_use_helmholtz && m_use_dx_jz; }
-
 private:
 
     bool m_use_helmholtz {false}; /**< whether a helmholtz is used or not */
-    bool m_use_dx_jz {true};
-    bool m_use_dz_jx {false};
-    bool m_use_dt_jx {false};
     /** Number of guard cells for slices MultiFab */
     amrex::IntVect m_slices_nguards = {-1, -1, -1};
     /** 3D helmholtz Geometry */
@@ -228,9 +207,9 @@ private:
     amrex::MultiFab m_slices;
 
     /** FFTW plan for forward C2C transform to solve Complex Poisson equation */
-    AnyFFT m_forward_fft;
+    std::array<AnyFFT, WhichHelmholtzSlice::num_fields> m_forward_fft;
     /** FFTW plan for backward C2C transform to solve Complex Poisson equation */
-    AnyFFT m_backward_fft;
+    std::array<AnyFFT, WhichHelmholtzSlice::num_fields> m_backward_fft;
     /** work area for both FFT plans */
     amrex::Gpu::DeviceVector<char> m_fft_work_area;
     /** Complex FAB to store the solution (e.g. helmholtz envelope on current slice) */

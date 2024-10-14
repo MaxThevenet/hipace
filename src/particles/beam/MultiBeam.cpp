@@ -7,6 +7,7 @@
  */
 #include "MultiBeam.H"
 #include "particles/deposition/BeamDepositCurrent.H"
+#include "particles/deposition/HelmholtzDepositon.H"
 #include "particles/sorting/SliceSort.H"
 #include "particles/pusher/BeamParticleAdvance.H"
 #include "utils/DeprecatedInput.H"
@@ -69,6 +70,14 @@ MultiBeam::DepositCurrentSlice (
                                   do_beam_rhomjz_deposition && !is_salame,
                                   which_slice, which_beam_slice, only_highest);
         }
+    }
+}
+
+void
+MultiBeam::HelmholtzDepositon (Helmholtz& helmholtz, const bool do_dtau, const int which_beam_slice)
+{
+    for (int i=0; i<m_nbeams; i++) {
+        ::HelmholtzDepositon(m_all_beams[i], helmholtz, do_dtau, which_beam_slice);
     }
 }
 

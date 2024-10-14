@@ -78,7 +78,7 @@ AdvanceBeamParticlesSlice (
     Array3<const amrex::Real> const slice_arr_lev1 = slice_fab_lev1.const_array();
     Array3<const amrex::Real> const slice_arr_lev2 = slice_fab_lev2.const_array();
     Array3<const amrex::Real> const& a_arr = use_helmholtz ?
-            a_mf[0].const_array(WhichHelmholtzSlice::n00j00_r) : amrex::Array4<const amrex::Real>();
+            a_mf[0].const_array(WhichHelmholtzSlice::Ex_n00j00) : amrex::Array4<const amrex::Real>();
     const amrex::Real ku = 2.*MathConst::pi/mag_period;
 
     // Extract properties associated with physical size of the box
