@@ -8,6 +8,7 @@
 #include "Diagnostic.H"
 #include "Hipace.H"
 #include "utils/HipaceProfilerWrapper.H"
+#include "utils/DeprecatedInput.H"
 #include <AMReX_ParmParse.H>
 
 #include <algorithm>
@@ -189,6 +190,7 @@ Diagnostic::Initialize (int nlev, bool use_laser, bool use_helmholtz) {
         }
 
         queryWithParserAlt(pp, "base_geometry", base_geom_name, ppd);
+        DeprecatedInput(fd.m_diag_name, "level", "base_geometry");
 
         if (geometry_name_to_geom_type.count(base_geom_name) > 0) {
             fd.m_base_geom_type = geometry_name_to_geom_type.at(base_geom_name);
