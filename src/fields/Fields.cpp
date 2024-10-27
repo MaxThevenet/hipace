@@ -490,7 +490,7 @@ Fields::Copy (const int current_N_level, const int i_slice, FieldDiagnosticData&
     auto& laser_mf = multi_laser.getSlices();
     auto laser_func = interpolated_field_xy<depos_order_xy,
         guarded_field_xy>{{laser_mf}, multi_laser.GetLaserGeom()};
-    auto& helmholtz_mf = helmholtz.getSlices();
+    auto& helmholtz_mf = helmholtz.getStagingSlicesThis();
     auto helmholtz_func = interpolated_field_xy<depos_order_xy,
         guarded_field_xy>{{helmholtz_mf}, helmholtz.GetHelmholtzGeom()};
 

@@ -639,10 +639,6 @@ Hipace::SolveOneSlice (int islice, int step)
         m_grid_current.DepositCurrentSlice(m_fields, m_3D_geom[lev], lev, islice);
     }
 
-    if (m_use_helmholtz) {
-        m_multi_beam.HelmholtzDepositon(m_helmholtz, true, WhichBeamSlice::This);
-    }
-
     // Psi ExmBy EypBx Ez Bz solve
     if (!m_use_helmholtz) {
         m_fields.SolvePoissonPsiExmByEypBxEzBz(m_3D_geom, current_N_level);
@@ -697,10 +693,24 @@ Hipace::SolveOneSlice (int islice, int step)
     }
 
     if (m_use_helmholtz) {
-        m_multi_beam.HelmholtzDepositon(m_helmholtz, false, WhichBeamSlice::Next);
+        for (int isubslice = 0; isubslice < m_helmholtz.GetNSubSlices(); ++isubslice) {
+            m_helmholtz.InitHelmholtzSubSlices(islice, isubslice);
 
-        // Advance helmholtz slice
-        m_helmholtz.AdvanceSlice(islice, m_dt, step);
+            if (isubslice == m_helmholtz.GetNSubSlices() - 1) {
+                m_multi_beam.HelmholtzDepositon(m_helmholtz, false,
+                                                WhichBeamSlice::Next, islice - 1, 0);
+            } else {
+                m_multi_beam.HelmholtzDepositon(m_helmholtz, false,
+                                                WhichBeamSlice::This, islice, isubslice + 1);
+            }
+            m_multi_beam.HelmholtzDepositon(m_helmholtz, true,
+                                            WhichBeamSlice::This, islice, isubslice);
+
+            // Advance helmholtz slice
+            m_helmholtz.AdvanceSlice(islice, m_dt, step);
+
+            m_helmholtz.ShiftHelmholtzSubSlices(islice, isubslice);
+        }
     }
 
     // get beam diagnostics after SALAME but before beam push
@@ -767,6 +777,8 @@ Hipace::ResetAllQuantities ()
 
     if (m_use_helmholtz) {
         m_helmholtz.getSlices().setVal(0.);
+        m_helmholtz.getStagingSlicesNext().setVal(0.);
+        m_helmholtz.getStagingSlicesThis().setVal(0.);
     }
 
     for (int lev=0; lev<m_N_level; ++lev) {

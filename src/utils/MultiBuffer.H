@@ -117,7 +117,7 @@ private:
     int m_nslices = 0;
     int m_nbeams = 0;
     int m_laser_ncomp = 4;
-    int m_helmholtz_ncomp = 2;
+    int m_helmholtz_ncomp = WhichHelmholtzSlice::num_fields * WhichHelmholtzStagingSlice::N;
     /** How many slices of beam particles can be received in advance */
     int m_max_leading_slices = std::numeric_limits<int>::max();
     /** How many slices of beam particles can be stored before being sent */

@@ -83,6 +83,14 @@ namespace WhichHelmholtzSlice {
     };
 }
 
+namespace WhichHelmholtzStagingSlice {
+    enum slice {
+        n00_or_np1,
+        nm1_or_n00,
+        N
+    };
+}
+
 class Fields;
 
 class MultiPlasma;
@@ -108,6 +116,18 @@ public:
     /** get function for the 2D slices (const version) */
     const amrex::MultiFab& getSlices () const {return m_slices; }
 
+    /** get function for the 2.5D stagin slices */
+    amrex::MultiFab& getStagingSlicesThis () {return m_staging_slices_this; }
+
+    /** get function for the 2.5D staging slices (const version) */
+    const amrex::MultiFab& getStagingSlicesThis () const {return m_staging_slices_this; }
+
+    /** get function for the 2.5D stagin slices */
+    amrex::MultiFab& getStagingSlicesNext () {return m_staging_slices_next; }
+
+    /** get function for the 2.5D staging slices (const version) */
+    const amrex::MultiFab& getStagingSlicesNext () const {return m_staging_slices_next; }
+
     /** \brief Make Helmholtz geometry
      * \param[in] field_geom_3D 3D Geometry for level 0
      */
@@ -127,6 +147,18 @@ public:
      * \param[in] islice slice index
      */
     void ShiftHelmholtzSlices (const int islice);
+
+    /** \brief Initialize 2D sub slices in zeta
+     * \param[in] islice slice index
+     * \param[in] isubslice subslice index
+     */
+    void InitHelmholtzSubSlices (const int islice, const int isubslice);
+
+    /** \brief Shift 2D sub slices in zeta
+     * \param[in] islice slice index
+     * \param[in] isubslice subslice index
+     */
+    void ShiftHelmholtzSubSlices (const int islice, const int isubslice);
 
     /** Wrapper function to advance a Helmholtz slice by 1 time step.
      * \param[in] islice slice index
@@ -187,6 +219,8 @@ public:
      */
     bool UseHelmholtz (const int islice) const { return m_use_helmholtz && HasSlice(islice); }
 
+    int GetNSubSlices () const { return m_n_subslices; }
+
 private:
 
     bool m_use_helmholtz {false}; /**< whether a helmholtz is used or not */
@@ -196,15 +230,24 @@ private:
     amrex::Geometry m_helmholtz_geom_3D;
     /** xy slice BoxArray. Contains only one box */
     amrex::BoxArray m_helmholtz_slice_ba;
+    /** xy slice BoxArray. Contains only one box */
+    amrex::BoxArray m_helmholtz_sub_slice_ba;
     /** xy slice DistributionMapping */
     amrex::DistributionMapping m_helmholtz_slice_dm;
     /** slice box of helmholtz  */
     amrex::Box m_slice_box;
+    /** slice box of helmholtz  */
+    amrex::Box m_sub_slice_box;
     /** interpolation order for helmholtz to field and field to helmholtz operations */
     int m_interp_order = 1;
 
     /** Array of N slices required to compute current slice */
     amrex::MultiFab m_slices;
+
+    amrex::MultiFab m_staging_slices_this;
+    amrex::MultiFab m_staging_slices_next;
+
+    int m_n_subslices = 1;
 
     /** FFTW plan for forward C2C transform to solve Complex Poisson equation */
     std::array<AnyFFT, WhichHelmholtzSlice::num_fields> m_forward_fft;

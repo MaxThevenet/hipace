@@ -74,10 +74,12 @@ MultiBeam::DepositCurrentSlice (
 }
 
 void
-MultiBeam::HelmholtzDepositon (Helmholtz& helmholtz, const bool do_dtau, const int which_beam_slice)
+MultiBeam::HelmholtzDepositon (Helmholtz& helmholtz, const bool do_dtau, const int which_beam_slice,
+                               const int islice, const int isubslice)
 {
     for (int i=0; i<m_nbeams; i++) {
-        ::HelmholtzDepositon(m_all_beams[i], helmholtz, do_dtau, which_beam_slice);
+        ::HelmholtzDepositon(m_all_beams[i], helmholtz, do_dtau, which_beam_slice, islice,
+                             isubslice);
     }
 }
 

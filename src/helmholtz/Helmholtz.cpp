@@ -60,6 +60,7 @@ Helmholtz::MakeHelmholtzGeometry (const amrex::Geometry& field_geom_3D)
     queryWithParser(pp, "n_cell", n_cells_helmholtz);
     queryWithParser(pp, "patch_lo", patch_lo_helmholtz);
     queryWithParser(pp, "patch_hi", patch_hi_helmholtz);
+    queryWithParser(pp, "n_subslices", m_n_subslices);
 
     // round zeta lo and hi to full cells
     const amrex::Real pos_offset_z = GetPosOffset(2, field_geom_3D, field_geom_3D.Domain());
@@ -92,6 +93,11 @@ Helmholtz::MakeHelmholtzGeometry (const amrex::Geometry& field_geom_3D)
 
     m_helmholtz_slice_ba.define(m_slice_box);
     m_helmholtz_slice_dm.define(amrex::Vector<int>({amrex::ParallelDescriptor::MyProc()}));
+
+    m_sub_slice_box = m_slice_box;
+    m_sub_slice_box.setSmall(2, 0);
+    m_sub_slice_box.setBig(2, m_n_subslices - 1);
+    m_helmholtz_sub_slice_ba.define(m_sub_slice_box);
 }
 
 void
@@ -109,6 +115,18 @@ Helmholtz::InitData ()
         m_helmholtz_slice_ba, m_helmholtz_slice_dm, WhichHelmholtzSlice::N, m_slices_nguards,
         amrex::MFInfo().SetArena(amrex::The_Arena()));
     m_slices.setVal(0.0);
+
+    m_staging_slices_this.define(
+        m_helmholtz_sub_slice_ba, m_helmholtz_slice_dm,
+        WhichHelmholtzSlice::num_fields * WhichHelmholtzStagingSlice::N,
+        m_slices_nguards, amrex::MFInfo().SetArena(amrex::The_Arena()));
+    m_staging_slices_this.setVal(0.0);
+
+    m_staging_slices_next.define(
+        m_helmholtz_sub_slice_ba, m_helmholtz_slice_dm,
+        WhichHelmholtzSlice::num_fields * WhichHelmholtzStagingSlice::N,
+        m_slices_nguards, amrex::MFInfo().SetArena(amrex::The_Arena()));
+    m_staging_slices_next.setVal(0.0);
 
     m_sol.resize(m_slice_box, WhichHelmholtzSlice::num_fields, amrex::The_Arena());
     m_rhs.resize(m_slice_box, WhichHelmholtzSlice::num_fields, amrex::The_Arena());
@@ -168,52 +186,141 @@ Helmholtz::ShiftHelmholtzSlices (const int islice)
 
     using namespace amrex::literals;
 
-    for ( amrex::MFIter mfi(m_slices, DfltMfi); mfi.isValid(); ++mfi ){
-        Array3<amrex::Real> arr = m_slices.array(mfi);
-        amrex::ParallelFor(mfi.tilebox(),
-        [=] AMREX_GPU_DEVICE(int i, int j, int) noexcept
+    amrex::Swap(m_staging_slices_next, m_staging_slices_this);
+
+    // for ( amrex::MFIter mfi(m_slices, DfltMfi); mfi.isValid(); ++mfi ){
+    //     Array3<amrex::Real> arr = m_slices.array(mfi);
+    //     amrex::ParallelFor(mfi.tilebox(),
+    //     [=] AMREX_GPU_DEVICE(int i, int j, int) noexcept
+    //     {
+    //         using namespace WhichHelmholtzSlice;
+
+    //         for (int n = 0; n < num_fields; ++n) {
+    //             const int offset = n * num_comps_per_field;
+    //             // Shift slices of step n-1
+    //             const amrex::Real tmp_nm1j00 = arr(i, j, Ex_nm1jp2 + offset);
+    //             arr(i, j, Ex_nm1jp2 + offset) = arr(i, j, Ex_nm1jp1 + offset);
+    //             arr(i, j, Ex_nm1jp1 + offset) = arr(i, j, Ex_nm1j00 + offset);
+    //             arr(i, j, Ex_nm1j00 + offset) = tmp_nm1j00;
+    //             // Shift slices of step n
+    //             const amrex::Real tmp_n00j00 = arr(i, j, Ex_n00jp2 + offset);
+    //             arr(i, j, Ex_n00jp2 + offset) = arr(i, j, Ex_n00jp1 + offset);
+    //             arr(i, j, Ex_n00jp1 + offset) = arr(i, j, Ex_n00j00 + offset);
+    //             arr(i, j, Ex_n00j00 + offset) = tmp_n00j00;
+    //             // Shift slices of step n+1
+    //             arr(i, j, Ex_np1jp2 + offset) = arr(i, j, Ex_np1jp1 + offset);
+    //             arr(i, j, Ex_np1jp1 + offset) = arr(i, j, Ex_np1j00 + offset);
+    //             // np1j00_r will be computed by AdvanceSlice
+    //         }
+
+    //         arr(i, j, jx_n00jp1) = arr(i, j, jx_n00j00);
+    //         arr(i, j, jx_n00j00) = arr(i, j, jx_n00jm1);
+    //         arr(i, j, jx_n00jm1) = 0._rt;
+
+    //         arr(i, j, jy_n00jp1) = arr(i, j, jy_n00j00);
+    //         arr(i, j, jy_n00j00) = arr(i, j, jy_n00jm1);
+    //         arr(i, j, jy_n00jm1) = 0._rt;
+
+    //         arr(i, j, jz_n00jp1) = arr(i, j, jz_n00j00);
+    //         arr(i, j, jz_n00j00) = arr(i, j, jz_n00jm1);
+    //         arr(i, j, jz_n00jm1) = 0._rt;
+
+    //         arr(i, j, rho_n00jp1) = arr(i, j, rho_n00j00);
+    //         arr(i, j, rho_n00j00) = arr(i, j, rho_n00jm1);
+    //         arr(i, j, rho_n00jm1) = 0._rt;
+
+    //         arr(i, j, dtau_jx_n00j00) = 0._rt;
+    //         arr(i, j, dtau_jy_n00j00) = 0._rt;
+    //         arr(i, j, dtau_jz_n00j00) = 0._rt;
+    //     });
+    // }
+}
+
+void
+Helmholtz::InitHelmholtzSubSlices (const int islice, const int isubslice)
+{
+    if (!UseHelmholtz(islice)) return;
+
+    HIPACE_PROFILE("Helmholtz::ShiftHelmholtzSubSlices()");
+
+    using namespace amrex::literals;
+
+    Array3<amrex::Real> slice_arr = m_slices[0].array();
+    amrex::Array4<amrex::Real> this_staging_arr = m_staging_slices_this[0].array();
+
+    amrex::ParallelFor(to2D(m_slices[0].box()),
+        [=] AMREX_GPU_DEVICE(int i, int j) noexcept
+        {
+            using namespace WhichHelmholtzSlice;
+
+            for (int n = 0; n < num_fields; ++n) {
+                const int offset = n * num_comps_per_field;
+                // Init slices of step n-1
+                slice_arr(i, j, Ex_nm1j00 + offset) = this_staging_arr(i, j, isubslice,
+                     WhichHelmholtzStagingSlice::nm1_or_n00 + n * WhichHelmholtzStagingSlice::N);
+                // Init slices of step n
+                slice_arr(i, j, Ex_n00j00 + offset) = this_staging_arr(i, j, isubslice,
+                     WhichHelmholtzStagingSlice::n00_or_np1 + n * WhichHelmholtzStagingSlice::N);
+            }
+        });
+}
+
+void
+Helmholtz::ShiftHelmholtzSubSlices (const int islice, const int isubslice)
+{
+    if (!UseHelmholtz(islice)) return;
+
+    HIPACE_PROFILE("Helmholtz::ShiftHelmholtzSubSlices()");
+
+    using namespace amrex::literals;
+
+    Array3<amrex::Real> slice_arr = m_slices[0].array();
+    amrex::Array4<amrex::Real> this_staging_arr = m_staging_slices_this[0].array();
+
+    amrex::ParallelFor(to2D(m_slices[0].box()),
+        [=] AMREX_GPU_DEVICE(int i, int j) noexcept
         {
             using namespace WhichHelmholtzSlice;
 
             for (int n = 0; n < num_fields; ++n) {
                 const int offset = n * num_comps_per_field;
                 // Shift slices of step n-1
-                const amrex::Real tmp_nm1j00 = arr(i, j, Ex_nm1jp2 + offset);
-                arr(i, j, Ex_nm1jp2 + offset) = arr(i, j, Ex_nm1jp1 + offset);
-                arr(i, j, Ex_nm1jp1 + offset) = arr(i, j, Ex_nm1j00 + offset);
-                arr(i, j, Ex_nm1j00 + offset) = tmp_nm1j00;
+                slice_arr(i, j, Ex_nm1jp2 + offset) = slice_arr(i, j, Ex_nm1jp1 + offset);
+                slice_arr(i, j, Ex_nm1jp1 + offset) = slice_arr(i, j, Ex_nm1j00 + offset);
                 // Shift slices of step n
-                const amrex::Real tmp_n00j00 = arr(i, j, Ex_n00jp2 + offset);
-                arr(i, j, Ex_n00jp2 + offset) = arr(i, j, Ex_n00jp1 + offset);
-                arr(i, j, Ex_n00jp1 + offset) = arr(i, j, Ex_n00j00 + offset);
-                arr(i, j, Ex_n00j00 + offset) = tmp_n00j00;
+                slice_arr(i, j, Ex_n00jp2 + offset) = slice_arr(i, j, Ex_n00jp1 + offset);
+                slice_arr(i, j, Ex_n00jp1 + offset) = slice_arr(i, j, Ex_n00j00 + offset);
+                this_staging_arr(i, j, isubslice,
+                     WhichHelmholtzStagingSlice::nm1_or_n00 + n * WhichHelmholtzStagingSlice::N)
+                    = slice_arr(i, j, Ex_n00j00 + offset);
                 // Shift slices of step n+1
-                arr(i, j, Ex_np1jp2 + offset) = arr(i, j, Ex_np1jp1 + offset);
-                arr(i, j, Ex_np1jp1 + offset) = arr(i, j, Ex_np1j00 + offset);
-                // np1j00_r will be computed by AdvanceSlice
+                slice_arr(i, j, Ex_np1jp2 + offset) = slice_arr(i, j, Ex_np1jp1 + offset);
+                slice_arr(i, j, Ex_np1jp1 + offset) = slice_arr(i, j, Ex_np1j00 + offset);
+                this_staging_arr(i, j, isubslice,
+                    WhichHelmholtzStagingSlice::n00_or_np1 + n * WhichHelmholtzStagingSlice::N)
+                    = slice_arr(i, j, Ex_np1j00 + offset);
             }
 
-            arr(i, j, jx_n00jp1) = arr(i, j, jx_n00j00);
-            arr(i, j, jx_n00j00) = arr(i, j, jx_n00jm1);
-            arr(i, j, jx_n00jm1) = 0._rt;
+            slice_arr(i, j, jx_n00jp1) = slice_arr(i, j, jx_n00j00);
+            slice_arr(i, j, jx_n00j00) = slice_arr(i, j, jx_n00jm1);
+            slice_arr(i, j, jx_n00jm1) = 0._rt;
 
-            arr(i, j, jy_n00jp1) = arr(i, j, jy_n00j00);
-            arr(i, j, jy_n00j00) = arr(i, j, jy_n00jm1);
-            arr(i, j, jy_n00jm1) = 0._rt;
+            slice_arr(i, j, jy_n00jp1) = slice_arr(i, j, jy_n00j00);
+            slice_arr(i, j, jy_n00j00) = slice_arr(i, j, jy_n00jm1);
+            slice_arr(i, j, jy_n00jm1) = 0._rt;
 
-            arr(i, j, jz_n00jp1) = arr(i, j, jz_n00j00);
-            arr(i, j, jz_n00j00) = arr(i, j, jz_n00jm1);
-            arr(i, j, jz_n00jm1) = 0._rt;
+            slice_arr(i, j, jz_n00jp1) = slice_arr(i, j, jz_n00j00);
+            slice_arr(i, j, jz_n00j00) = slice_arr(i, j, jz_n00jm1);
+            slice_arr(i, j, jz_n00jm1) = 0._rt;
 
-            arr(i, j, rho_n00jp1) = arr(i, j, rho_n00j00);
-            arr(i, j, rho_n00j00) = arr(i, j, rho_n00jm1);
-            arr(i, j, rho_n00jm1) = 0._rt;
+            slice_arr(i, j, rho_n00jp1) = slice_arr(i, j, rho_n00j00);
+            slice_arr(i, j, rho_n00j00) = slice_arr(i, j, rho_n00jm1);
+            slice_arr(i, j, rho_n00jm1) = 0._rt;
 
-            arr(i, j, dtau_jx_n00j00) = 0._rt;
-            arr(i, j, dtau_jy_n00j00) = 0._rt;
-            arr(i, j, dtau_jz_n00j00) = 0._rt;
+            slice_arr(i, j, dtau_jx_n00j00) = 0._rt;
+            slice_arr(i, j, dtau_jy_n00j00) = 0._rt;
+            slice_arr(i, j, dtau_jz_n00j00) = 0._rt;
         });
-    }
 }
 
 void
@@ -236,7 +343,7 @@ Helmholtz::AdvanceSliceFFT (const amrex::Real dt, int step)
 
     const amrex::Real dx = m_helmholtz_geom_3D.CellSize(0);
     const amrex::Real dy = m_helmholtz_geom_3D.CellSize(1);
-    const amrex::Real dz = m_helmholtz_geom_3D.CellSize(2);
+    const amrex::Real dz = m_helmholtz_geom_3D.CellSize(2) / m_n_subslices;
 
     const PhysConst phc = get_phys_const();
     const amrex::Real c = phc.c;
@@ -337,7 +444,7 @@ Helmholtz::AdvanceSliceFFT (const amrex::Real dt, int step)
                     ++comp;
                 }
 
-                if (use_Ex) {
+                if (use_Ey) {
                     rhs_arr(i, j, comp) = get_rhs(arr, i, j, comp) + 2._rt * phc.mu0 * (
                         + arr(i, j, dtau_jy_n00j00) / dt
                         - c * dz_jy
@@ -346,7 +453,7 @@ Helmholtz::AdvanceSliceFFT (const amrex::Real dt, int step)
                     ++comp;
                 }
 
-                if (use_Ex) {
+                if (use_Ez) {
                     rhs_arr(i, j, comp) = get_rhs(arr, i, j, comp) + 2._rt * phc.mu0 * (
                         + arr(i, j, dtau_jz_n00j00) / dt
                         - c * dz_jz
@@ -355,7 +462,7 @@ Helmholtz::AdvanceSliceFFT (const amrex::Real dt, int step)
                     ++comp;
                 }
 
-                if (use_Ex) {
+                if (use_Bx) {
                     rhs_arr(i, j, comp) = get_rhs(arr, i, j, comp) - 2._rt * phc.mu0 * (
                         + 0.5_rt * (arr(i, j + 1, jz_n00j00) - arr(i, j - 1, jz_n00j00)) / dy
                         - dz_jy
@@ -363,7 +470,7 @@ Helmholtz::AdvanceSliceFFT (const amrex::Real dt, int step)
                     ++comp;
                 }
 
-                if (use_Ex) {
+                if (use_By) {
                     rhs_arr(i, j, comp) = get_rhs(arr, i, j, comp) - 2._rt * phc.mu0 * (
                         + dz_jx
                         - 0.5_rt * (arr(i + 1, j, jz_n00j00) - arr(i - 1, j, jz_n00j00)) / dx
@@ -371,7 +478,7 @@ Helmholtz::AdvanceSliceFFT (const amrex::Real dt, int step)
                     ++comp;
                 }
 
-                if (use_Ex) {
+                if (use_Bz) {
                     rhs_arr(i, j, comp) = get_rhs(arr, i, j, comp) - 2._rt * phc.mu0 * (
                         + 0.5_rt * (arr(i + 1, j, jy_n00j00) - arr(i - 1, j, jy_n00j00)) / dx
                         - 0.5_rt * (arr(i, j + 1, jx_n00j00) - arr(i, j - 1, jx_n00j00)) / dy
@@ -434,18 +541,21 @@ Helmholtz::InitHelmholtzSlice (const int comp)
 
     using namespace amrex::literals;
 
+    amrex::MultiFab& slices = comp == WhichBeamSlice::Next ?
+        m_staging_slices_next : m_staging_slices_this;
+
 #ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
-    for ( amrex::MFIter mfi(m_slices, DfltMfiTlng); mfi.isValid(); ++mfi ){
-        Array3<amrex::Real> const arr = m_slices.array(mfi);
+    for ( amrex::MFIter mfi(slices, DfltMfiTlng); mfi.isValid(); ++mfi ){
+        amrex::Array4<amrex::Real> const arr = slices.array(mfi);
         // Initialize a Gaussian helmholtz envelope on slice islice
-        amrex::ParallelFor(to2D(mfi.tilebox()),
-            [=] AMREX_GPU_DEVICE(int i, int j)
+        amrex::ParallelFor(mfi.tilebox(),
+            [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
-                using namespace WhichHelmholtzSlice;
-                for (int n = 0; n < num_fields; ++n) {
-                    arr(i, j, comp + n * num_comps_per_field) = 0._rt;
+                for (int n = 0; n < WhichHelmholtzSlice::num_fields; ++n) {
+                    arr(i, j, k, WhichHelmholtzStagingSlice::n00_or_np1
+                        + n * WhichHelmholtzStagingSlice::N) = 0._rt;
                 }
             });
     }
