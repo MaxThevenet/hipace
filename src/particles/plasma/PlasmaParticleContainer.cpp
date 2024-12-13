@@ -501,7 +501,9 @@ LaserIonization (const int islice,
                                          (PhysConstSI::ep0 * PhysConstSI::m_e) );
         const amrex::Real E0 = Hipace::m_normalized_units ?
                                wp * PhysConstSI::m_e * PhysConstSI::c / PhysConstSI::q_e : 1;
-
+	const amrex::Real lambda0 = laser.GetLambda0();
+        const amrex::Real omega0 = 2.0 * MathConst::pi * phys_const.c / lambda0;
+	
         int * const ion_lev = soa_ion.GetIntData(PlasmaIdx::ion_lev).data();
         const amrex::Real * const x_prev = soa_ion.GetRealData(PlasmaIdx::x_prev).data();
         const amrex::Real * const y_prev = soa_ion.GetRealData(PlasmaIdx::y_prev).data();
@@ -551,10 +553,11 @@ LaserIonization (const int islice,
             doLaserGatherShapeN<depos_order_xy>(xp, yp, A, A_dx, A_dzeta, laser_arr,
                 dx_inv, dy_inv, dzeta_inv, x_pos_offset, y_pos_offset);
 
-            const Complex E1 = I * A - A_dzeta;
-            const Complex E2 = - A_dx;
+            const Complex Et = I * A * omega0 + A_dzeta * phys_const.c; //transverse component
+            const Complex El = - A_dx * phys_const.c; //longitudinal component
 
-            const amrex::Real Ep = std::sqrt( amrex::abs(E1*E1) + amrex::abs(E2*E2) )*E0;
+            amrex::Real Ep = std::sqrt( amrex::abs(Et*Et) + amrex::abs(El*El) );
+            Ep = Ep * phys_const.m_e * phys_const.c / phys_const.q_e;
 
             // Compute probability of ionization p
             const amrex::Real gammap = (1.0_rt + uxp[ip] * uxp[ip] * clightsq
