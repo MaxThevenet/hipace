@@ -7,6 +7,7 @@
  */
 #include "MultiBeam.H"
 #include "particles/deposition/BeamDepositCurrent.H"
+#include "particles/deposition/HelmholtzDeposition.H"
 #include "particles/sorting/SliceSort.H"
 #include "particles/pusher/BeamParticleAdvance.H"
 #include "utils/DeprecatedInput.H"
@@ -17,6 +18,20 @@ MultiBeam::MultiBeam ()
 {
     amrex::ParmParse pp("beams");
     queryWithParser(pp, "names", m_names);
+    amrex::Real mag_period{0.}, mag_phase{0.}, mag_B0{0.}, mag_correction{0.};
+    bool use_mag = false;
+    queryWithParser(pp, "use_mag", use_mag);
+    queryWithParser(pp, "mag_period", mag_period);
+    queryWithParser(pp, "mag_phase", mag_phase);
+    queryWithParser(pp, "mag_B0", mag_B0);
+    queryWithParser(pp, "mag_correction", mag_correction);
+    m_mag = Mag(use_mag, mag_period, mag_phase, mag_B0, mag_correction);
+
+    queryWithParser(pp, "chicBs", m_chicBs);
+    queryWithParser(pp, "chicLs", m_chicLs);
+    queryWithParser(pp, "chicZs", m_chicZs);
+    queryWithParser(pp, "tstart_push", m_tstart_push);
+
     if (m_names[0] == "no_beam") return;
     DeprecatedInput("beams", "insitu_freq", "insitu_period");
     DeprecatedInput("beams", "all_from_file",
@@ -59,6 +74,16 @@ MultiBeam::DepositCurrentSlice (
 }
 
 void
+MultiBeam::HelmholtzDeposition (Helmholtz& helmholtz, const bool do_dtau, const int which_beam_slice,
+                               const int islice, const int isubslice)
+{
+    for (int i=0; i<m_nbeams; i++) {
+        ::HelmholtzDeposition(m_all_beams[i], helmholtz, do_dtau, which_beam_slice, islice,
+                             isubslice);
+    }
+}
+
+void
 MultiBeam::shiftSlippedParticles (const int slice, amrex::Geometry const& geom)
 {
     for (int i=0; i<m_nbeams; i++) {
@@ -69,10 +94,13 @@ MultiBeam::shiftSlippedParticles (const int slice, amrex::Geometry const& geom)
 void
 MultiBeam::AdvanceBeamParticlesSlice (
     const Fields& fields, amrex::Vector<amrex::Geometry> const& gm, const int slice,
-    int const current_N_level)
+    int const current_N_level, const Helmholtz& helmholtz)
 {
+    if (Hipace::GetInstance().m_physical_time < m_tstart_push) return;
     for (int i=0; i<m_nbeams; i++) {
-        ::AdvanceBeamParticlesSlice(m_all_beams[i], fields, gm, slice, current_N_level);
+        ::AdvanceBeamParticlesSlice(
+            m_all_beams[i], fields, gm, slice, current_N_level, helmholtz, m_mag,
+            m_chicBs, m_chicLs, m_chicZs);
     }
 }
 

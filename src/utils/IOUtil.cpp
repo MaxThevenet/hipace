@@ -139,6 +139,11 @@ utils::getUnitDimension ( std::string const & record_name )
         {openPMD::UnitDimension::M,  1.},
         {openPMD::UnitDimension::T, -1.}
     };
+    else if( record_name == "prev" ) return {
+        {openPMD::UnitDimension::L,  1.},
+        {openPMD::UnitDimension::M,  0.},
+        {openPMD::UnitDimension::T, -1.}
+    };
     else return {};
 }
 #endif

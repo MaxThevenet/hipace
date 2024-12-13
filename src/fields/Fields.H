@@ -22,10 +22,11 @@
 
 class Hipace;
 class MultiLaser;
+class Helmholtz;
 
 /** \brief describes which slice with respect to the currently calculated is used */
 struct WhichSlice {
-    enum slice { Next=0, This, Previous, RhomJzIons, Salame, PCIter, PCPrevIter, N };
+    enum slice { Next=0, This, Previous, RhomJzIons, Salame, PCIter, PCPrevIter, Previous2, N };
 };
 
 struct assert_map : std::map<std::string, int> {
@@ -129,9 +130,11 @@ public:
      * \param[in,out] fd data for field diagnostics
      * \param[in] field_geom main field geometry
      * \param[in] multi_laser MultiLaser object
+     * \param[in] helmholtz Helmholtz object
      */
      void Copy (const int current_N_level, const int i_slice, FieldDiagnosticData& fd,
-                const amrex::Vector<amrex::Geometry>& field_geom, MultiLaser& multi_laser);
+                const amrex::Vector<amrex::Geometry>& field_geom, MultiLaser& multi_laser,
+                Helmholtz& helmholtz);
 
      /** \brief Initialize all required fields to zero and interpolate from lev-1 to lev if needed
      *

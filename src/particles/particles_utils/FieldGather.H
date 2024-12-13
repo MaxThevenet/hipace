@@ -265,6 +265,52 @@ void doLaserGatherShapeN (const amrex::Real xp,
     }
 }
 
+/**
+ * \brief Helmholtz field gather for a single particle
+ *
+ * \tparam depos_order_xy Order of the transverse shape factor for the field gather
+ * \param[in] xp Particle position x
+ * \param[in] yp Particle position y
+ * \param[in,out] Ar Real part of laser field on particle: Re(a)
+ * \param[in] a_arr field array for field a
+ * \param[in] dx_inv inverse cell spacing in x direction
+ * \param[in] dy_inv inverse cell spacing in y direction
+ * \param[in] x_pos_offset offset for converting positions to indexes
+ * \param[in] y_pos_offset offset for converting positions to indexes
+ */
+template <int depos_order_xy>
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+void doHelmholtzGatherShapeN (const amrex::Real xp,
+                              const amrex::Real yp,
+                              amrex::Real& Ar,
+                              Array3<amrex::Real const> const& a_arr,
+                              const amrex::Real dx_inv,
+                              const amrex::Real dy_inv,
+                              const amrex::Real x_pos_offset,
+                              const amrex::Real y_pos_offset)
+{
+    // x,y direction
+    const amrex::Real x = (xp-x_pos_offset)*dx_inv;
+    const amrex::Real y = (yp-y_pos_offset)*dy_inv;
+
+    // --- Compute shape factors
+    // x direction
+    // i_cell leftmost cell in x that the particle touches. sx_cell shape factor along x
+    amrex::Real sx_cell[depos_order_xy + 1];
+    const int i_cell = compute_shape_factor<depos_order_xy>(sx_cell, x);
+
+    // y direction
+    amrex::Real sy_cell[depos_order_xy + 1];
+    const int j_cell = compute_shape_factor<depos_order_xy>(sy_cell, y);
+
+    // Gather field Aabssq, on particle from field on grid a_arr
+    for (int iy=0; iy<=depos_order_xy; iy++){
+        for (int ix=0; ix<=depos_order_xy; ix++){
+            Ar += sx_cell[ix]*sy_cell[iy]*a_arr(i_cell+ix  , j_cell+iy  , 0);
+        }
+    }
+}
+
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 void doGatherEz (const amrex::Real xp,
                      const amrex::Real yp,

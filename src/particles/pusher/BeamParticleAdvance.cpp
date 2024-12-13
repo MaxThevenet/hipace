@@ -19,10 +19,14 @@
 void
 AdvanceBeamParticlesSlice (
     BeamParticleContainer& beam, const Fields& fields, amrex::Vector<amrex::Geometry> const& gm,
-    const int slice, int const current_N_level)
+    const int slice, int const current_N_level, const Helmholtz& helmholtz, Mag mag,
+    const std::array<amrex::Real, 4> chicBs,
+    const std::array<amrex::Real, 4> chicLs,
+    const std::array<amrex::Real, 4> chicZs)
 {
     HIPACE_PROFILE("AdvanceBeamParticlesSlice()");
     using namespace amrex::literals;
+    const bool use_helmholtz = helmholtz.UseHelmholtz();
 
     const PhysConst phys_const = get_phys_const();
 
@@ -35,6 +39,16 @@ AdvanceBeamParticlesSlice (
     const bool normalized_units = Hipace::m_normalized_units;
     const bool spin_tracking = beam.m_do_spin_tracking;
     const amrex::Real spin_anom = beam.m_spin_anom;
+    const amrex::Real mag_period = mag.m_period;
+    const amrex::Real mag_phase = mag.m_phase;
+    const amrex::Real mag_B0 = mag.m_B0;
+    const amrex::Real mag_correction = mag.m_correction;
+    const amrex::Real mag_kx = mag.m_kx;
+    const amrex::Real mag_ky = mag.m_ky;
+    const bool use_mag = mag.m_use_mag;
+    const amrex::GpuArray<amrex::Real, 4> Bs = {chicBs[0], chicBs[1], chicBs[2], chicBs[3]};
+    const amrex::GpuArray<amrex::Real, 4> Ls = {chicLs[0], chicLs[1], chicLs[2], chicLs[3]};
+    const amrex::GpuArray<amrex::Real, 4> Zs = {chicZs[0], chicZs[1], chicZs[2], chicZs[3]};
 
     if (normalized_units && radiation_reaction) {
         AMREX_ALWAYS_ASSERT_WITH_MESSAGE(background_density_SI!=0,
@@ -58,10 +72,14 @@ AdvanceBeamParticlesSlice (
     const amrex::FArrayBox& slice_fab_lev0 = fields.getSlices(lev0_idx)[0];
     const amrex::FArrayBox& slice_fab_lev1 = fields.getSlices(lev1_idx)[0];
     const amrex::FArrayBox& slice_fab_lev2 = fields.getSlices(lev2_idx)[0];
+    const amrex::MultiFab& a_mf = helmholtz.getSlices();
 
     Array3<const amrex::Real> const slice_arr_lev0 = slice_fab_lev0.const_array();
     Array3<const amrex::Real> const slice_arr_lev1 = slice_fab_lev1.const_array();
     Array3<const amrex::Real> const slice_arr_lev2 = slice_fab_lev2.const_array();
+    Array3<const amrex::Real> const& a_arr = use_helmholtz ?
+            a_mf[0].const_array(WhichHelmholtzSlice::Ex_n00j00) : amrex::Array4<const amrex::Real>();
+    const amrex::Real ku = 2.*MathConst::pi/mag_period;
 
     // Extract properties associated with physical size of the box
     const amrex::Real dx_inv_lev0 = gm[lev0_idx].InvCellSize(0);
@@ -119,13 +137,16 @@ AdvanceBeamParticlesSlice (
     omp::ParallelFor(
         amrex::TypeList<
             amrex::CompileTimeOptions<0, 1, 2, 3>,
+            amrex::CompileTimeOptions<false, true>,
             amrex::CompileTimeOptions<false, true>
         >{}, {
             Hipace::m_depos_order_xy,
-            use_external_fields
+            use_external_fields,
+            use_helmholtz
         },
         beam.getNumParticlesIncludingSlipped(WhichBeamSlice::This),
-        [=] AMREX_GPU_DEVICE (int ip, auto depos_order, auto c_use_external_fields) {
+        [=] AMREX_GPU_DEVICE (int ip, auto depos_order, auto c_use_external_fields,
+                              auto c_use_helmholtz) {
 
             if (!ptd.id(ip).is_valid()) return;
 
@@ -135,6 +156,9 @@ AdvanceBeamParticlesSlice (
             amrex::Real ux = ptd.rdata(BeamIdx::ux)[ip];
             amrex::Real uy = ptd.rdata(BeamIdx::uy)[ip];
             amrex::Real uz = ptd.rdata(BeamIdx::uz)[ip];
+            ptd.m_runtime_rdata[0][ip] = ux;
+            ptd.m_runtime_rdata[1][ip] = uy;
+            ptd.m_runtime_rdata[2][ip] = uz;
 
             int i = ptd.idata(BeamIdx::nsubcycles)[ip];
 
@@ -189,13 +213,39 @@ AdvanceBeamParticlesSlice (
                 amrex::ParticleReal Bxp = 0._rt, Byp = 0._rt, Bzp = 0._rt;
 
                 // field gather for a single particle
-                doGatherShapeN<depos_order.value>(xp, yp, ExmByp, EypBxp, Ezp, Bxp, Byp, Bzp,
-                    slice_arr, psi_comp, ez_comp, bx_comp, by_comp, bz_comp,
-                    dx_inv, dy_inv, x_pos_offset, y_pos_offset);
+                if (!c_use_helmholtz.value) {
+                    doGatherShapeN<depos_order.value>(xp, yp, ExmByp, EypBxp, Ezp, Bxp, Byp, Bzp,
+                        slice_arr, psi_comp, ez_comp, bx_comp, by_comp, bz_comp,
+                        dx_inv, dy_inv, x_pos_offset, y_pos_offset);
+                }
 
                 if (c_use_external_fields.value) {
                     ApplyExternalField(xp, yp, zp, time, clight, ExmByp, EypBxp, Ezp, Bxp, Byp, Bzp,
                         external_fields);
+                }
+                if (use_mag > 0) {
+                    amrex::Real zprop = clight*time + zp/clight*0._rt;
+                    amrex::Real Bx = 0._rt;
+                    amrex::Real By = mag_B0*std::cos( ku*zprop + mag_phase );
+                    amrex::Real Bz = 0._rt;
+                    if (mag_correction) {
+                        Bx += mag_B0 * std::cos( ku*zprop + mag_phase ) * mag_kx*mag_kx*xp*yp;
+                        By *= (1._rt + mag_kx*mag_kx*xp*xp/2._rt + mag_ky*mag_ky*yp*yp/2._rt);
+                        Bz -= mag_B0 * std::sin( ku*zprop + mag_phase ) * ku*yp;
+                    }
+                    Bxp += Bx;
+                    Byp += By;
+                    Bzp += Bz;
+                    ExmByp -= clight * By;
+                    EypBxp += clight * Bx;
+                }
+
+                for (int i=0; i<4; ++i) {
+                    amrex::Real zprop = clight*time + zp/clight*0._rt;
+                    if ((zprop >= Zs[i]) && (zprop < (Zs[i] + Ls[i]))) {
+                        Byp += Bs[i];
+                        ExmByp -= clight * Bs[i];
+                    }
                 }
 
                 // use intermediate fields to calculate next (n+1) transverse momenta
@@ -203,12 +253,24 @@ AdvanceBeamParticlesSlice (
                     * ( ExmByp + ( clight - uz * gammap_inv ) * Byp + uy*gammap_inv*Bzp);
                 amrex::ParticleReal uy_next = uy + dt * charge_mass_ratio
                     * ( EypBxp + ( uz * gammap_inv - clight ) * Bxp - ux*gammap_inv*Bzp);
+                amrex::ParticleReal uz_next = uz + dt * charge_mass_ratio
+                    * ( Ezp + ( ux * Byp - uy * Bxp ) * gammap_inv );
+
+                if (c_use_helmholtz.value) {
+                    amrex::ParticleReal Arp = 0._rt;
+                    amrex::ParticleReal betaz = uz * gammap_inv * inv_clight;
+                    amrex::ParticleReal betax = ux * gammap_inv * inv_clight;
+                    doHelmholtzGatherShapeN<depos_order.value>(
+                        xp, yp, Arp, a_arr,
+                        dx_inv, dy_inv, x_pos_offset, y_pos_offset);
+                    ux_next += dt * charge_mass_ratio * (1._rt-betaz) * Arp;
+                    uz_next += dt * charge_mass_ratio * (   betax   ) * Arp;
+                }
 
                 // Now computing new longitudinal momentum
                 const amrex::ParticleReal ux_intermediate = ( ux_next + ux ) * 0.5_rt;
                 const amrex::ParticleReal uy_intermediate = ( uy_next + uy ) * 0.5_rt;
-                const amrex::ParticleReal uz_intermediate = uz
-                    + dt * 0.5_rt * charge_mass_ratio * Ezp;
+                const amrex::ParticleReal uz_intermediate = ( uz_next + uz ) * 0.5_rt;
 
                 const amrex::ParticleReal gamma_intermediate_inv = 1._rt / std::sqrt( 1._rt
                     + ( ux_intermediate*ux_intermediate
@@ -236,10 +298,6 @@ AdvanceBeamParticlesSlice (
                     const amrex::Real o = 1._rt / (1._rt + h.dotProduct(h));
                     spin = o * (s_prime + (h.dotProduct(s_prime) * h + h.crossProduct(s_prime)));
                 }
-
-                amrex::ParticleReal uz_next = uz + dt * charge_mass_ratio
-                    * ( Ezp + ( ux_intermediate * Byp - uy_intermediate * Bxp )
-                    * gamma_intermediate_inv );
 
                 if (radiation_reaction) {
 
