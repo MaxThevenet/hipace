@@ -5,7 +5,7 @@
  * Authors: AlexanderSinn
  * License: BSD-3-Clause-LBNL
  */
-#include "HelmholtzDepositon.H"
+#include "HelmholtzDeposition.H"
 #include "DepositionUtil.H"
 #include "particles/beam/BeamParticleContainer.H"
 #include "particles/particles_utils/ShapeFactors.H"
@@ -16,13 +16,13 @@
 #include "Hipace.H"
 
 void
-HelmholtzDepositon (BeamParticleContainer& beam, Helmholtz& helmholtz,
+HelmholtzDeposition (BeamParticleContainer& beam, Helmholtz& helmholtz,
                     const bool do_dtau,
                     const int which_beam_slice,
                     const int islice,
                     const int isubslice)
 {
-    HIPACE_PROFILE("HelmholtzDepositon()");
+    HIPACE_PROFILE("HelmholtzDeposition()");
 
     using namespace amrex::literals;
 

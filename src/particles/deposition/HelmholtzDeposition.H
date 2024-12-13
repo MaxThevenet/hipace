@@ -13,7 +13,7 @@
 #include "utils/Constants.H"
 
 void
-HelmholtzDepositon (BeamParticleContainer& beam, Helmholtz& helmholtz,
+HelmholtzDeposition (BeamParticleContainer& beam, Helmholtz& helmholtz,
                     const bool do_dtau,
                     const int which_beam_slice,
                     const int islice,

@@ -697,13 +697,13 @@ Hipace::SolveOneSlice (int islice, int step)
             m_helmholtz.InitHelmholtzSubSlices(islice, isubslice);
 
             if (isubslice == m_helmholtz.GetNSubSlices() - 1) {
-                m_multi_beam.HelmholtzDepositon(m_helmholtz, false,
+                m_multi_beam.HelmholtzDeposition(m_helmholtz, false,
                                                 WhichBeamSlice::Next, islice - 1, 0);
             } else {
-                m_multi_beam.HelmholtzDepositon(m_helmholtz, false,
+                m_multi_beam.HelmholtzDeposition(m_helmholtz, false,
                                                 WhichBeamSlice::This, islice, isubslice + 1);
             }
-            m_multi_beam.HelmholtzDepositon(m_helmholtz, true,
+            m_multi_beam.HelmholtzDeposition(m_helmholtz, true,
                                             WhichBeamSlice::This, islice, isubslice);
 
             // Advance helmholtz slice

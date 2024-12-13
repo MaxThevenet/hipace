@@ -65,7 +65,7 @@ public:
         const bool do_beam_rhomjz_deposition, const int which_slice, const int which_beam_slice,
         const bool only_highest=false);
 
-    void HelmholtzDepositon (Helmholtz& helmholtz, const bool do_dtau, const int which_beam_slice,
+    void HelmholtzDeposition (Helmholtz& helmholtz, const bool do_dtau, const int which_beam_slice,
                              const int islice, const int isubslice);
 
     void shiftSlippedParticles (const int slice, amrex::Geometry const& geom);
