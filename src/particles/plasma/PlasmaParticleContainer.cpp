@@ -557,8 +557,9 @@ LaserIonization (const int islice,
             const Complex El = - A_dx * phys_const.c; //longitudinal component
 
             amrex::Real Ep = std::sqrt( amrex::abs(Et*Et) + amrex::abs(El*El) );
-            Ep = Ep * phys_const.m_e * phys_const.c / phys_const.q_e;
-
+            Ep *= phys_const.m_e * phys_const.c / phys_const.q_e;
+	    Ep *= E0;
+	    
             // Compute probability of ionization p
             const amrex::Real gammap = (1.0_rt + uxp[ip] * uxp[ip] * clightsq
                                                + uyp[ip] * uyp[ip] * clightsq

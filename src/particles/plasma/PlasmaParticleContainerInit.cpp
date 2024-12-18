@@ -414,11 +414,10 @@ InitIonizationModule (const amrex::Geometry& geom, const amrex::Real background_
     // without Gamma function
     const PhysConst phys_const = make_constants_SI();
     const amrex::Real alpha = 0.0072973525693_rt;
-    const amrex::Real r_e = 2.8179403227e-15_rt;
     const amrex::Real a3 = alpha * alpha * alpha;
     const amrex::Real a4 = a3 * alpha;
-    const amrex::Real wa = a3 * phys_const.c / r_e;
-    const amrex::Real Ea = phys_const.m_e * phys_const.c * phys_const.c / phys_const.q_e * a4 / r_e;
+    const amrex::Real wa = a3 * phys_const.c / PhysConstSI::r_e;
+    const amrex::Real Ea = phys_const.m_e * phys_const.c * phys_const.c / phys_const.q_e * a4 / PhysConstSI::r_e;
     const amrex::Real UH = table_ionization_energies[0];
     const amrex::Real l_eff = std::sqrt(UH/h_ionization_energies[0]) - 1._rt;
 
@@ -448,7 +447,7 @@ InitIonizationModule (const amrex::Geometry& geom, const amrex::Real background_
         h_adk_prefactor[i] = dt * wa * C2 * ( Uion/(2*UH) )
             * std::pow(2*std::pow((Uion/UH),3./2)*Ea,2*n_eff - 1);
         h_adk_exp_prefactor[i] = -2./3 * std::pow( Uion/UH,3./2) * Ea;
-        h_laser_adk_prefactor[i] = (3 / MathConst::pi) * std::pow(Uion/UH, -3./2.);
+        h_laser_adk_prefactor[i] = (3 / MathConst::pi) * std::pow(Uion/UH, -3./2.) / Ea;
     }
 
     amrex::Gpu::copy(amrex::Gpu::hostToDevice,
