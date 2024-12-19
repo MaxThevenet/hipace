@@ -503,6 +503,7 @@ LaserIonization (const int islice,
                                wp * PhysConstSI::m_e * PhysConstSI::c / PhysConstSI::q_e : 1;
 	const amrex::Real lambda0 = laser.GetLambda0();
         const amrex::Real omega0 = 2.0 * MathConst::pi * phys_const.c / lambda0;
+	const bool linear_polarization = laser.LinearPolarization();
 	
         int * const ion_lev = soa_ion.GetIntData(PlasmaIdx::ion_lev).data();
         const amrex::Real * const x_prev = soa_ion.GetRealData(PlasmaIdx::x_prev).data();
@@ -570,7 +571,12 @@ LaserIonization (const int islice,
                 std::pow(Ep, adk_power[ion_lev_loc]) *
                 std::exp( adk_exp_prefactor[ion_lev_loc]/Ep );
 
-            amrex::Real w_dtau_ac = w_dtau_dc * std::sqrt(Ep * laser_adk_prefactor[ion_lev_loc]);
+	    amrex::Real w_dtau_ac;
+	    if (linear_polarization) {
+	      w_dtau_ac = w_dtau_dc * std::sqrt(Ep * laser_adk_prefactor[ion_lev_loc]);
+	    } else {
+	      w_dtau_ac = w_dtau_dc;
+	    }
 
             amrex::Real p = 1._rt - std::exp( - w_dtau_ac );
 

@@ -171,6 +171,9 @@ public:
     /** Get the geometry of the Laser Box */
     const amrex::Geometry& GetLaserGeom () const { return m_laser_geom_3D; }
 
+    /** If the polarization is linear or circular */
+    bool LinearPolarization () const { return m_linear_polarization; }
+
     /** If the laser geometry includes this slice
      * \param[in] islice slice index
      */
