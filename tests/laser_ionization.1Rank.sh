@@ -25,7 +25,7 @@ TEST_NAME="${FILE_NAME%.*}"
 rm -rf $TEST_NAME
 
 # Run the simulation
-mpiexec -n 1 $HIPACE_EXECUTABLE $HIPACE_EXAMPLE_DIR/input_laser_ionization_linear
+mpiexec -n 1 $HIPACE_EXECUTABLE $HIPACE_EXAMPLE_DIR/inputs_laser_ionization_linear
 
 # Compare the result with theory
 $HIPACE_EXAMPLE_DIR/analysis_laser_ionization.py
