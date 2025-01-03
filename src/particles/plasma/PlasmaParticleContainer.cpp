@@ -504,7 +504,7 @@ LaserIonization (const int islice,
     const amrex::Real lambda0 = laser.GetLambda0();
         const amrex::Real omega0 = 2.0 * MathConst::pi * phys_const.c / lambda0;
     const bool linear_polarization = laser.LinearPolarization();
-    
+
         int * const ion_lev = soa_ion.GetIntData(PlasmaIdx::ion_lev).data();
         const amrex::Real * const x_prev = soa_ion.GetRealData(PlasmaIdx::x_prev).data();
         const amrex::Real * const y_prev = soa_ion.GetRealData(PlasmaIdx::y_prev).data();
@@ -560,7 +560,7 @@ LaserIonization (const int islice,
             amrex::Real Ep = std::sqrt( amrex::abs(Et*Et) + amrex::abs(El*El) );
             Ep *= phys_const.m_e * phys_const.c / phys_const.q_e;
         Ep *= E0;
-        
+
             // Compute probability of ionization p
             const amrex::Real gammap = (1.0_rt + uxp[ip] * uxp[ip] * clightsq
                                                + uyp[ip] * uyp[ip] * clightsq

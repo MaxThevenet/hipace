@@ -431,7 +431,7 @@ then
                      --test-name transverse_benchmark.1Rank.sh
 fi
 
-# laser_ionization.1Rank.sh                                                                                                                                                                                     
+# laser_ionization.1Rank.sh
 if [[ $all_tests = true ]] || [[ $one_test_name = "laser_ionization.1Rank.sh" ]]
 then
     cd $build_dir

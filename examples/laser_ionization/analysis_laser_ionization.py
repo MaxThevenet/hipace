@@ -36,7 +36,7 @@ rho_elec, _ = ts.get_field(field='rho_elec', coord='z', iteration=iteration, plo
 rho_elec_mean = np.mean(rho_elec, axis=(1, 2))
 rho_average = statistics.mean(rho_elec_mean[0:10])
 fraction = rho_average / (-qe) / (n0)
-    
+
 fraction_warpx = 0.41014984 #result from WarpX simulation
 
 relative_diff = np.abs( ( fraction - fraction_warpx ) / fraction_warpx )
