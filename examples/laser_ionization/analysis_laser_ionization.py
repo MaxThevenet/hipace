@@ -5,6 +5,7 @@
 #
 # Authors:
 
+import argparse
 import numpy as np
 import math
 from openpmd_viewer import OpenPMDTimeSeries
