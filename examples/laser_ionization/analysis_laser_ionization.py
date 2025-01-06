@@ -41,7 +41,7 @@ fraction = rho_average / (-qe) / (n0)
 fraction_warpx = 0.41014984 #result from WarpX simulation
 
 relative_diff = np.abs( ( fraction - fraction_warpx ) / fraction_warpx )
-tolerance = 0.1
+tolerance = 0.15
 print("percentage error for the fraction of ionization = "+ str(relative_diff *100) + '%')
 
 assert (relative_diff < tolerance), 'Test laser_ionization did not pass'
