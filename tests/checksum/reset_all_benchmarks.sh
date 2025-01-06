@@ -439,6 +439,6 @@ then
         || echo "ctest command failed, maybe just because checksums are different. Keep going"
     cd $checksum_dir
     ./checksumAPI.py --reset-benchmark \
-                     --file_name ${build_dir}/bin/laser_ionization.1Rank \
-                     --test-name laser_ionization.1Rank
+                     --file_name ${build_dir}/bin/laser_ionization.1Rank.sh \
+                     --test-name laser_ionization.1Rank.sh
 fi
