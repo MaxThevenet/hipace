@@ -15,7 +15,7 @@ my_constants.w0_um = 1.e8
 my_constants.tau_fs = 30/1.17741 
 my_constants.lambda0_nm = 800
 
-hipace.file_prefix = new
+hipace.file_prefix = laser_ionization.1Rank
 hipace.do_tiling = 0
 hipace.deposit_rho_individual = 1
 
