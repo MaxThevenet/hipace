@@ -14,7 +14,6 @@ import statistics
 parser = argparse.ArgumentParser(description='Compare with WarpX the fraction of ionization for a specific value of a0 with a linear polarized laser')
 parser.add_argument('--output-dir',
                     dest='output_dir',
-                    default='new',
                     help='Path to the directory containing output files')
 args = parser.parse_args()
 
