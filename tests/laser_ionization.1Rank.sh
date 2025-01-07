@@ -25,10 +25,12 @@ TEST_NAME="${FILE_NAME%.*}"
 rm -rf $TEST_NAME
 
 # Run the simulation
-mpiexec -n 1 $HIPACE_EXECUTABLE $HIPACE_EXAMPLE_DIR/inputs_laser_ionization_linear
+mpiexec -n 1 $HIPACE_EXECUTABLE $HIPACE_EXAMPLE_DIR/inputs_laser_ionization_linear \
+    hipace.file_prefix=$TEST_NAME
 
 # Compare the result with theory
 $HIPACE_EXAMPLE_DIR/analysis_laser_ionization.py
+
 
 # Compare the results with checksum benchmark
 $HIPACE_TEST_DIR/checksum/checksumAPI.py \
