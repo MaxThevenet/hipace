@@ -29,7 +29,7 @@ mpiexec -n 1 $HIPACE_EXECUTABLE $HIPACE_EXAMPLE_DIR/inputs_laser_ionization_line
     hipace.file_prefix=$TEST_NAME
 
 # Compare the result with theory
-$HIPACE_EXAMPLE_DIR/analysis_laser_ionization.py
+$HIPACE_EXAMPLE_DIR/analysis_laser_ionization.py --output-dir=$TEST_NAME
 
 
 # Compare the results with checksum benchmark
