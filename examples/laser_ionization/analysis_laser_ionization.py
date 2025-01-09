@@ -26,19 +26,13 @@ args = parser.parse_args()
 ts_linear = OpenPMDTimeSeries(args.first)
 ts_circular = OpenPMDTimeSeries(args.second)
 
-lambda0 = 800.e-9
 a0_linear = 0.00885126
 a0_circular = 0.00787934
+
 nc = 1.75e27
 n0 = nc / 10000
 
-me = 9.1093837015e-31
-c = 299792458
 qe = 1.602176634e-19
-C = me * c * c * 2 * math.pi / (lambda0 * qe)
-
-E0_linear = C * a0_linear
-E0_circular = C * a0_circular
 
 iteration = 0
 
