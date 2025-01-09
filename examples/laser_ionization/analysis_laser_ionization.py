@@ -60,6 +60,6 @@ relative_diff_circular = np.abs( ( fraction_circular - fraction_warpx_circular )
 
 tolerance = 0.15
 print("percentage error for the fraction of ionization in linear polarization = "+ str(relative_diff_linear *100) + '%')
-print("percentage error for the fraction of ionization in circular polarization = "+ str(relative_diff_linear *100) + '%')
+print("percentage error for the fraction of ionization in circular polarization = "+ str(relative_diff_circular *100) + '%')
 
 assert ( (relative_diff_linear < tolerance) and (relative_diff_circular < tolerance) ), 'Test laser_ionization did not pass'
