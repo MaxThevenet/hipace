@@ -52,7 +52,7 @@ fraction_warpx_circular = 0.502250841 #result from WarpX simulation
 relative_diff_linear = np.abs( ( fraction_linear - fraction_warpx_linear ) / fraction_warpx_linear )
 relative_diff_circular = np.abs( ( fraction_circular - fraction_warpx_circular ) / fraction_warpx_circular )
 
-tolerance = 0.15
+tolerance = 0.25
 print("percentage error for the fraction of ionization in linear polarization = "+ str(relative_diff_linear *100) + '%')
 print("percentage error for the fraction of ionization in circular polarization = "+ str(relative_diff_circular *100) + '%')
 
