@@ -20,7 +20,7 @@ parser.add_argument('--first',
 parser.add_argument('--second',
                     dest='second',
                     required=True,
-                    help='Path to the directory containing output files'))
+                    help='Path to the directory containing output files')
 args = parser.parse_args()
 
 ts_linear = OpenPMDTimeSeries(args.first)
