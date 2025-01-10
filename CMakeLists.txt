@@ -432,7 +432,7 @@ if(BUILD_TESTING)
 
             add_test(NAME laser_ionization.1Rank
                     COMMAND bash ${HiPACE_SOURCE_DIR}/tests/laser_ionization.1Rank.sh
-                            $<TARGET_FILE:HiPACE> ${HiPACE_SOURCE_DIR}
+                            $<TARGET_FILE:HiPACE> ${HiPACE_SOURCE_DIR} ${HiPACE_COMPUTE}
                     WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
             )
 
