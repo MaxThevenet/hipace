@@ -698,7 +698,6 @@ Hipace::SolveOneSlice (int islice, int step)
 
     if (m_use_helmholtz) {
         m_multi_beam.HelmholtzDepositon(m_helmholtz, false, WhichBeamSlice::Next);
-
         // Advance helmholtz slice
         m_helmholtz.AdvanceSlice(islice, m_dt, step);
     }
