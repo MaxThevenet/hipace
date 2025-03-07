@@ -18,9 +18,7 @@
 void
 HelmholtzDeposition (BeamParticleContainer& beam, Helmholtz& helmholtz,
                     const bool do_dtau,
-                    const int which_beam_slice,
-                    const int islice,
-                    const int isubslice)
+                    const int which_beam_slice)
 {
     HIPACE_PROFILE("HelmholtzDeposition()");
 
@@ -29,13 +27,6 @@ HelmholtzDeposition (BeamParticleContainer& beam, Helmholtz& helmholtz,
     amrex::FArrayBox& isl_fab = helmholtz.getSlices()[0];
     const amrex::Geometry& gm = helmholtz.GetHelmholtzGeom();
     const CheckDomainBounds helmholtz_bounds {gm};
-    const int rev_sub = helmholtz.GetNSubSlices() - isubslice;
-    const amrex::Real sub_frac_lo = amrex::Real{rev_sub-1} / helmholtz.GetNSubSlices();
-    const amrex::Real sub_frac_hi = amrex::Real{rev_sub} / helmholtz.GetNSubSlices();
-    const amrex::Real min_z = gm.ProbLo(2) +
-        (islice-gm.Domain().smallEnd(2)+sub_frac_lo)*gm.CellSize(2);
-    const amrex::Real max_z = gm.ProbLo(2) +
-        (islice-gm.Domain().smallEnd(2)+sub_frac_hi)*gm.CellSize(2);
 
     // Offset for converting positions to indexes
     amrex::Real const x_pos_offset = GetPosOffset(0, gm, gm.Domain());
@@ -46,7 +37,7 @@ HelmholtzDeposition (BeamParticleContainer& beam, Helmholtz& helmholtz,
     // Extract box properties
     const amrex::Real dxi = gm.InvCellSize(0);
     const amrex::Real dyi = gm.InvCellSize(1);
-    const amrex::Real dzi = gm.InvCellSize(2) * helmholtz.GetNSubSlices();
+    const amrex::Real dzi = gm.InvCellSize(2);
     amrex::Real invvol = dxi * dyi * dzi;
 
     if (Hipace::m_normalized_units) {
@@ -90,11 +81,7 @@ HelmholtzDeposition (BeamParticleContainer& beam, Helmholtz& helmholtz,
         {
             const amrex::Real xp = ptd.pos(0, ip);
             const amrex::Real yp = ptd.pos(1, ip);
-            const amrex::Real zp = ptd.pos(2, ip);
-            return ptd.id(ip).is_valid() &&
-                   helmholtz_bounds.contains(xp, yp) &&
-                   zp >= min_z &&
-                   zp < max_z;
+            return ptd.id(ip).is_valid() && helmholtz_bounds.contains(xp, yp);
         },
         // get_cell
         // return the lowest cell index that the particle deposits into

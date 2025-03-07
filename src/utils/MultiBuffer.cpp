@@ -462,7 +462,8 @@ void MultiBuffer::get_data (int slice, MultiBeam& beams, MultiLaser& laser, Helm
         }
         if (helmholtz.UseHelmholtz(slice)) {
             using namespace WhichHelmholtzSlice;
-            helmholtz.InitSliceEnvelope(slice, beam_slice);
+            const int helmholtz_comp = (beam_slice == WhichBeamSlice::Next) ? Ex_n00jp2 : Ex_n00j00;
+            helmholtz.InitSliceEnvelope(slice, helmholtz_comp);
         }
     } else {
         // receive and unpack buffer
@@ -737,7 +738,7 @@ std::size_t MultiBuffer::get_buffer_offset (int slice, offset_type type, MultiBe
             if (type == offset_type::helmholtz && lcomp == comp) {
                 return offset;
             }
-            offset += helmholtz.getStagingSlicesThis()[0].box().numPts() * sizeof(amrex::Real);
+            offset += helmholtz.getSlices()[0].box().numPts() * sizeof(amrex::Real);
         }
     }
 
@@ -876,15 +877,18 @@ void MultiBuffer::pack_data (int slice, MultiBeam& beams, MultiLaser& laser, Hel
                          2 * laser.getSlices()[0].box().numPts() * sizeof(amrex::Real));
     }
     if (helmholtz.UseHelmholtz(slice)) {
-        amrex::MultiFab& helmholtz_slice =
-            (beam_slice == WhichBeamSlice::Next) ?
-                helmholtz.getStagingSlicesNext() :
-                helmholtz.getStagingSlicesThis();
+        using namespace WhichHelmholtzSlice;
+        const int helmholtz_comp_0_1 = (beam_slice == WhichBeamSlice::Next) ? Ex_np1jp2 : Ex_np1j00;
+        const int helmholtz_comp_2_3 = (beam_slice == WhichBeamSlice::Next) ? Ex_n00jp2 : Ex_n00j00;
+        // copy real and imag components in one operation
         memcpy_to_buffer(slice, get_buffer_offset(slice, offset_type::helmholtz, beams, laser,
                                                   helmholtz, 0, 0),
-                         helmholtz_slice[0].dataPtr(),
-                         helmholtz_slice[0].box().numPts() * sizeof(amrex::Real) *
-                         m_helmholtz_ncomp);
+                         helmholtz.getSlices()[0].dataPtr(helmholtz_comp_0_1),
+                         helmholtz.getSlices()[0].box().numPts() * sizeof(amrex::Real));
+        memcpy_to_buffer(slice, get_buffer_offset(slice, offset_type::helmholtz, beams, laser,
+                                                  helmholtz, 0, 1),
+                         helmholtz.getSlices()[0].dataPtr(helmholtz_comp_2_3),
+                         helmholtz.getSlices()[0].box().numPts() * sizeof(amrex::Real));
     }
     amrex::Gpu::streamSynchronize();
     for (int b = 0; b < m_nbeams; ++b) {
@@ -963,15 +967,18 @@ void MultiBuffer::unpack_data (int slice, MultiBeam& beams, MultiLaser& laser, H
                            2 * laser.getSlices()[0].box().numPts() * sizeof(amrex::Real));
     }
     if (helmholtz.UseHelmholtz(slice)) {
-        amrex::MultiFab& helmholtz_slice =
-            (beam_slice == WhichBeamSlice::Next) ?
-                helmholtz.getStagingSlicesNext() :
-                helmholtz.getStagingSlicesThis();
+        using namespace WhichHelmholtzSlice;
+        const int helmholtz_comp_0_1 = (beam_slice == WhichBeamSlice::Next) ? Ex_n00jp2 : Ex_n00j00;
+        const int helmholtz_comp_2_3 = (beam_slice == WhichBeamSlice::Next) ? Ex_nm1jp2 : Ex_nm1j00;
+        // copy real and imag components in one operation
         memcpy_from_buffer(slice, get_buffer_offset(slice, offset_type::helmholtz, beams, laser,
                                                     helmholtz, 0, 0),
-                           helmholtz_slice[0].dataPtr(),
-                           helmholtz_slice[0].box().numPts() * sizeof(amrex::Real) *
-                           m_helmholtz_ncomp);
+                           helmholtz.getSlices()[0].dataPtr(helmholtz_comp_0_1),
+                           helmholtz.getSlices()[0].box().numPts() * sizeof(amrex::Real));
+        memcpy_from_buffer(slice, get_buffer_offset(slice, offset_type::helmholtz, beams, laser,
+                                                    helmholtz, 0, 1),
+                           helmholtz.getSlices()[0].dataPtr(helmholtz_comp_2_3),
+                           helmholtz.getSlices()[0].box().numPts() * sizeof(amrex::Real));
     }
     amrex::Gpu::streamSynchronize();
 }
