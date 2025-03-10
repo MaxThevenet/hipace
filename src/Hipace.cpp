@@ -640,7 +640,7 @@ Hipace::SolveOneSlice (int islice, int step)
     }
 
     if (m_use_helmholtz) {
-        m_multi_beam.HelmholtzDepositon(m_helmholtz, true, WhichBeamSlice::This);
+        m_multi_beam.HelmholtzDeposition(m_helmholtz, true, WhichBeamSlice::This);
     }
 
     // Psi ExmBy EypBx Ez Bz solve
@@ -697,7 +697,7 @@ Hipace::SolveOneSlice (int islice, int step)
     }
 
     if (m_use_helmholtz) {
-        m_multi_beam.HelmholtzDepositon(m_helmholtz, false, WhichBeamSlice::Next);
+        m_multi_beam.HelmholtzDeposition(m_helmholtz, false, WhichBeamSlice::Next);
         // Advance helmholtz slice
         m_helmholtz.AdvanceSlice(islice, m_dt, step);
     }
