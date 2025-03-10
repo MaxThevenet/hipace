@@ -64,8 +64,8 @@ HelmholtzDeposition (BeamParticleContainer& beam, Helmholtz& helmholtz,
                 beam.getNumParticles(which_beam_slice), is_valid, get_cell, deposit,
                 isl_fab.array(), isl_fab.box(),
                 beam.getBeamSlice(which_beam_slice).getParticleTileData(),
-                std::array<int, 0>{},
-                std::array{
+                amrex::GpuArray<int, 0>{},
+                amrex::GpuArray<int, 7>{
                     do_dtau ? -1 : WhichHelmholtzSlice::jx_n00jm1,
                     do_dtau ? -1 : WhichHelmholtzSlice::jy_n00jm1,
                     do_dtau ? -1 : WhichHelmholtzSlice::jz_n00jm1,
