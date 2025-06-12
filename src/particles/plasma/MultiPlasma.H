@@ -53,6 +53,16 @@ public:
         bool deposit_jz, bool deposit_rho, bool deposit_chi, bool deposit_rhomjz,
         amrex::Vector<amrex::Geometry> const& gm, int const lev);
 
+    /** Loop over plasma species and deposit their temperature into the current 2D slice in fields
+     *
+     * \param[in,out] fields the general field class, modified by this function
+     * \param[in] gm Geometry of the simulation, to get the cell size etc.
+     * \param[in] lev MR level
+     */
+    void DoDepositTemperature (
+        Fields & fields,
+        amrex::Vector<amrex::Geometry> const& gm, int const lev);
+
     /** Loop over plasma species and depose Sx and Sy into the current 2D slice in fields
      *
      * \param[in,out] fields the general field class, modified by this function
@@ -75,9 +85,11 @@ public:
      * \param[in] gm Geometry of the simulation, to get the cell size etc.
      * \param[in] temp_slice if true, the temporary data (x_temp, ...) will be used
      * \param[in] lev MR level
+     * \param[in] current_N_level number of MR levels
      */
     void AdvanceParticles (
-        const Fields & fields, amrex::Vector<amrex::Geometry> const& gm, bool temp_slice, int lev);
+        const Fields & fields, amrex::Vector<amrex::Geometry> const& gm, bool temp_slice, int lev,
+        int const current_N_level);
 
     /** \brief Loop over plasma species and deposit their neutralizing background, if needed
      *
@@ -97,6 +109,15 @@ public:
      * \param[in] fields the general field class
      */
     void DoFieldIonization (const int lev, const amrex::Geometry& geom, const Fields& fields);
+
+    /** Calculates Ionization Probability from laser and makes new Plasma Particles
+     *
+     * \param[in] islice zeta slice index
+     * \param[in] laser_geom Geometry of the laser
+     * \param[in] laser the laser class
+     */
+    void DoLaserIonization (const int islice, const amrex::Geometry& laser_geom,
+                            const MultiLaser& laser);
 
     /** \brief whether any plasma species uses a neutralizing background, e.g. no ion motion */
     bool AnySpeciesNeutralizeBackground () const;

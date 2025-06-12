@@ -13,6 +13,9 @@
 #include "laser/MultiLaser.H"
 #include "helmholtz/Helmholtz.H"
 
+// declare MPI datatypes if compiled without MPI
+using namespace amrex::mpidatatypes;
+
 class MultiBuffer
 {
 

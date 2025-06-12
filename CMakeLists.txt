@@ -9,7 +9,7 @@
 # Preamble ####################################################################
 #
 cmake_minimum_required(VERSION 3.24.0)
-project(HiPACE VERSION 24.08)
+project(HiPACE VERSION 25.06)
 
 # helper functions
 include(${HiPACE_SOURCE_DIR}/cmake/HiPACEFunctions.cmake)
@@ -340,6 +340,18 @@ if(BUILD_TESTING)
                 COMMAND bash ${HiPACE_SOURCE_DIR}/tests/laser_evolution.SI.2Rank.sh
                         $<TARGET_FILE:HiPACE> ${HiPACE_SOURCE_DIR}
                 WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
+        )
+
+        add_test(NAME laser_ionization.1Rank
+                COMMAND bash ${HiPACE_SOURCE_DIR}/tests/laser_ionization.1Rank.sh
+                        $<TARGET_FILE:HiPACE> ${HiPACE_SOURCE_DIR} ${HiPACE_COMPUTE}
+                WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
+            )
+
+        add_test(NAME laser_STC.1Rank
+            COMMAND bash ${HiPACE_SOURCE_DIR}/tests/laser_STC.1Rank.sh
+                    $<TARGET_FILE:HiPACE> ${HiPACE_SOURCE_DIR} ${HiPACE_COMPUTE}
+            WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
         )
 
         if (NOT HiPACE_COMPUTE STREQUAL CUDA)

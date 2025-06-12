@@ -7,6 +7,7 @@
  */
 #include "MultiPlasma.H"
 #include "particles/deposition/PlasmaDepositCurrent.H"
+#include "particles/deposition/TemperatureDeposition.H"
 #include "particles/deposition/ExplicitDeposition.H"
 #include "particles/pusher/PlasmaParticleAdvance.H"
 #include "utils/HipaceProfilerWrapper.H"
@@ -46,16 +47,16 @@ MultiPlasma::InitData (amrex::Vector<amrex::BoxArray> slice_ba,
         plasma.InitData(gm[0]);
 
         if(plasma.m_can_ionize) {
-            PlasmaParticleContainer* plasma_product = nullptr;
             for (int i=0; i<m_names.size(); ++i) {
                 if(m_names[i] == plasma.m_product_name) {
-                    plasma_product = &m_all_plasmas[i];
+                    plasma.m_product_pc = &m_all_plasmas[i];
                 }
             }
-            AMREX_ALWAYS_ASSERT_WITH_MESSAGE(plasma_product != nullptr,
+            AMREX_ALWAYS_ASSERT_WITH_MESSAGE(plasma.m_product_pc != nullptr,
                 "Must specify a valid product plasma for ionization using ionization_product");
-            plasma.InitIonizationModule(gm[0], plasma_product,
-            Hipace::m_background_density_SI); // geometry only for dz
+
+            plasma.InitIonizationModule(gm[0],
+                Hipace::m_background_density_SI); // geometry only for dz
         }
     }
 }
@@ -86,6 +87,16 @@ MultiPlasma::DepositCurrent (
 }
 
 void
+MultiPlasma::DoDepositTemperature (
+    Fields & fields,
+    amrex::Vector<amrex::Geometry> const& gm, int const lev)
+{
+    for (int i=0; i<m_nplasmas; i++) {
+        ::DepositTemperature(m_all_plasmas[i], fields, gm, lev);
+    }
+}
+
+void
 MultiPlasma::ExplicitDeposition (Fields& fields, amrex::Vector<amrex::Geometry> const& gm,
                                  int const lev)
 {
@@ -96,10 +107,13 @@ MultiPlasma::ExplicitDeposition (Fields& fields, amrex::Vector<amrex::Geometry> 
 
 void
 MultiPlasma::AdvanceParticles (
-    const Fields & fields, amrex::Vector<amrex::Geometry> const& gm, bool temp_slice, int lev)
+    const Fields & fields, amrex::Vector<amrex::Geometry> const& gm, bool temp_slice, int lev,
+    int const current_N_level)
 {
     for (int i=0; i<m_nplasmas; i++) {
-        AdvancePlasmaParticles(m_all_plasmas[i], fields, gm, temp_slice, lev);
+        if (m_all_plasmas[i].m_do_push){
+            AdvancePlasmaParticles(m_all_plasmas[i], fields, gm, temp_slice, lev, current_N_level);
+        }
     }
 }
 
@@ -123,6 +137,15 @@ MultiPlasma::DoFieldIonization (
 {
     for (auto& plasma : m_all_plasmas) {
         plasma.IonizationModule(lev, geom, fields, Hipace::m_background_density_SI);
+    }
+}
+
+void
+MultiPlasma::DoLaserIonization (
+    const int islice, const amrex::Geometry& laser_geom, const MultiLaser& laser)
+{
+    for (auto& plasma : m_all_plasmas) {
+        plasma.LaserIonization(islice, laser_geom, laser, Hipace::m_background_density_SI);
     }
 }
 
