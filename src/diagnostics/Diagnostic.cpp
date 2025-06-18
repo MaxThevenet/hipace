@@ -366,6 +366,9 @@ Diagnostic::ResizeFDiagFAB (amrex::Vector<amrex::Geometry>& field_geom,
                 case FieldDiagnosticData::geom_type::laser:
                     domain.grow(Hipace::GetInstance().m_multi_laser.getSlices().nGrowVect());
                     break;
+                case FieldDiagnosticData::geom_type::helmholtz:
+                    domain.grow(Hipace::GetInstance().m_helmholtz.getSlices().nGrowVect());
+                    break;
             }
         }
 

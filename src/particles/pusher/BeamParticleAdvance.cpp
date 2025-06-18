@@ -145,6 +145,7 @@ AdvanceBeamParticlesSlice (
         amrex::TypeList<
             amrex::CompileTimeOptions<0, 1, 2, 3>,
             amrex::CompileTimeOptions<false, true>,
+            amrex::CompileTimeOptions<false, true>,
             amrex::CompileTimeOptions<false, true>
         >{}, {
             Hipace::m_depos_order_xy,
