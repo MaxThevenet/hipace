@@ -668,9 +668,9 @@ Hipace::SolveOneSlice (int islice, int step)
         m_grid_current.DepositCurrentSlice(m_fields, m_3D_geom[lev], lev, islice);
     }
 
-    if (m_use_helmholtz) {
-        m_multi_beam.HelmholtzDeposition(m_helmholtz, true, WhichBeamSlice::This);
-    }
+//    if (m_use_helmholtz) {
+//        m_multi_beam.HelmholtzDeposition(m_helmholtz, true, WhichBeamSlice::This);
+//    }
 
     // Psi ExmBy EypBx Ez Bz solve
     if (!m_use_helmholtz) {
@@ -698,8 +698,10 @@ Hipace::SolveOneSlice (int islice, int step)
             // it is implemented in the WAND-PIC quasistatic PIC code.
 
             // deposit jx_beam and jy_beam in the Next slice
-            m_multi_beam.DepositCurrentSlice(m_fields, m_3D_geom, lev, step,
-                m_do_beam_jx_jy_deposition, false, false, WhichSlice::Next, WhichBeamSlice::Next);
+            if (!m_use_helmholtz) {
+                m_multi_beam.DepositCurrentSlice(m_fields, m_3D_geom, lev, step,
+                    m_do_beam_jx_jy_deposition, false, false, WhichSlice::Next, WhichBeamSlice::Next);
+            }
 
             // Solves Bx, By using Sx, Sy and chi
             if (!m_use_helmholtz) {

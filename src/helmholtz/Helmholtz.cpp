@@ -208,10 +208,6 @@ Helmholtz::ShiftHelmholtzSlices (const int islice)
             arr(i, j, rho_n00jp1) = arr(i, j, rho_n00j00);
             arr(i, j, rho_n00j00) = arr(i, j, rho_n00jm1);
             arr(i, j, rho_n00jm1) = 0._rt;
-
-            arr(i, j, dtau_jx_n00j00) = 0._rt;
-            arr(i, j, dtau_jy_n00j00) = 0._rt;
-            arr(i, j, dtau_jz_n00j00) = 0._rt;
         });
     }
 }
@@ -328,55 +324,12 @@ Helmholtz::AdvanceSliceFFT (const amrex::Real dt, int step)
                 const amrex::Real dz_jy = 0.5_rt * (arr(i, j, jy_n00jp1) - arr(i, j, jy_n00jm1)) / dz;
                 const amrex::Real dz_jz = 0.5_rt * (arr(i, j, jz_n00jp1) - arr(i, j, jz_n00jm1)) / dz;
 
-                if (use_Ex) {
-                    rhs_arr(i, j, comp) = get_rhs(arr, i, j, comp) + 2._rt * phc.mu0 * (
-                        + arr(i, j, dtau_jx_n00j00) / dt
-                        - c * dz_jx
-                        + c * c * 0.5_rt * (arr(i + 1, j, rho_n00j00) - arr(i - 1, j, rho_n00j00)) / dx
+                rhs_arr(i, j, comp) = get_rhs(arr, i, j, comp) + 2._rt * phc.mu0 * (
+//                        + arr(i, j, dtau_jx_n00j00) / dt
+                    - c * dz_jx
+                    + c * c * 0.5_rt * (arr(i + 1, j, rho_n00j00) - arr(i - 1, j, rho_n00j00)) / dx
                     );
-                    ++comp;
-                }
-
-                if (use_Ex) {
-                    rhs_arr(i, j, comp) = get_rhs(arr, i, j, comp) + 2._rt * phc.mu0 * (
-                        + arr(i, j, dtau_jy_n00j00) / dt
-                        - c * dz_jy
-                        + c * c * 0.5_rt * (arr(i, j + 1, rho_n00j00) - arr(i, j - 1, rho_n00j00)) / dy
-                    );
-                    ++comp;
-                }
-
-                if (use_Ex) {
-                    rhs_arr(i, j, comp) = get_rhs(arr, i, j, comp) + 2._rt * phc.mu0 * (
-                        + arr(i, j, dtau_jz_n00j00) / dt
-                        - c * dz_jz
-                        + c * c * 0.5_rt * (arr(i, j, rho_n00jp1) - arr(i, j, rho_n00jm1)) / dz
-                    );
-                    ++comp;
-                }
-
-                if (use_Ex) {
-                    rhs_arr(i, j, comp) = get_rhs(arr, i, j, comp) - 2._rt * phc.mu0 * (
-                        + 0.5_rt * (arr(i, j + 1, jz_n00j00) - arr(i, j - 1, jz_n00j00)) / dy
-                        - dz_jy
-                    );
-                    ++comp;
-                }
-
-                if (use_Ex) {
-                    rhs_arr(i, j, comp) = get_rhs(arr, i, j, comp) - 2._rt * phc.mu0 * (
-                        + dz_jx
-                        - 0.5_rt * (arr(i + 1, j, jz_n00j00) - arr(i - 1, j, jz_n00j00)) / dx
-                    );
-                    ++comp;
-                }
-
-                if (use_Ex) {
-                    rhs_arr(i, j, comp) = get_rhs(arr, i, j, comp) - 2._rt * phc.mu0 * (
-                        + 0.5_rt * (arr(i + 1, j, jy_n00j00) - arr(i - 1, j, jy_n00j00)) / dx
-                        - 0.5_rt * (arr(i, j + 1, jx_n00j00) - arr(i, j - 1, jx_n00j00)) / dy
-                    );
-                }
+                ++comp;
             });
 
         // Transform rhs to Fourier space

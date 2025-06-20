@@ -22,14 +22,9 @@ namespace WhichHelmholtzSlice {
     // n stands for the time step, j for the longitudinal slice.
     // n00 is time step n, nm1 is n-1 and np1 is n+1. Similar notation for slice j.
     static constexpr bool use_Ex = true;
-    static constexpr bool use_Ey = true;
-    static constexpr bool use_Ez = true;
-    static constexpr bool use_Bx = true;
-    static constexpr bool use_By = true;
-    static constexpr bool use_Bz = true;
+    static constexpr bool use_Ez = false;
 
-    static constexpr int num_fields = int(use_Ex) + int(use_Ey) + int(use_Ez) +
-                                      int(use_Bx) + int(use_By) + int(use_Bz);
+    static constexpr int num_fields = int(use_Ex) + int(use_Ez);
 
     static constexpr int num_comps_per_field = 9;
 
@@ -39,45 +34,10 @@ namespace WhichHelmholtzSlice {
         Ex_n00j00,  Ex_n00jp1,  Ex_n00jp2,
         Ex_np1j00,  Ex_np1jp1,  Ex_np1jp2,
 
-
-        Ey_nm1j00 = use_Ex ? Ex_nm1j00 + 9 : Ex_nm1j00,
-                    Ey_nm1jp1,  Ey_nm1jp2,
-        Ey_n00j00,  Ey_n00jp1,  Ey_n00jp2,
-        Ey_np1j00,  Ey_np1jp1,  Ey_np1jp2,
-
-
-        Ez_nm1j00 = use_Ey ? Ey_nm1j00 + 9 : Ey_nm1j00,
-                    Ez_nm1jp1,  Ez_nm1jp2,
-        Ez_n00j00,  Ez_n00jp1,  Ez_n00jp2,
-        Ez_np1j00,  Ez_np1jp1,  Ez_np1jp2,
-
-
-        Bx_nm1j00 = use_Ez ? Ez_nm1j00 + 9 : Ez_nm1j00,
-                    Bx_nm1jp1,  Bx_nm1jp2,
-        Bx_n00j00,  Bx_n00jp1,  Bx_n00jp2,
-        Bx_np1j00,  Bx_np1jp1,  Bx_np1jp2,
-
-
-        By_nm1j00 = use_Bx ? Bx_nm1j00 + 9 : Bx_nm1j00,
-                    By_nm1jp1,  By_nm1jp2,
-        By_n00j00,  By_n00jp1,  By_n00jp2,
-        By_np1j00,  By_np1jp1,  By_np1jp2,
-
-
-        Bz_nm1j00 = use_By ? By_nm1j00 + 9 : By_nm1j00,
-                    Bz_nm1jp1,  Bz_nm1jp2,
-        Bz_n00j00,  Bz_n00jp1,  Bz_n00jp2,
-        Bz_np1j00,  Bz_np1jp1,  Bz_np1jp2,
-
-
         jx_n00jm1,  jx_n00j00,  jx_n00jp1,
         jy_n00jm1,  jy_n00j00,  jy_n00jp1,
         jz_n00jm1,  jz_n00j00,  jz_n00jp1,
         rho_n00jm1, rho_n00j00, rho_n00jp1,
-
-        dtau_jx_n00j00,
-        dtau_jy_n00j00,
-        dtau_jz_n00j00,
 
         N
     };

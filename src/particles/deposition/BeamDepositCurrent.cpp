@@ -157,13 +157,6 @@ DepositCurrentSlice (BeamParticleContainer& beam, Fields& fields,
             const amrex::Real wqz = wq*vz;
             const amrex::Real wqrhomjz = wq*(1._rt-vz*clightinv);
 
-            const amrex::Real pux = ptd.m_runtime_rdata[0][ip];
-            const amrex::Real puy = ptd.m_runtime_rdata[1][ip];
-            const amrex::Real puz = ptd.m_runtime_rdata[2][ip];
-            const amrex::Real pgaminv = 1.0_rt/std::sqrt(
-                1.0_rt + pux*pux*clightsq + puy*puy*clightsq + puz*puz*clightsq);
-            const amrex::Real pwqx = wq*pux*pgaminv;
-
             // --- Compute shape factors
             // x direction
             const amrex::Real xmid = (ptd.pos(0, ip) - x_pos_offset)*dxi;
@@ -183,11 +176,9 @@ DepositCurrentSlice (BeamParticleContainer& beam, Fields& fields,
                         amrex::Gpu::Atomic::Add(
                             arr.ptr(i_cell+ix, j_cell+iy, depos_idx[0]),
                             sx_cell[ix]*sy_cell[iy]*wqx);
-                        // This is NOT clean, and not centered.
-                        // hijacking jy component to store dt_jx
                         amrex::Gpu::Atomic::Add(
                             arr.ptr(i_cell+ix, j_cell+iy, depos_idx[1]),
-                            sx_cell[ix]*sy_cell[iy]*(wqx-pwqx));
+                            sx_cell[ix]*sy_cell[iy]*wqy);
                     }
                     if (depos_idx[2] != -1) { // do_beam_jz_deposition
                         amrex::Gpu::Atomic::Add(

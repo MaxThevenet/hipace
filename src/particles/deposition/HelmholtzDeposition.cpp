@@ -70,9 +70,9 @@ HelmholtzDeposition (BeamParticleContainer& beam, Helmholtz& helmholtz,
                     do_dtau ? -1 : WhichHelmholtzSlice::jy_n00jm1,
                     do_dtau ? -1 : WhichHelmholtzSlice::jz_n00jm1,
                     do_dtau ? -1 : WhichHelmholtzSlice::rho_n00jm1,
-                    do_dtau ? WhichHelmholtzSlice::dtau_jx_n00j00 : -1,
-                    do_dtau ? WhichHelmholtzSlice::dtau_jy_n00j00 : -1,
-                    do_dtau ? WhichHelmholtzSlice::dtau_jz_n00j00 : -1
+                    -1,
+                    -1,
+                    -1
                 });
         },
         // is_valid
@@ -148,7 +148,7 @@ HelmholtzDeposition (BeamParticleContainer& beam, Helmholtz& helmholtz,
             // Deposit current into jx, jy, jz, rhomjz
             for (int iy=0; iy<=depos_order; iy++){
                 for (int ix=0; ix<=depos_order; ix++){
-                    if (!do_dtau) {
+//                    if (!do_dtau) {
                         amrex::Gpu::Atomic::Add(
                             arr.ptr(i_cell+ix, j_cell+iy, depos_idx[0]),
                             sx_cell[ix]*sy_cell[iy]*wqx);
@@ -161,17 +161,17 @@ HelmholtzDeposition (BeamParticleContainer& beam, Helmholtz& helmholtz,
                         amrex::Gpu::Atomic::Add(
                             arr.ptr(i_cell+ix, j_cell+iy, depos_idx[3]),
                             sx_cell[ix]*sy_cell[iy]*wqrho);
-                    } else {
-                        amrex::Gpu::Atomic::Add(
-                            arr.ptr(i_cell+ix, j_cell+iy, depos_idx[4]),
-                            sx_cell[ix]*sy_cell[iy]*(wqx-pwqx));
-                        amrex::Gpu::Atomic::Add(
-                            arr.ptr(i_cell+ix, j_cell+iy, depos_idx[5]),
-                            sx_cell[ix]*sy_cell[iy]*(wqy-pwqy));
-                        amrex::Gpu::Atomic::Add(
-                            arr.ptr(i_cell+ix, j_cell+iy, depos_idx[6]),
-                            sx_cell[ix]*sy_cell[iy]*(wqz-pwqz));
-                    }
+//                    } else {
+//                        amrex::Gpu::Atomic::Add(
+//                            arr.ptr(i_cell+ix, j_cell+iy, depos_idx[4]),
+//                            sx_cell[ix]*sy_cell[iy]*(wqx-pwqx));
+//                        amrex::Gpu::Atomic::Add(
+//                            arr.ptr(i_cell+ix, j_cell+iy, depos_idx[5]),
+//                            sx_cell[ix]*sy_cell[iy]*(wqy-pwqy));
+//                        amrex::Gpu::Atomic::Add(
+//                            arr.ptr(i_cell+ix, j_cell+iy, depos_idx[6]),
+//                            sx_cell[ix]*sy_cell[iy]*(wqz-pwqz));
+//                    }
                 }
             }
         });

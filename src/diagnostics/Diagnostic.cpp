@@ -34,6 +34,7 @@ Diagnostic::Diagnostic (int nlev, bool use_laser, bool use_helmholtz)
     }
     if (use_helmholtz) {
         std::string diag_name = "helmholtz_diag";
+        field_diag_names.emplace_back(diag_name);
     }
 
     queryWithParser(ppd, "names", field_diag_names);
@@ -181,7 +182,7 @@ Diagnostic::Initialize (int nlev, bool use_laser, bool use_helmholtz) {
         all_comps_error_str << "Available components in base_geometry '" << geom_name << "':\n    ";
         geometry_name_to_output_comps[geom_name].insert(laser_io_name);
         all_comps_error_str << laser_io_name << "\n";
-    }
+    }   
     if (use_helmholtz) {
         std::string diag_name = "helmholtz_diag";
         std::string geom_name = "helmholtz";
@@ -190,6 +191,10 @@ Diagnostic::Initialize (int nlev, bool use_laser, bool use_helmholtz) {
         geometry_name_to_geom_type.emplace(geom_name, FieldDiagnosticData::geom_type::helmholtz);
         geometry_name_to_level.emplace(geom_name, 0);
         all_comps_error_str << "Available components in base_geometry '" << geom_name << "':\n    ";
+        geometry_name_to_output_comps[geom_name].insert(helmholtz_io_name);
+        all_comps_error_str << helmholtz_io_name << "\n";
+
+        helmholtz_io_name = "helmholtzjx";
         geometry_name_to_output_comps[geom_name].insert(helmholtz_io_name);
         all_comps_error_str << helmholtz_io_name << "\n";
     }
