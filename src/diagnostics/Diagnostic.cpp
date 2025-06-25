@@ -182,21 +182,24 @@ Diagnostic::Initialize (int nlev, bool use_laser, bool use_helmholtz) {
         all_comps_error_str << "Available components in base_geometry '" << geom_name << "':\n    ";
         geometry_name_to_output_comps[geom_name].insert(laser_io_name);
         all_comps_error_str << laser_io_name << "\n";
-    }   
+    }
     if (use_helmholtz) {
         std::string diag_name = "helmholtz_diag";
         std::string geom_name = "helmholtz";
-        std::string helmholtz_io_name = "helmholtzEnvelope";
         diag_name_to_default_geometry.emplace(diag_name, geom_name);
         geometry_name_to_geom_type.emplace(geom_name, FieldDiagnosticData::geom_type::helmholtz);
         geometry_name_to_level.emplace(geom_name, 0);
         all_comps_error_str << "Available components in base_geometry '" << geom_name << "':\n    ";
-        geometry_name_to_output_comps[geom_name].insert(helmholtz_io_name);
-        all_comps_error_str << helmholtz_io_name << "\n";
-
-        helmholtz_io_name = "helmholtzjx";
-        geometry_name_to_output_comps[geom_name].insert(helmholtz_io_name);
-        all_comps_error_str << helmholtz_io_name << "\n";
+        for (const auto& [comp, idx] : HelmholtzComps) {
+            geometry_name_to_output_comps[geom_name].insert(comp);
+            all_comps_error_str << comp << " ";
+        }
+        all_comps_error_str << "\n";
+        //geometry_name_to_output_comps[geom_name].insert(helmholtz_io_name);
+        //all_comps_error_str << helmholtz_io_name << "\n";
+        //helmholtz_io_name = "helmholtzjx";
+        //geometry_name_to_output_comps[geom_name].insert(helmholtz_io_name);
+        //all_comps_error_str << helmholtz_io_name << "\n";
     }
     all_comps_error_str << "Additionally, 'all' and 'none' are supported as field_data\n"
                         << "Components can be removed after 'all' by using 'remove_<comp name>'.\n";
@@ -280,6 +283,12 @@ Diagnostic::Initialize (int nlev, bool use_laser, bool use_helmholtz) {
             amrex::Gpu::PinnedVector<int> local_comps_output_idx(fd.m_nfields);
             for(int i = 0; i < fd.m_nfields; ++i) {
                 local_comps_output_idx[i] = Comps[WhichSlice::This][fd.m_comps_output[i]];
+            }
+            fd.m_comps_output_idx.assign(local_comps_output_idx.begin(), local_comps_output_idx.end());
+        } else if (fd.m_base_geom_type == FieldDiagnosticData::geom_type::helmholtz) {
+            amrex::Gpu::PinnedVector<int> local_comps_output_idx(fd.m_nfields);
+            for(int i = 0; i < fd.m_nfields; ++i) {
+                local_comps_output_idx[i] = HelmholtzComps[fd.m_comps_output[i]];
             }
             fd.m_comps_output_idx.assign(local_comps_output_idx.begin(), local_comps_output_idx.end());
         }

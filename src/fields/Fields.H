@@ -56,6 +56,9 @@ inline std::array<assert_map, WhichSlice::N> Comps{};
  */
 inline int N_Comps {0};
 
+inline assert_map HelmholtzComps{};
+inline int N_HelmholtzComps {0};
+
 /** \brief Direction of each dimension. Can be used for clean handling 2D vs. 3D in the future */
 struct Direction{
     enum dir{x=0, y, z};
