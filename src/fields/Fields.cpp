@@ -110,14 +110,14 @@ Fields::AllocData (
             }
 
             if (Hipace::m_use_helmholtz) {
-                HelmholtzComps.multi_emplace(N_Comps,
-                                             "Ex_nm1j00",  "Ex_nm1jp1",  "Ex_nm1jp2",
-                                             "Ex_n00j00",  "Ex_n00jp1",  "Ex_n00jp2",
-                                             "Ex_np1j00",  "Ex_np1jp1",  "Ex_np1jp2",
-                                             "jx_n00jm1",  "jx_n00j00",  "jx_n00jp1",
-                                             "jy_n00jm1",  "jy_n00j00",  "jy_n00jp1",
-                                             "jz_n00jm1",  "jz_n00j00",  "jz_n00jp1",
-                                             "rho_n00jm1", "rho_n00j00", "rho_n00jp1"
+                HelmholtzComps.multi_emplace(N_HelmholtzComps,
+                    "Ex_nm1j00",  "Ex_nm1jp1",  "Ex_nm1jp2",
+                    "Ex_n00j00",  "Ex_n00jp1",  "Ex_n00jp2",
+                    "Ex_np1j00",  "Ex_np1jp1",  "Ex_np1jp2",
+                    "jx_n00jm1",  "jx_n00j00",  "jx_n00jp1",
+                    "jy_n00jm1",  "jy_n00j00",  "jy_n00jp1",
+                    "jz_n00jm1",  "jz_n00j00",  "jz_n00jp1",
+                    "rho_n00jm1", "rho_n00j00", "rho_n00jp1"
                     );
             }
 
@@ -128,9 +128,9 @@ Fields::AllocData (
             }
 
             isl = WhichSlice::Previous2;
-            if (Hipace::m_use_helmholtz) {
-                Comps[isl].multi_emplace(N_Comps, "jx_beam");
-            }
+            //if (Hipace::m_use_helmholtz) {
+            //    Comps[isl].multi_emplace(N_Comps, "jx_beam");
+            //}
 
             isl = WhichSlice::RhomJzIons;
             if (m_any_neutral_background) {
@@ -576,6 +576,7 @@ Fields::Copy (const int current_N_level, const int i_slice, FieldDiagnosticData&
                    helmholtz.UseHelmholtz(i_slice)) {
             auto helmholtz_array = helmholtz_func.array(mfi);
             amrex::Array4<amrex::Real> diag_array = fd.m_F.array();
+
             amrex::ParallelFor(diag_box, fd.m_nfields,
                                [=] AMREX_GPU_DEVICE(int i, int j, int k, int n) noexcept
                 {
@@ -662,9 +663,9 @@ Fields::ShiftSlices (int lev)
 
     // only shift the slices that are allocated
     if (explicit_solve) {
-        if (Hipace::m_use_helmholtz) {
-            shift(lev, WhichSlice::Previous2, WhichSlice::Previous, "jx_beam");
-        }
+//        if (Hipace::m_use_helmholtz) {
+//            shift(lev, WhichSlice::Previous2, WhichSlice::Previous, "jx_beam");
+//        }
         shift(lev, WhichSlice::Previous, WhichSlice::This, "jx_beam", "jy_beam");
         duplicate(lev, WhichSlice::This, {"jx_beam", "jy_beam", "jx"     , "jy"     },
                        WhichSlice::Next, {"jx_beam", "jy_beam", "jx_beam", "jy_beam"});
