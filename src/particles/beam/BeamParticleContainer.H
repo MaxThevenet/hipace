@@ -193,7 +193,7 @@ public:
     }
 
     int numRealComponents () const {
-        return BeamIdx::real_nattribs + (m_do_spin_tracking ? 3 : 0);
+        return BeamIdx::real_nattribs + (m_do_spin_tracking ? 3 : 0) + (true ? 3 : 0);
     }
     int numIntComponents () const { return BeamIdx::int_nattribs; }
 
