@@ -44,7 +44,8 @@ SalameModule (Hipace* hipace, const int n_iter, const bool do_advance, int& last
 
         for (int lev=0; lev<current_N_level; ++lev) {
             // advance plasma to the temp slice
-            hipace->m_multi_plasma.AdvanceParticles(hipace->m_fields, hipace->m_3D_geom, true, lev);
+            hipace->m_multi_plasma.AdvanceParticles(hipace->m_fields, hipace->m_3D_geom, true, lev,
+                                                    current_N_level);
 
             hipace->m_fields.duplicate(lev, WhichSlice::Salame, {"jx", "jy"},
                                             WhichSlice::Next, {"jx_beam", "jy_beam"});
@@ -56,11 +57,6 @@ SalameModule (Hipace* hipace, const int n_iter, const bool do_advance, int& last
         }
 
         for (int lev=0; lev<current_N_level; ++lev) {
-            if (hipace->m_do_tiling) {
-                hipace->m_multi_plasma.TileSort(
-                    hipace->m_slice_geom[lev].Domain(), hipace->m_slice_geom[lev]);
-            }
-
             // deposit plasma jx and jy on the next temp slice, to the SALAME slice
             hipace->m_multi_plasma.DepositCurrent(hipace->m_fields,
                     WhichSlice::Salame, true, false, false, false, false, hipace->m_3D_geom, lev);
@@ -114,11 +110,6 @@ SalameModule (Hipace* hipace, const int n_iter, const bool do_advance, int& last
             }
 
             for (int lev=0; lev<current_N_level; ++lev) {
-                if (hipace->m_do_tiling) {
-                    hipace->m_multi_plasma.TileSort(
-                        hipace->m_slice_geom[lev].Domain(), hipace->m_slice_geom[lev]);
-                }
-
                 hipace->m_multi_plasma.DepositCurrent(hipace->m_fields,
                     WhichSlice::Salame, true, false, false, false, false, hipace->m_3D_geom, lev);
             }
@@ -437,7 +428,6 @@ SalameMultiplyBeamWeight (const amrex::Real W, Hipace* hipace)
                 // invalidate particles with a weight of zero
                 if (W == 0) {
                     id.make_invalid();
-                    return;
                 }
 
                 // Multiply SALAME beam particles on this slice with W

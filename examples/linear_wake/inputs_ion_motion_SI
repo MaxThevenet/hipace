@@ -16,7 +16,8 @@ diagnostic.output_period = 1
 
 hipace.depos_order_xy = 2
 
-geometry.is_periodic = true  true  false  # Is periodic?
+boundary.field = Dirichlet
+boundary.particle = Periodic
 geometry.prob_lo     = -8*kp_inv   -8*kp_inv   -6*kp_inv
 geometry.prob_hi     =  8*kp_inv    8*kp_inv    6*kp_inv
 
@@ -33,7 +34,7 @@ beam.profile = gaussian
 beam.position_mean = "0.25*kp_inv" "(z-2*kp_inv)*0.2" "2*kp_inv"
 beam.position_std = 0.4*kp_inv 0.4*kp_inv 1.41*kp_inv
 
-plasmas.sort_bin_size = 8
+hipace.tile_size = 8
 plasmas.names = elec ions
 
 elec.mass = m_e

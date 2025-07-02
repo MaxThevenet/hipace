@@ -9,7 +9,6 @@
 #define MULTIPLASMA_H_
 
 #include "PlasmaParticleContainer.H"
-#include "particles/sorting/TileSort.H"
 #include "fields/Fields.H"
 #include "particles/collisions/CoulombCollision.H"
 
@@ -54,6 +53,16 @@ public:
         bool deposit_jz, bool deposit_rho, bool deposit_chi, bool deposit_rhomjz,
         amrex::Vector<amrex::Geometry> const& gm, int const lev);
 
+    /** Loop over plasma species and deposit their temperature into the current 2D slice in fields
+     *
+     * \param[in,out] fields the general field class, modified by this function
+     * \param[in] gm Geometry of the simulation, to get the cell size etc.
+     * \param[in] lev MR level
+     */
+    void DoDepositTemperature (
+        Fields & fields,
+        amrex::Vector<amrex::Geometry> const& gm, int const lev);
+
     /** Loop over plasma species and depose Sx and Sy into the current 2D slice in fields
      *
      * \param[in,out] fields the general field class, modified by this function
@@ -76,9 +85,11 @@ public:
      * \param[in] gm Geometry of the simulation, to get the cell size etc.
      * \param[in] temp_slice if true, the temporary data (x_temp, ...) will be used
      * \param[in] lev MR level
+     * \param[in] current_N_level number of MR levels
      */
     void AdvanceParticles (
-        const Fields & fields, amrex::Vector<amrex::Geometry> const& gm, bool temp_slice, int lev);
+        const Fields & fields, amrex::Vector<amrex::Geometry> const& gm, bool temp_slice, int lev,
+        int const current_N_level);
 
     /** \brief Loop over plasma species and deposit their neutralizing background, if needed
      *
@@ -99,16 +110,17 @@ public:
      */
     void DoFieldIonization (const int lev, const amrex::Geometry& geom, const Fields& fields);
 
-    bool IonizationOn () const;
+    /** Calculates Ionization Probability from laser and makes new Plasma Particles
+     *
+     * \param[in] islice zeta slice index
+     * \param[in] laser_geom Geometry of the laser
+     * \param[in] laser the laser class
+     */
+    void DoLaserIonization (const int islice, const amrex::Geometry& laser_geom,
+                            const MultiLaser& laser);
+
     /** \brief whether any plasma species uses a neutralizing background, e.g. no ion motion */
     bool AnySpeciesNeutralizeBackground () const;
-
-    /** \brief sort particles of all containers by tile logically, and store results in m_all_bins
-     *
-     * \param[in] bx transverse box on which the particles are sorted
-     * \param[in] geom Geometry object
-     */
-    void TileSort (amrex::Box bx, amrex::Geometry geom);
 
     /** returns a Vector of names of the plasmas */
     const amrex::Vector<std::string>& GetNames() const {return m_names;}
@@ -148,12 +160,8 @@ public:
     void InSituWriteToFile (int step, amrex::Real time, const amrex::Geometry& geom,
                             int max_step, amrex::Real max_time);
 
-    int m_sort_bin_size {32}; /**< Tile size to sort plasma particles */
-
     amrex::Vector<PlasmaParticleContainer> m_all_plasmas; /**< contains all plasma containers */
     int m_nplasmas = 0; /**< number of plasma containers */
-
-    amrex::Vector<PlasmaBins> m_all_bins; /**< Logical tile bins for all plasma containers */
     amrex::Vector<std::string> m_names {"no_plasma"}; /**< names of all plasma containers */
 private:
     /** Background (hypothetical) density, used to compute the adaptive time step */

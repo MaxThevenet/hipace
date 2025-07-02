@@ -8,6 +8,7 @@
 #include "Diagnostic.H"
 #include "Hipace.H"
 #include "utils/HipaceProfilerWrapper.H"
+#include "utils/DeprecatedInput.H"
 #include <AMReX_ParmParse.H>
 
 #include <algorithm>
@@ -122,6 +123,25 @@ Diagnostic::needsRhoIndividual () const {
     return false;
 }
 
+bool
+Diagnostic::needsTempIndividual () const {
+    amrex::ParmParse ppd("diagnostic");
+    for (auto& fd : m_field_data) {
+        amrex::ParmParse pp(fd.m_diag_name);
+        amrex::Vector<std::string> comps{};
+        queryWithParserAlt(pp, "field_data", comps, ppd);
+        for (auto& c : comps) {
+            // we don't know the names of all the plasmas here so just look for "ux_..."
+            if (c.find("w_") == 0 ||
+                c.find("ux_") == 0 || c.find("uy_") == 0 || c.find("uz_") == 0 ||
+                c.find("ux^2_") == 0 || c.find("uy^2_") == 0 || c.find("uz^2_") == 0) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 void
 Diagnostic::Initialize (int nlev, bool use_laser, bool use_helmholtz) {
     amrex::ParmParse ppd("diagnostic");
@@ -189,6 +209,7 @@ Diagnostic::Initialize (int nlev, bool use_laser, bool use_helmholtz) {
         }
 
         queryWithParserAlt(pp, "base_geometry", base_geom_name, ppd);
+        DeprecatedInput(fd.m_diag_name, "level", "base_geometry");
 
         if (geometry_name_to_geom_type.count(base_geom_name) > 0) {
             fd.m_base_geom_type = geometry_name_to_geom_type.at(base_geom_name);
@@ -338,7 +359,17 @@ Diagnostic::ResizeFDiagFAB (amrex::Vector<amrex::Geometry>& field_geom,
         amrex::Box domain = geom.Domain();
 
         if (fd.m_include_ghost_cells) {
-            domain.grow(Fields::m_slices_nguards);
+            switch (fd.m_base_geom_type) {
+                case FieldDiagnosticData::geom_type::field:
+                    domain.grow(Hipace::GetInstance().m_fields.getSlices(fd.m_level).nGrowVect());
+                    break;
+                case FieldDiagnosticData::geom_type::laser:
+                    domain.grow(Hipace::GetInstance().m_multi_laser.getSlices().nGrowVect());
+                    break;
+                case FieldDiagnosticData::geom_type::helmholtz:
+                    domain.grow(Hipace::GetInstance().m_helmholtz.getSlices().nGrowVect());
+                    break;
+            }
         }
 
         {

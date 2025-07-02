@@ -27,7 +27,12 @@ InitParticles (const amrex::RealVect& a_u_std,
     const int lev = 0;
     const auto dx = ParticleGeom(lev).CellSizeArray();
     const auto plo = ParticleGeom(lev).ProbLoArray();
-    const amrex::RealBox a_bounds = ParticleGeom(lev).ProbDomain();
+    amrex::RealBox a_bounds = ParticleGeom(lev).ProbDomain();
+    a_bounds.setLo(0, Hipace::m_boundary_particle_lo[0]);
+    a_bounds.setLo(1, Hipace::m_boundary_particle_lo[1]);
+    a_bounds.setHi(0, Hipace::m_boundary_particle_hi[0]);
+    a_bounds.setHi(1, Hipace::m_boundary_particle_hi[1]);
+
     const bool use_fine_patch = m_use_fine_patch;
 
     const amrex::Array<int, 2> ppc_coarse = m_ppc;
@@ -44,16 +49,18 @@ InitParticles (const amrex::RealVect& a_u_std,
     amrex::Real x_offset = 0._rt;
     amrex::Real y_offset = 0._rt;
 
-    if (ParticleGeom(lev).Domain().length(0) % 2 == 1 && ppc_coarse[0] % 2 == 1) {
-        box_nodal[0] = amrex::IndexType::NODE;
-        box_grow[0] = -1;
-        x_offset = -0.5_rt;
-    }
+    if (m_prevent_centered_particle) {
+        if (ParticleGeom(lev).Domain().length(0) % 2 == 1 && ppc_coarse[0] % 2 == 1) {
+            box_nodal[0] = amrex::IndexType::NODE;
+            box_grow[0] = -1;
+            x_offset = -0.5_rt;
+        }
 
-    if (ParticleGeom(lev).Domain().length(1) % 2 == 1 && ppc_coarse[1] % 2 == 1) {
-        box_nodal[1] = amrex::IndexType::NODE;
-        box_grow[1] = -1;
-        y_offset = -0.5_rt;
+        if (ParticleGeom(lev).Domain().length(1) % 2 == 1 && ppc_coarse[1] % 2 == 1) {
+            box_nodal[1] = amrex::IndexType::NODE;
+            box_grow[1] = -1;
+            y_offset = -0.5_rt;
+        }
     }
 
     for(amrex::MFIter mfi = MakeMFIter(lev, DfltMfi); mfi.isValid(); ++mfi)
@@ -221,7 +228,7 @@ InitParticles (const amrex::RealVect& a_u_std,
                 unsigned int uiy = amrex::min(ny-1,amrex::max(0,iy));
                 unsigned int uiz = amrex::min(nz-1,amrex::max(0,iz));
 
-                // ordering of axes from fastest to slowest:
+                // Ordering of axes from fastest to slowest:
                 // x
                 // y
                 // z (not used)
@@ -309,8 +316,8 @@ InitParticles (const amrex::RealVect& a_u_std,
         }
         if (m_do_symmetrize) {
 
-            const amrex::Real x_mid2 = (ParticleGeom(lev).ProbLo(0) + ParticleGeom(lev).ProbHi(0));
-            const amrex::Real y_mid2 = (ParticleGeom(lev).ProbLo(1) + ParticleGeom(lev).ProbHi(1));
+            const amrex::Real x_mid2 = (a_bounds.lo(0) + a_bounds.hi(0));
+            const amrex::Real y_mid2 = (a_bounds.lo(1) + a_bounds.hi(1));
             const amrex::Long mirror_offset = total_num_particles/4;
             amrex::ParallelFor(mirror_offset,
             [=] AMREX_GPU_DEVICE (amrex::Long pidx) noexcept
@@ -372,14 +379,11 @@ InitParticles (const amrex::RealVect& a_u_std,
 
 void
 PlasmaParticleContainer::
-InitIonizationModule (const amrex::Geometry& geom, PlasmaParticleContainer* product_pc,
-                      const amrex::Real background_density_SI)
+InitIonizationModule (const amrex::Geometry& geom, const amrex::Real background_density_SI)
 {
     HIPACE_PROFILE("PlasmaParticleContainer::InitIonizationModule()");
 
     using namespace amrex::literals;
-
-    if (!m_can_ionize) return;
 
     const bool normalized_units = Hipace::m_normalized_units;
     if (normalized_units) {
@@ -388,14 +392,13 @@ InitIonizationModule (const amrex::Geometry& geom, PlasmaParticleContainer* prod
             "be specified via 'hipace.background_density_SI'");
     }
 
-    m_product_pc = product_pc;
     amrex::ParmParse pp(m_name);
     std::string physical_element;
     getWithParser(pp, "element", physical_element);
     AMREX_ALWAYS_ASSERT_WITH_MESSAGE(ion_map_ids.count(physical_element) != 0,
         "There are no ionization energies available for this element. "
         "Please update src/utils/IonizationEnergiesTable.H using write_atomic_data_cpp.py");
-    AMREX_ALWAYS_ASSERT_WITH_MESSAGE((std::abs(product_pc->m_charge / m_charge +1) < 1e-3),
+    AMREX_ALWAYS_ASSERT_WITH_MESSAGE((std::abs(m_product_pc->m_charge / m_charge +1) < 1e-3),
         "Ion and Ionization product charges have to be opposite");
     // Get atomic number and ionization energies from file
     const int ion_element_id = ion_map_ids[physical_element];
@@ -411,15 +414,14 @@ InitIonizationModule (const amrex::Geometry& geom, PlasmaParticleContainer* prod
     // without Gamma function
     const PhysConst phys_const = make_constants_SI();
     const amrex::Real alpha = 0.0072973525693_rt;
-    const amrex::Real r_e = 2.8179403227e-15_rt;
     const amrex::Real a3 = alpha * alpha * alpha;
     const amrex::Real a4 = a3 * alpha;
-    const amrex::Real wa = a3 * phys_const.c / r_e;
-    const amrex::Real Ea = phys_const.m_e * phys_const.c * phys_const.c / phys_const.q_e * a4 / r_e;
+    const amrex::Real wa = a3 * phys_const.c / PhysConstSI::r_e;
+    const amrex::Real Ea = phys_const.m_e * phys_const.c * phys_const.c / phys_const.q_e * a4 / PhysConstSI::r_e;
     const amrex::Real UH = table_ionization_energies[0];
     const amrex::Real l_eff = std::sqrt(UH/h_ionization_energies[0]) - 1._rt;
 
-    // plasma frequency in SI units to denormalize ionization
+    // Plasma frequency in SI units to denormalize ionization
     const amrex::Real wp = std::sqrt(static_cast<double>(background_density_SI) *
                                      PhysConstSI::q_e*PhysConstSI::q_e /
                                      (PhysConstSI::ep0 * PhysConstSI::m_e) );
@@ -428,21 +430,30 @@ InitIonizationModule (const amrex::Geometry& geom, PlasmaParticleContainer* prod
     m_adk_power.resize(ion_atomic_number);
     m_adk_prefactor.resize(ion_atomic_number);
     m_adk_exp_prefactor.resize(ion_atomic_number);
+    m_laser_adk_prefactor.resize(ion_atomic_number);
+    m_laser_dp_prefactor.resize(ion_atomic_number);
+    m_laser_dp_second_prefactor.resize(ion_atomic_number);
 
     amrex::Gpu::PinnedVector<amrex::Real> h_adk_power(ion_atomic_number);
     amrex::Gpu::PinnedVector<amrex::Real> h_adk_prefactor(ion_atomic_number);
     amrex::Gpu::PinnedVector<amrex::Real> h_adk_exp_prefactor(ion_atomic_number);
+    amrex::Gpu::PinnedVector<amrex::Real> h_laser_adk_prefactor(ion_atomic_number);
+    amrex::Gpu::PinnedVector<amrex::Real> h_laser_dp_prefactor(ion_atomic_number);
+    amrex::Gpu::PinnedVector<amrex::Real> h_laser_dp_second_prefactor(ion_atomic_number);
 
     for (int i=0; i<ion_atomic_number; ++i)
     {
         const amrex::Real n_eff = (i+1) * std::sqrt(UH/h_ionization_energies[i]);
         const amrex::Real C2 = std::pow(2,2*n_eff)/(n_eff*std::tgamma(n_eff+l_eff+1)
                          * std::tgamma(n_eff-l_eff));
-        h_adk_power[i] = -(2*n_eff - 1);
+        h_adk_power[i] = -(2 * n_eff - 1.);
         const amrex::Real Uion = h_ionization_energies[i];
-        h_adk_prefactor[i] = dt * wa * C2 * ( Uion/(2*UH) )
-            * std::pow(2*std::pow((Uion/UH),3./2)*Ea,2*n_eff - 1);
-        h_adk_exp_prefactor[i] = -2./3 * std::pow( Uion/UH,3./2) * Ea;
+        h_adk_prefactor[i] = dt * wa * C2 * ( Uion / (2.*UH) )
+            * std::pow(2*std::pow((Uion/UH),3./2.)*Ea,2*n_eff - 1);
+        h_adk_exp_prefactor[i] = -2./3. * std::pow( Uion/UH,3./2.) * Ea;
+        h_laser_adk_prefactor[i] = (3./MathConst::pi) * std::pow(Uion/UH, -3./2.) / Ea;
+        h_laser_dp_prefactor[i] = std::sqrt(3./2./Ea) * std::pow(UH/Uion, 3./4.);
+        h_laser_dp_second_prefactor[i] = 2.*ion_atomic_number * std::sqrt(UH/Uion) - 1.;
     }
 
     amrex::Gpu::copy(amrex::Gpu::hostToDevice,
@@ -451,4 +462,10 @@ InitIonizationModule (const amrex::Geometry& geom, PlasmaParticleContainer* prod
         h_adk_prefactor.begin(), h_adk_prefactor.end(), m_adk_prefactor.begin());
     amrex::Gpu::copy(amrex::Gpu::hostToDevice,
         h_adk_exp_prefactor.begin(), h_adk_exp_prefactor.end(), m_adk_exp_prefactor.begin());
+    amrex::Gpu::copy(amrex::Gpu::hostToDevice,
+        h_laser_adk_prefactor.begin(), h_laser_adk_prefactor.end(), m_laser_adk_prefactor.begin());
+    amrex::Gpu::copy(amrex::Gpu::hostToDevice,
+         h_laser_dp_prefactor.begin(), h_laser_dp_prefactor.end(), m_laser_dp_prefactor.begin());
+    amrex::Gpu::copy(amrex::Gpu::hostToDevice,
+         h_laser_dp_second_prefactor.begin(), h_laser_dp_second_prefactor.end(), m_laser_dp_second_prefactor.begin());
 }

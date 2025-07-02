@@ -7,9 +7,9 @@
  */
 #include "MultiPlasma.H"
 #include "particles/deposition/PlasmaDepositCurrent.H"
+#include "particles/deposition/TemperatureDeposition.H"
 #include "particles/deposition/ExplicitDeposition.H"
 #include "particles/pusher/PlasmaParticleAdvance.H"
-#include "particles/sorting/TileSort.H"
 #include "utils/HipaceProfilerWrapper.H"
 #include "utils/DeprecatedInput.H"
 #include "utils/IOUtil.H"
@@ -20,11 +20,11 @@ MultiPlasma::MultiPlasma ()
     amrex::ParmParse pp("plasmas");
     queryWithParser(pp, "names", m_names);
     queryWithParser(pp, "adaptive_density", m_adaptive_density);
-    queryWithParser(pp, "sort_bin_size", m_sort_bin_size);
+    DeprecatedInput("plasmas", "sort_bin_size", "hipace.tile_size", "", true);
 
-    DeprecatedInput ("plasmas", "collisions",
+    DeprecatedInput("plasmas", "collisions",
                     "hipace.collisions", "", true);
-    DeprecatedInput ("plasmas", "background_density_SI",
+    DeprecatedInput("plasmas", "background_density_SI",
                     "hipace.background_density_SI", "", true);
 
     if (m_names[0] == "no_plasma") return;
@@ -47,19 +47,18 @@ MultiPlasma::InitData (amrex::Vector<amrex::BoxArray> slice_ba,
         plasma.InitData(gm[0]);
 
         if(plasma.m_can_ionize) {
-            PlasmaParticleContainer* plasma_product = nullptr;
             for (int i=0; i<m_names.size(); ++i) {
                 if(m_names[i] == plasma.m_product_name) {
-                    plasma_product = &m_all_plasmas[i];
+                    plasma.m_product_pc = &m_all_plasmas[i];
                 }
             }
-            AMREX_ALWAYS_ASSERT_WITH_MESSAGE(plasma_product != nullptr,
+            AMREX_ALWAYS_ASSERT_WITH_MESSAGE(plasma.m_product_pc != nullptr,
                 "Must specify a valid product plasma for ionization using ionization_product");
-            plasma.InitIonizationModule(gm[0], plasma_product,
-            Hipace::m_background_density_SI); // geometry only for dz
+
+            plasma.InitIonizationModule(gm[0],
+                Hipace::m_background_density_SI); // geometry only for dz
         }
     }
-    if (m_nplasmas > 0) m_all_bins.resize(m_nplasmas);
 }
 
 amrex::Real
@@ -83,7 +82,17 @@ MultiPlasma::DepositCurrent (
     for (int i=0; i<m_nplasmas; i++) {
         ::DepositCurrent(m_all_plasmas[i], fields, which_slice,
                          deposit_jx_jy, deposit_jz, deposit_rho, deposit_chi, deposit_rhomjz,
-                         gm, lev, m_all_bins[i], m_sort_bin_size);
+                         gm, lev);
+    }
+}
+
+void
+MultiPlasma::DoDepositTemperature (
+    Fields & fields,
+    amrex::Vector<amrex::Geometry> const& gm, int const lev)
+{
+    for (int i=0; i<m_nplasmas; i++) {
+        ::DepositTemperature(m_all_plasmas[i], fields, gm, lev);
     }
 }
 
@@ -98,10 +107,13 @@ MultiPlasma::ExplicitDeposition (Fields& fields, amrex::Vector<amrex::Geometry> 
 
 void
 MultiPlasma::AdvanceParticles (
-    const Fields & fields, amrex::Vector<amrex::Geometry> const& gm, bool temp_slice, int lev)
+    const Fields & fields, amrex::Vector<amrex::Geometry> const& gm, bool temp_slice, int lev,
+    int const current_N_level)
 {
     for (int i=0; i<m_nplasmas; i++) {
-        AdvancePlasmaParticles(m_all_plasmas[i], fields, gm, temp_slice, lev);
+        if (m_all_plasmas[i].m_do_push){
+            AdvancePlasmaParticles(m_all_plasmas[i], fields, gm, temp_slice, lev, current_N_level);
+        }
     }
 }
 
@@ -114,7 +126,7 @@ MultiPlasma::DepositNeutralizingBackground (
         if (m_all_plasmas[i].m_neutralize_background) {
             // current of ions is zero, so they are not deposited.
             ::DepositCurrent(m_all_plasmas[i], fields, which_slice, false,
-                             false, false, false, true, gm, lev, m_all_bins[i], m_sort_bin_size);
+                             false, false, false, true, gm, lev);
         }
     }
 }
@@ -128,14 +140,13 @@ MultiPlasma::DoFieldIonization (
     }
 }
 
-bool
-MultiPlasma::IonizationOn () const
+void
+MultiPlasma::DoLaserIonization (
+    const int islice, const amrex::Geometry& laser_geom, const MultiLaser& laser)
 {
-    bool ionization_on = false;
     for (auto& plasma : m_all_plasmas) {
-        if (plasma.m_can_ionize) ionization_on = true;
+        plasma.LaserIonization(islice, laser_geom, laser, Hipace::m_background_density_SI);
     }
-    return ionization_on;
 }
 
 bool
@@ -146,16 +157,6 @@ MultiPlasma::AnySpeciesNeutralizeBackground () const
         if (plasma.m_neutralize_background) any_species_neutralize = true;
     }
     return any_species_neutralize;
-}
-
-void
-MultiPlasma::TileSort (amrex::Box bx, amrex::Geometry geom)
-{
-    m_all_bins.clear();
-    for (auto& plasma : m_all_plasmas) {
-        m_all_bins.emplace_back(
-            findParticlesInEachTile(bx, m_sort_bin_size, plasma, geom));
-    }
 }
 
 void

@@ -14,6 +14,7 @@
 #include "GetAndSetPosition.H"
 #include "utils/HipaceProfilerWrapper.H"
 #include "utils/GPUUtil.H"
+#include "utils/OMPUtil.H"
 
 void
 AdvanceBeamParticlesSlice (
@@ -61,6 +62,10 @@ AdvanceBeamParticlesSlice (
     const int by_comp = Comps[WhichSlice::This]["By"];
     const int bz_comp = Comps[WhichSlice::This]["Bz"];
 
+    const bool do_ez_inzerp = (Hipace::m_depos_order_z == 2);
+    const int ez_comp_prev = do_ez_inzerp ? Comps[WhichSlice::Previous]["Ez"] : -1;
+    const int ez_comp_next = do_ez_inzerp ? Comps[WhichSlice::Next]["Ez"] : -1;
+
     const int lev0_idx = 0;
     const int lev1_idx = std::min(1, current_N_level-1);
     const int lev2_idx = std::min(2, current_N_level-1);
@@ -98,22 +103,16 @@ AdvanceBeamParticlesSlice (
     const amrex::Real y_pos_offset_lev1 = GetPosOffset(1, gm[lev1_idx], slice_fab_lev1.box());
     const amrex::Real y_pos_offset_lev2 = GetPosOffset(1, gm[lev2_idx], slice_fab_lev2.box());
 
-    const amrex::Real lo_x_lev1 = gm[lev1_idx].ProbLo(0);
-    const amrex::Real lo_x_lev2 = gm[lev2_idx].ProbLo(0);
+    // z is the same for all levels
+    amrex::Real const dz_inv = gm[lev0_idx].InvCellSize(2);
 
-    const amrex::Real hi_x_lev1 = gm[lev1_idx].ProbHi(0);
-    const amrex::Real hi_x_lev2 = gm[lev2_idx].ProbHi(0);
-
-    const amrex::Real lo_y_lev1 = gm[lev1_idx].ProbLo(1);
-    const amrex::Real lo_y_lev2 = gm[lev2_idx].ProbLo(1);
-
-    const amrex::Real hi_y_lev1 = gm[lev1_idx].ProbHi(1);
-    const amrex::Real hi_y_lev2 = gm[lev2_idx].ProbHi(1);
+    const CheckDomainBounds lev1_bounds {gm[lev1_idx]};
+    const CheckDomainBounds lev2_bounds {gm[lev2_idx]};
 
     // Extract particle properties
     const auto ptd = beam.getBeamSlice(WhichBeamSlice::This).getParticleTileData();
 
-    const auto setPositionEnforceBC = EnforceBCandSetPos<BeamTile>(gm[0]);
+    const auto enforceBC = EnforceBC();
 
     const amrex::Real clight = phys_const.c;
     const amrex::Real inv_clight = 1.0_rt/phys_const.c;
@@ -138,19 +137,25 @@ AdvanceBeamParticlesSlice (
     const amrex::Real E0 = Hipace::m_normalized_units ?
                            PhysConstSI::m_e * PhysConstSI::c / wp_inv / PhysConstSI::q_e : 1;
 
-    amrex::ParallelFor(
+    // don't include slipped particles in count as they were already pushed
+    Hipace::m_num_beam_particles_pushed += double(beam.getNumParticles(WhichBeamSlice::This));
+
+    // Use OMP ParallelFor to use multiple threads when running on CPU
+    omp::ParallelFor(
         amrex::TypeList<
             amrex::CompileTimeOptions<0, 1, 2, 3>,
+            amrex::CompileTimeOptions<false, true>,
             amrex::CompileTimeOptions<false, true>,
             amrex::CompileTimeOptions<false, true>
         >{}, {
             Hipace::m_depos_order_xy,
             use_external_fields,
+            do_ez_inzerp,
             use_helmholtz
         },
         beam.getNumParticlesIncludingSlipped(WhichBeamSlice::This),
         [=] AMREX_GPU_DEVICE (int ip, auto depos_order, auto c_use_external_fields,
-                              auto c_use_helmholtz) {
+                              auto c_do_ez_inzerp, auto c_use_helmholtz) {
 
             if (!ptd.id(ip).is_valid()) return;
 
@@ -185,7 +190,7 @@ AdvanceBeamParticlesSlice (
                 xp += dt * 0.5_rt * ux * gammap_inv;
                 yp += dt * 0.5_rt * uy * gammap_inv;
 
-                if (setPositionEnforceBC(ptd, ip, xp, yp, zp)) return;
+                if (enforceBC(ptd, ip, xp, yp, ux, uy, BeamIdx::w)) return;
 
                 Array3<const amrex::Real> slice_arr = slice_arr_lev0;
                 amrex::Real dx_inv = dx_inv_lev0;
@@ -193,18 +198,14 @@ AdvanceBeamParticlesSlice (
                 amrex::Real x_pos_offset = x_pos_offset_lev0;
                 amrex::Real y_pos_offset = y_pos_offset_lev0;
 
-                if (current_N_level > 2 &&
-                    lo_x_lev2 < xp && xp < hi_x_lev2 &&
-                    lo_y_lev2 < yp && yp < hi_y_lev2) {
+                if (current_N_level > 2 && lev2_bounds.contains(xp, yp)) {
                     // level 2
                     slice_arr = slice_arr_lev2;
                     dx_inv = dx_inv_lev2;
                     dy_inv = dy_inv_lev2;
                     x_pos_offset = x_pos_offset_lev2;
                     y_pos_offset = y_pos_offset_lev2;
-                } else if (current_N_level > 1 &&
-                    lo_x_lev1 < xp && xp < hi_x_lev1 &&
-                    lo_y_lev1 < yp && yp < hi_y_lev1) {
+                } else if (current_N_level > 1 && lev1_bounds.contains(xp, yp)) {
                     // level 1
                     slice_arr = slice_arr_lev1;
                     dx_inv = dx_inv_lev1;
@@ -222,6 +223,34 @@ AdvanceBeamParticlesSlice (
                     doGatherShapeN<depos_order.value>(xp, yp, ExmByp, EypBxp, Ezp, Bxp, Byp, Bzp,
                         slice_arr, psi_comp, ez_comp, bx_comp, by_comp, bz_comp,
                         dx_inv, dy_inv, x_pos_offset, y_pos_offset);
+                }
+
+                if (c_do_ez_inzerp.value) {
+                    // x,y,z direction
+                    const amrex::Real xmid = (xp-x_pos_offset)*dx_inv;
+                    const amrex::Real ymid = (yp-y_pos_offset)*dy_inv;
+                    const amrex::Real zmid = (zp-min_z)*dz_inv-0.5_rt;
+
+                    auto [shape_p, pcell] =
+                        compute_single_shape_factor<false, 2>(zmid, 2);
+                    auto [shape_n, ncell] =
+                        compute_single_shape_factor<false, 2>(zmid, 0);
+
+                    Ezp *= (1._rt - shape_p - shape_n);
+
+                    // Gather Ez field on particle from grid
+                    for (int iy=0; iy<=depos_order.value; iy++){
+                        for (int ix=0; ix<=depos_order.value; ix++){
+                            // Compute shape factors
+                            auto [shape_y, jcell] =
+                                compute_single_shape_factor<false, depos_order.value>(ymid, iy);
+                            auto [shape_x, icell] =
+                                compute_single_shape_factor<false, depos_order.value>(xmid, ix);
+
+                            Ezp += shape_p * shape_y * shape_x * slice_arr(icell, jcell, ez_comp_prev);
+                            Ezp += shape_n * shape_y * shape_x * slice_arr(icell, jcell, ez_comp_next);
+                        }
+                    }
                 }
 
                 if (c_use_external_fields.value) {
@@ -377,11 +406,14 @@ AdvanceBeamParticlesSlice (
                 xp += dt * 0.5_rt * ux_next * gamma_next_inv;
                 yp += dt * 0.5_rt * uy_next * gamma_next_inv;
                 if (do_z_push) zp += dt * ( uz_next * gamma_next_inv - clight );
-                if (setPositionEnforceBC(ptd, ip, xp, yp, zp)) return;
                 ux = ux_next;
                 uy = uy_next;
                 uz = uz_next;
             } // end for loop over n_subcycles
+            if (enforceBC(ptd, ip, xp, yp, ux, uy, BeamIdx::w)) return;
+            ptd.pos(0, ip) = xp;
+            ptd.pos(1, ip) = yp;
+            ptd.pos(2, ip) = zp;
             ptd.idata(BeamIdx::nsubcycles)[ip] = i;
             ptd.rdata(BeamIdx::ux)[ip] = ux;
             ptd.rdata(BeamIdx::uy)[ip] = uy;

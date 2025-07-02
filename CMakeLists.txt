@@ -8,8 +8,8 @@
 
 # Preamble ####################################################################
 #
-cmake_minimum_required(VERSION 3.18.0)
-project(HiPACE VERSION 24.08)
+cmake_minimum_required(VERSION 3.24.0)
+project(HiPACE VERSION 25.06)
 
 # helper functions
 include(${HiPACE_SOURCE_DIR}/cmake/HiPACEFunctions.cmake)
@@ -36,13 +36,6 @@ endif()
 # https://cmake.org/cmake/help/latest/policy/CMP0104.html
 if(POLICY CMP0104)
     cmake_policy(SET CMP0104 OLD)
-endif()
-
-# We use simple syntax in cmake_dependent_option, so we are compatible with the
-# extended syntax in CMake 3.22+
-# https://cmake.org/cmake/help/v3.22/policy/CMP0127.html
-if(POLICY CMP0127)
-    cmake_policy(SET CMP0127 NEW)
 endif()
 
 
@@ -347,6 +340,18 @@ if(BUILD_TESTING)
                 COMMAND bash ${HiPACE_SOURCE_DIR}/tests/laser_evolution.SI.2Rank.sh
                         $<TARGET_FILE:HiPACE> ${HiPACE_SOURCE_DIR}
                 WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
+        )
+
+        add_test(NAME laser_ionization.1Rank
+                COMMAND bash ${HiPACE_SOURCE_DIR}/tests/laser_ionization.1Rank.sh
+                        $<TARGET_FILE:HiPACE> ${HiPACE_SOURCE_DIR} ${HiPACE_COMPUTE}
+                WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
+            )
+
+        add_test(NAME laser_STC.1Rank
+            COMMAND bash ${HiPACE_SOURCE_DIR}/tests/laser_STC.1Rank.sh
+                    $<TARGET_FILE:HiPACE> ${HiPACE_SOURCE_DIR} ${HiPACE_COMPUTE}
+            WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
         )
 
         if (NOT HiPACE_COMPUTE STREQUAL CUDA)

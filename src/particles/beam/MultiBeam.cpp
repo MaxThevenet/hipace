@@ -85,9 +85,11 @@ MultiBeam::AdvanceBeamParticlesSlice (
     int const current_N_level, const Helmholtz& helmholtz)
 {
     for (int i=0; i<m_nbeams; i++) {
-        ::AdvanceBeamParticlesSlice(
-            m_all_beams[i], fields, gm, slice, current_N_level, helmholtz, m_mag,
-            m_chicBs, m_chicLs, m_chicZs);
+        if (m_all_beams[i].m_do_push){
+            ::AdvanceBeamParticlesSlice(
+                m_all_beams[i], fields, gm, slice, current_N_level, helmholtz, m_mag,
+                m_chicBs, m_chicLs, m_chicZs);
+        }
     }
 }
 

@@ -38,6 +38,22 @@
 
 namespace hpmg { class MultiGrid; }
 
+namespace FieldBoundary {
+    enum type {
+        Dirichlet,
+        Periodic,
+        Open
+    };
+}
+
+namespace ParticleBoundary {
+    enum type {
+        Reflecting,
+        Periodic,
+        Absorbing
+    };
+}
+
 /** \brief Helper struct to initialize m_phys_const and Parser before amrex::AmrCore */
 struct Hipace_early_init
 {
@@ -66,7 +82,7 @@ struct Hipace_early_init
     int m_N_level = 1;
 };
 
-/** \brief Singleton class, that intialize, runs and finalizes the simulation */
+/** \brief Singleton class that initializes, runs and finalizes the simulation */
 class Hipace final : public Hipace_early_init
 {
 public:
@@ -86,13 +102,6 @@ public:
     /** Make Geometry, DistributionMapping and BoxArray for all MR levels */
     void MakeGeometry ();
 
-    /** \brief Dump simulation data to file
-     *
-     * \param[in] output_step current iteration
-     * \param[in] call_type whether the beams or the fields should be written to file
-     */
-    void WriteDiagnostics (int output_step, const OpenPMDWriterCallType call_type);
-
     /** \brief Return a copy of member struct for physical constants */
     PhysConst get_phys_const () {return m_phys_const;}
 
@@ -106,17 +115,25 @@ public:
     /**
      * \brief Initialize Sx and Sy with the beam contributions
      *
-     * \param[lev] MR level
+     * \param[in] lev MR level
      */
     void InitializeSxSyWithBeam (const int lev);
 
     /**
      * \brief Knowing the sources Sx, Sy and chi, apply MG to solve for Bx, By
      *
-     * \param[lev] MR level
+     * \param[in] lev MR level
      * \param[in] which_slice defines if this or the salame slice is handled
      */
     void ExplicitMGSolveBxBy (const int lev, const int which_slice);
+
+    /**
+     * \brief Compute Ez on the Next slice
+     *
+     * \param[in] current_N_level number of MR levels
+     * \param[in] step current time step
+     */
+    void CalculateEzNext (const int current_N_level, const int step);
 
     /** \brief Reset plasma and field slice quantities to initial value.
      *
@@ -128,6 +145,14 @@ public:
      * \brief does Coulomb collisions between plasmas and beams
      */
     void doCoulombCollision ();
+
+    /**
+     * \brief add external fields to the field grid
+     *
+     * \param[in] lev MR level
+     * \param[in] islice slice number
+     */
+    void AddGridExternalFields (const int lev, const int islice);
 
     /**
        \brief Returns the rank id of the head rank.
@@ -213,6 +238,8 @@ public:
     inline static bool m_deposit_rho = false;
     /** Whether to deposit rho for every individual plasma for diagnostics */
     inline static bool m_deposit_rho_individual = false;
+    /** Whether to deposit temperature for every individual plasma for diagnostics */
+    inline static bool m_deposit_temp_individual = false;
     /** Whether to interpolate the neutralizing background to MR levels 1 and 2 instead of depositing it */
     inline static bool m_interpolate_neutralizing_background = false;
     /** Whether to use tiling for particle operations */
@@ -221,6 +248,10 @@ public:
 #else
     inline static bool m_do_tiling = false;
 #endif
+    /** Tile size for particle operations when using tiling */
+    inline static int m_tile_size = 32;
+    /** Whether to use shared memory for current deposition */
+    inline static bool m_do_shared_depos = false;
     /** Whether the explicit field solver is used */
     inline static bool m_explicit = true;
     /** Relative tolerance for the multigrid solver, when using the explicit solver */
@@ -239,7 +270,7 @@ public:
      * or radiation reaction in normalized units */
     inline static amrex::Real m_background_density_SI = 0.;
     /** Time step for the beam evolution */
-    amrex::Real m_dt = 0.0;
+    amrex::Real m_dt = +0.0;
     /** Number of binary collisions */
     inline static int m_ncollisions = 0;
     /** Adaptive time step instance */
@@ -254,6 +285,20 @@ public:
     /** openPMD writer instance */
     OpenPMDWriter m_openpmd_writer;
 #endif
+
+    // Performance Counters
+
+    /** total number of plasma particle pushes for performance printout */
+    inline static double m_num_plasma_particles_pushed = 0;
+    /** total number of beam particle pushes for performance printout */
+    inline static double m_num_beam_particles_pushed = 0;
+    /** total number of field cell updates for performance printout */
+    inline static double m_num_field_cells_updated = 0;
+    /** total number of laser cell updates for performance printout */
+    inline static double m_num_laser_cells_updated = 0;
+
+    // SALAME
+
     /** the number of SALAME iterations to be done */
     int m_salame_n_iter = 5;
     /** if the SALAME-only field should be computed exactly with plasma particles */
@@ -270,6 +315,26 @@ public:
     amrex::ParserExecutor<3> m_salame_target_func;
     /** relative error tolerance to finish SALAME iterations early */
     amrex::Real m_salame_relative_tolerance = 1e-4;
+
+    // Boundary
+
+    /** type of boundary used for fields */
+    inline static FieldBoundary::type m_boundary_field = FieldBoundary::Dirichlet;
+    /** type of boundary used for particles */
+    inline static ParticleBoundary::type m_boundary_particles = ParticleBoundary::Absorbing;
+    /** lower bound of bounding box for the particles */
+    inline static std::array<amrex::Real, 2> m_boundary_particle_lo;
+    /** upper bound of bounding box for the particles */
+    inline static std::array<amrex::Real, 2> m_boundary_particle_hi;
+
+    // Grid external fields
+
+    /** Whether grid external fields should be used for this beam */
+    bool m_use_grid_external_fields = false;
+    /** Grid external field functions for Bx By Bz Psi Ez*/
+    amrex::GpuArray<amrex::ParserExecutor<4>, 5> m_grid_external_fields;
+    /** Owns data for m_grid_external_fields */
+    amrex::Array<amrex::Parser, 5> m_grid_external_fields_parser;
 
 private:
 

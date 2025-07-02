@@ -18,14 +18,9 @@ Its main features are:
  - Adaptive time step and sub-cycling
  - Additional physics (field ionization, binary collisions, temperature effects, radiation reactions)
 
-HiPACE++ is built on the [AMReX](https://amrex-codes.github.io) library, which provides for particle and field data structures.
+HiPACE++ is built on the [AMReX](https://amrex-codes.github.io) library, which provides particle and field data structures.
 
 Please have a look at our [documentation](https://hipace.readthedocs.io) and join the [chat](https://hipace.readthedocs.io/en/latest/run/chat.html)!
-
-# Announcement
-
-On the 11th of July 2023, there will be a virtual HiPACE++ workshop from 4pm to 7pm CET.
-Feel free to sign up on the [indico webpage](https://indico.desy.de/event/40158/)
 
 ## Copyright Notice
 
