@@ -14,7 +14,6 @@
 
 void
 HelmholtzDeposition (BeamParticleContainer& beam, Helmholtz& helmholtz,
-                    const bool do_dtau,
                     const int which_beam_slice);
 
 #endif //  HELMHOLTZDEPOSITION_H_

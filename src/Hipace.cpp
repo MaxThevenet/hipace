@@ -638,7 +638,7 @@ Hipace::SolveOneSlice (int islice, int step)
                 m_deposit_rho || m_deposit_rho_individual, true, true, m_3D_geom, lev);
 
             // deposit jz_beam and maybe rhomjz of the beam on This slice
-            if (!m_use_helmholtz || m_helmholtz.UseJzCorrection()) {
+            if (!m_use_helmholtz) {
                  m_multi_beam.DepositCurrentSlice(m_fields, m_3D_geom, lev, step,
                      false, true, m_do_beam_jz_minus_rho, WhichSlice::This, WhichBeamSlice::This);
              }
@@ -678,8 +678,9 @@ Hipace::SolveOneSlice (int islice, int step)
     }
 
     // Bx By solve
-    if (m_explicit && !m_use_helmholtz) {
+    if (m_explicit) {
         for (int lev=0; lev<current_N_level; ++lev) {
+            if (!m_use_helmholtz) {
             // The algorithm used was derived in
             // [Wang, T. et al. Phys. Rev. Accel. Beams 25, 104603 (2022)],
             // it is implemented in the WAND-PIC quasistatic PIC code.
@@ -696,6 +697,7 @@ Hipace::SolveOneSlice (int islice, int step)
 
             // Solves Bx, By using Sx, Sy and chi
             ExplicitMGSolveBxBy(lev, WhichSlice::This);
+            }
         }
     } else {
         // Solves Bx and By in the current slice and modifies the force terms of the plasma particles
@@ -710,7 +712,7 @@ Hipace::SolveOneSlice (int islice, int step)
     }
 
     if (m_use_helmholtz) {
-         m_multi_beam.HelmholtzDeposition(m_helmholtz, false, WhichBeamSlice::Next);
+         m_multi_beam.HelmholtzDeposition(m_helmholtz, WhichBeamSlice::Next);
          // Advance helmholtz slice
          m_helmholtz.AdvanceSlice(islice, m_dt, step);
      }

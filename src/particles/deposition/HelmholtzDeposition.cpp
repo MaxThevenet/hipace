@@ -17,7 +17,6 @@
 
 void
 HelmholtzDeposition (BeamParticleContainer& beam, Helmholtz& helmholtz,
-                    const bool do_dtau,
                     const int which_beam_slice)
 {
     HIPACE_PROFILE("HelmholtzDeposition()");
@@ -65,14 +64,10 @@ HelmholtzDeposition (BeamParticleContainer& beam, Helmholtz& helmholtz,
                 isl_fab.array(), isl_fab.box(),
                 beam.getBeamSlice(which_beam_slice).getParticleTileData(),
                 amrex::GpuArray<int, 0>{},
-                amrex::GpuArray<int, 7>{
-                    do_dtau ? -1 : WhichHelmholtzSlice::jx_n00jm1,
-                    do_dtau ? -1 : WhichHelmholtzSlice::jy_n00jm1,
-                    do_dtau ? -1 : WhichHelmholtzSlice::jz_n00jm1,
-                    do_dtau ? -1 : WhichHelmholtzSlice::rho_n00jm1,
-                    -1,
-                    -1,
-                    -1
+                amrex::GpuArray<int, 3>{
+                    WhichHelmholtzSlice::jx_n00jm1,
+                    WhichHelmholtzSlice::jz_n00jm1,
+                    WhichHelmholtzSlice::rho_n00jm1
                 });
         },
         // is_valid
@@ -151,9 +146,6 @@ HelmholtzDeposition (BeamParticleContainer& beam, Helmholtz& helmholtz,
                         amrex::Gpu::Atomic::Add(
                             arr.ptr(i_cell+ix, j_cell+iy, depos_idx[0]),
                             sx_cell[ix]*sy_cell[iy]*wqx);
-                        amrex::Gpu::Atomic::Add(
-                            arr.ptr(i_cell+ix, j_cell+iy, depos_idx[1]),
-                            sx_cell[ix]*sy_cell[iy]*wqy);
                         amrex::Gpu::Atomic::Add(
                             arr.ptr(i_cell+ix, j_cell+iy, depos_idx[2]),
                             sx_cell[ix]*sy_cell[iy]*wqz);
