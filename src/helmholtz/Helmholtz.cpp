@@ -220,6 +220,7 @@ Helmholtz::AdvanceSliceFFT (const amrex::Real dt, int step)
 
     const PhysConst phc = get_phys_const();
     const amrex::Real c = phc.c;
+    const bool centered_dz = m_centered_dz;
 
     for ( amrex::MFIter mfi(m_slices, DfltMfi); mfi.isValid(); ++mfi ){
         const amrex::Box& bx = mfi.tilebox();
@@ -287,7 +288,7 @@ Helmholtz::AdvanceSliceFFT (const amrex::Real dt, int step)
                         + ( -3._rt/(c*dt*dz) + 2._rt/(c*c*dt*dt) ) * anm1j00;
                 }
 
-                const amrex::Real dz_jx = m_centered_dz ?
+                const amrex::Real dz_jx = centered_dz ?
                     0.5_rt * (arr(i, j, jx_n00jp1) - arr(i, j, jx_n00jm1)) / dz :
                     0.5_rt * (- 3._rt*arr(i, j, jx_n00j00)
                               + 4._rt*arr(i, j, jx_n00jp1)
