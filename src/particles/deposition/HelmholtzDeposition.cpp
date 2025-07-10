@@ -65,10 +65,13 @@ HelmholtzDeposition (BeamParticleContainer& beam, Helmholtz& helmholtz,
                 beam.getBeamSlice(which_beam_slice).getParticleTileData(),
                 amrex::GpuArray<int, 0>{},
                 amrex::GpuArray<int, 3>{
-                     WhichHelmholtzSlice::jx_n00jm1,
-                     WhichHelmholtzSlice::jz_n00jm1,
-                     WhichHelmholtzSlice::rho_n00jm1,
+                    WhichHelmholtzSlice::jx_n00j00,
+                    WhichHelmholtzSlice::jz_n00j00,
+                    WhichHelmholtzSlice::rho_n00j00,
                 });
+//                WhichHelmholtzSlice::jx_n00jm1,
+//                WhichHelmholtzSlice::jz_n00jm1,
+//                WhichHelmholtzSlice::rho_n00jm1,
         },
         // is_valid
         // return whether the particle is valid and should deposit

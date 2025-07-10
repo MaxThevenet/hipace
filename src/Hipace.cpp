@@ -659,6 +659,11 @@ Hipace::SolveOneSlice (int islice, int step)
         m_grid_current.DepositCurrentSlice(m_fields, m_3D_geom[lev], lev, islice);
     }
 
+    if (m_use_helmholtz) {
+        // m_multi_beam.HelmholtzDeposition(m_helmholtz, WhichBeamSlice::Next);
+        m_multi_beam.HelmholtzDeposition(m_helmholtz, WhichBeamSlice::This);
+    }
+
     // Psi ExmBy EypBx Ez Bz solve
     if (!m_use_helmholtz) {
         m_fields.SolvePoissonPsiExmByEypBxEzBz(m_3D_geom, current_N_level);
@@ -667,6 +672,9 @@ Hipace::SolveOneSlice (int islice, int step)
     // Advance laser slice by 1 step using chi
     // no MR for laser
     m_multi_laser.AdvanceSlice(islice, m_fields, m_dt, step, m_3D_geom[0]);
+    if (m_use_helmholtz) {
+        m_helmholtz.AdvanceSlice(islice, m_dt, step);
+    }
 
     if (islice-1 >= m_3D_geom[0].Domain().smallEnd(2)) {
         m_multi_buffer.get_data(islice-1, m_multi_beam, m_multi_laser, m_helmholtz, WhichBeamSlice::Next);
@@ -711,11 +719,11 @@ Hipace::SolveOneSlice (int islice, int step)
                     m_salame_overloaded, current_N_level, step, islice, m_salame_relative_tolerance);
     }
 
-    if (m_use_helmholtz) {
-         m_multi_beam.HelmholtzDeposition(m_helmholtz, WhichBeamSlice::Next);
+    // if (m_use_helmholtz) {
+    // m_multi_beam.HelmholtzDeposition(m_helmholtz, WhichBeamSlice::Next);
          // Advance helmholtz slice
-         m_helmholtz.AdvanceSlice(islice, m_dt, step);
-     }
+         // m_helmholtz.AdvanceSlice(islice, m_dt, step);
+    // }
 
     // add external fields to the field grid
     for (int lev=0; lev<current_N_level; ++lev) {
