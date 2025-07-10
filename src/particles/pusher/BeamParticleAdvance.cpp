@@ -274,11 +274,11 @@ AdvanceBeamParticlesSlice (
                     EypBxp += clight * Bx;
                 }
 
-                for (int i=0; i<4; ++i) {
+                for (int im=0; im<4; ++im) {
                     amrex::Real zprop = clight*time + zp/clight*0._rt;
-                    if ((zprop >= Zs[i]) && (zprop < (Zs[i] + Ls[i]))) {
-                        Byp += Bs[i];
-                        ExmByp -= clight * Bs[i];
+                    if ((zprop >= Zs[im]) && (zprop < (Zs[im] + Ls[im]))) {
+                        Byp += Bs[im];
+                        ExmByp -= clight * Bs[im];
                     }
                 }
 
@@ -292,8 +292,8 @@ AdvanceBeamParticlesSlice (
 
                 if (c_use_helmholtz.value) {
                     amrex::ParticleReal Arp = 0._rt;
-                    amrex::ParticleReal betaz = uz * gammap_inv * inv_clight;
-                    amrex::ParticleReal betax = ux * gammap_inv * inv_clight;
+                    // amrex::ParticleReal betaz = uz * gammap_inv * inv_clight;
+                    // amrex::ParticleReal betax = ux * gammap_inv * inv_clight;
                     doHelmholtzGatherShapeN<depos_order.value>(
                         xp, yp, Arp, a_arr,
                         dx_inv, dy_inv, x_pos_offset, y_pos_offset);

@@ -44,7 +44,7 @@ HelmholtzDeposition (BeamParticleContainer& beam, Helmholtz& helmholtz,
         invvol = lev0_geom.CellSize(0) * lev0_geom.CellSize(1) * dxi * dyi;
     }
 
-    const amrex::Real clightinv = 1.0_rt/(phys_const.c);
+    // const amrex::Real clightinv = 1.0_rt/(phys_const.c);
     const amrex::Real clightsq = 1.0_rt/(phys_const.c*phys_const.c);
     const amrex::Real q = beam.m_charge;
 
@@ -109,27 +109,27 @@ HelmholtzDeposition (BeamParticleContainer& beam, Helmholtz& helmholtz,
             const amrex::Real ux = ptd.rdata(BeamIdx::ux)[ip];
             const amrex::Real uy = ptd.rdata(BeamIdx::uy)[ip];
             const amrex::Real uz = ptd.rdata(BeamIdx::uz)[ip];
-            const amrex::Real pux = ptd.m_runtime_rdata[0][ip];
-            const amrex::Real puy = ptd.m_runtime_rdata[1][ip];
-            const amrex::Real puz = ptd.m_runtime_rdata[2][ip];
+            // const amrex::Real pux = ptd.m_runtime_rdata[0][ip];
+            // const amrex::Real puy = ptd.m_runtime_rdata[1][ip];
+            // const amrex::Real puz = ptd.m_runtime_rdata[2][ip];
 
             const amrex::Real gaminv = 1.0_rt/std::sqrt(1.0_rt + ux*ux*clightsq
                                                          + uy*uy*clightsq
                                                          + uz*uz*clightsq);
-            const amrex::Real pgaminv = 1.0_rt/std::sqrt(1.0_rt + pux*pux*clightsq
-                                                         + puy*puy*clightsq
-                                                         + puz*puz*clightsq);
+            // const amrex::Real pgaminv = 1.0_rt/std::sqrt(1.0_rt + pux*pux*clightsq
+            //                                              + puy*puy*clightsq
+            //                                              + puz*puz*clightsq);
             const amrex::Real wq = q*ptd.rdata(BeamIdx::w)[ip]*invvol;
 
             // wqx, wqy wqz are particle current in each direction
             const amrex::Real wqx = wq*ux*gaminv;
-            const amrex::Real wqy = wq*uy*gaminv;
+            // const amrex::Real wqy = wq*uy*gaminv;
             const amrex::Real wqz = wq*uz*gaminv;
             const amrex::Real wqrho = wq;
 
-            const amrex::Real pwqx = wq*pux*pgaminv;
-            const amrex::Real pwqy = wq*puy*pgaminv;
-            const amrex::Real pwqz = wq*puz*pgaminv;
+            // const amrex::Real pwqx = wq*pux*pgaminv;
+            // const amrex::Real pwqy = wq*puy*pgaminv;
+            // const amrex::Real pwqz = wq*puz*pgaminv;
 
             // --- Compute shape factors
             // x direction
