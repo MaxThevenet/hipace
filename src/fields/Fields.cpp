@@ -115,7 +115,7 @@ Fields::AllocData (
                     "Ex_nm1j00",  "Ex_nm1jp1",  "Ex_nm1jp2",
                     "Ex_n00j00",  "Ex_n00jp1",  "Ex_n00jp2",
                     "Ex_np1j00",  "Ex_np1jp1",  "Ex_np1jp2",
-                    "jx_n00jm1",  "jx_n00j00",  "jx_n00jp1",
+                    "jx_n00jm1",  "jx_n00j00",  "jx_n00jp1",  "jx_n00jp2",
                     "jz_n00jm1",  "jz_n00j00",  "jz_n00jp1",
                     "rho_n00jm1", "rho_n00j00", "rho_n00jp1"
                     );

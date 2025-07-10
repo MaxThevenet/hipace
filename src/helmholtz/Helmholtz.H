@@ -32,7 +32,7 @@ namespace WhichHelmholtzSlice {
         Ex_n00j00,  Ex_n00jp1,  Ex_n00jp2,
         Ex_np1j00,  Ex_np1jp1,  Ex_np1jp2,
 
-        jx_n00jm1,  jx_n00j00,  jx_n00jp1,
+        jx_n00jm1,  jx_n00j00,  jx_n00jp1,  jx_n00jp2,
         jz_n00jm1,  jz_n00j00,  jz_n00jp1,
         rho_n00jm1, rho_n00j00, rho_n00jp1,
         N
@@ -159,6 +159,7 @@ private:
     amrex::Box m_slice_box;
     /** interpolation order for helmholtz to field and field to helmholtz operations */
     int m_interp_order = 1;
+    bool m_centered_dz {false};
 
     /** Array of N slices required to compute current slice */
     amrex::MultiFab m_slices;

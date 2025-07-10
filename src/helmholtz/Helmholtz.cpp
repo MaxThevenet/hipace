@@ -35,6 +35,7 @@ Helmholtz::ReadParameters ()
     queryWithParser(pp, "interp_order", m_interp_order);
     AMREX_ALWAYS_ASSERT(m_interp_order <= 3 && m_interp_order >= 0);
     queryWithParser(pp, "insitu_period", m_insitu_period);
+    queryWithParser(pp, "centered_dz", m_centered_dz);
     queryWithParser(pp, "insitu_file_prefix", m_insitu_file_prefix);
 }
 
@@ -179,6 +180,7 @@ Helmholtz::ShiftHelmholtzSlices (const int islice)
             arr(i, j, Ex_np1jp1) = arr(i, j, Ex_np1j00);
             // np1j00_r will be computed by AdvanceSlice
 
+            arr(i, j, jx_n00jp2) = arr(i, j, jx_n00jp1);
             arr(i, j, jx_n00jp1) = arr(i, j, jx_n00j00);
             arr(i, j, jx_n00j00) = arr(i, j, jx_n00jm1);
             arr(i, j, jx_n00jm1) = 0._rt;
@@ -285,7 +287,11 @@ Helmholtz::AdvanceSliceFFT (const amrex::Real dt, int step)
                         + ( -3._rt/(c*dt*dz) + 2._rt/(c*c*dt*dt) ) * anm1j00;
                 }
 
-                const amrex::Real dz_jx = 0.5_rt * (arr(i, j, jx_n00jp1) - arr(i, j, jx_n00jm1)) / dz;
+                const amrex::Real dz_jx = m_centered_dz ?
+                    0.5_rt * (arr(i, j, jx_n00jp1) - arr(i, j, jx_n00jm1)) / dz :
+                    0.5_rt * (- 3._rt*arr(i, j, jx_n00j00)
+                              + 4._rt*arr(i, j, jx_n00jp1)
+                              - arr(i, j, jx_n00jp2) ) / dz;
                 rhs -= 2._rt * phc.mu0 * c * dz_jx;
 
                 rhs_arr(i,j,0) = rhs;
