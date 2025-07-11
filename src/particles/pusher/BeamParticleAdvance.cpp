@@ -271,7 +271,6 @@ AdvanceBeamParticlesSlice (
                     ExmByp -= clight * By;
                     EypBxp += clight * Bx;
                     for (int im=0; im<4; ++im) {
-                        amrex::Real zprop = clight*time + zp/clight*0._rt;
                         if ((zprop >= Zs[im]) && (zprop < (Zs[im] + Ls[im]))) {
                             Byp += Bs[im];
                             ExmByp -= clight * Bs[im];
