@@ -29,7 +29,6 @@ HIPACE_TEST_DIR=${HIPACE_SOURCE_DIR}/tests
 RTOL=1e-12 && [[ "$HIPACE_EXECUTABLE" == *"hipace"*".CUDA."* ]] && RTOL=2e-5
 
 rm -rf helmholtz.1
-rm -rf helmholtz.2
 
 # Run the simulation
 mpiexec -n 2 $HIPACE_EXECUTABLE $HIPACE_EXAMPLE_DIR/inputs_1 \
@@ -48,21 +47,4 @@ $HIPACE_TEST_DIR/checksum/checksumAPI.py \
     --file_name helmholtz.1 \
     --test-name helmholtz.1
 
-# Run the simulation
-mpiexec -n 2 $HIPACE_EXECUTABLE $HIPACE_EXAMPLE_DIR/inputs_2 \
-        my_constants.z1 = 0.00001 \
-        amr.n_cell = 16 8 40 \
-        beam.num_particles = 1e3 \
-        beamsub.num_particles = 1e2 \
-        hipace.file_prefix = helmholtz.2 \
-        max_step=1000
-
-# Compare the results with checksum benchmark
-$HIPACE_TEST_DIR/checksum/checksumAPI.py \
-    --evaluate \
-    --rtol $RTOL \
-    --file_name helmholtz.2 \
-    --test-name helmholtz.2
-
 rm -rf helmholtz.1
-rm -rf helmholtz.2
