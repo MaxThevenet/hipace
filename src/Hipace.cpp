@@ -660,7 +660,6 @@ Hipace::SolveOneSlice (int islice, int step)
     }
 
     if (m_use_helmholtz) {
-        // m_multi_beam.HelmholtzDeposition(m_helmholtz, WhichBeamSlice::Next);
         m_multi_beam.HelmholtzDeposition(m_helmholtz, WhichBeamSlice::This);
         m_helmholtz.AdvanceSlice(islice, m_dt, step);
     } else {
@@ -716,12 +715,6 @@ Hipace::SolveOneSlice (int islice, int step)
         SalameModule(this, m_salame_n_iter, m_salame_do_advance, m_salame_last_slice,
                     m_salame_overloaded, current_N_level, step, islice, m_salame_relative_tolerance);
     }
-
-    // if (m_use_helmholtz) {
-    // m_multi_beam.HelmholtzDeposition(m_helmholtz, WhichBeamSlice::Next);
-         // Advance helmholtz slice
-         // m_helmholtz.AdvanceSlice(islice, m_dt, step);
-    // }
 
     // add external fields to the field grid
     for (int lev=0; lev<current_N_level; ++lev) {
