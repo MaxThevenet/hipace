@@ -257,7 +257,7 @@ AdvanceBeamParticlesSlice (
                     ApplyExternalField(xp, yp, zp, time, clight, ExmByp, EypBxp, Ezp, Bxp, Byp, Bzp,
                         external_fields);
                 }
-                if (use_mag > 0) {
+                if (use_mag) {
                     amrex::Real zprop = clight*time + zp/clight*0._rt;
                     amrex::Real Bx = 0._rt;
                     amrex::Real By = mag_B0*std::cos( ku*zprop + mag_phase );
@@ -272,13 +272,12 @@ AdvanceBeamParticlesSlice (
                     Bzp += Bz;
                     ExmByp -= clight * By;
                     EypBxp += clight * Bx;
-                }
-
-                for (int im=0; im<4; ++im) {
-                    amrex::Real zprop = clight*time + zp/clight*0._rt;
-                    if ((zprop >= Zs[im]) && (zprop < (Zs[im] + Ls[im]))) {
-                        Byp += Bs[im];
-                        ExmByp -= clight * Bs[im];
+                    for (int im=0; im<4; ++im) {
+                        amrex::Real zprop = clight*time + zp/clight*0._rt;
+                        if ((zprop >= Zs[im]) && (zprop < (Zs[im] + Ls[im]))) {
+                            Byp += Bs[im];
+                            ExmByp -= clight * Bs[im];
+                        }
                     }
                 }
 
