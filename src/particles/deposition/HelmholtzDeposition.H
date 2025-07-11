@@ -14,7 +14,7 @@
 
 /** Depose beam currents for into Helmholtz current arrays
  * \param[in] beam Beam species that is deposited in array
- * \param[in] Helmholtz Helmholtz object into which currents are deposited
+ * \param[in] helmholtz Helmholtz object into which currents are deposited
  * \param[in] which_beam_slice Beam slice to depose.
  */
 void
