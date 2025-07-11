@@ -20,7 +20,7 @@ MultiBeam::MultiBeam ()
     queryWithParser(pp, "names", m_names);
     if (m_names[0] == "no_beam") return;
 
-    amrex::Real mag_period{0.}, mag_phase{0.}, mag_B0{0.}, mag_correction{0.};
+    amrex::Real mag_period{0.}, mag_phase{0.}, mag_B0{0.};
     bool use_mag = false;
     queryWithParser(pp, "use_mag", use_mag);
     queryWithParser(pp, "mag_period", mag_period);
