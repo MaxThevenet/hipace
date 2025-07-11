@@ -36,7 +36,7 @@ struct Mag
     /** Rolloff parameter in x, normalized by ku. */
     amrex::Real m_kx {0};
     /** Rolloff parameter in y, normalized by ku. */
-    amrex::Real m_ky {1};
+    amrex::Real m_ky {0};
 };
 
 class MultiBeam
