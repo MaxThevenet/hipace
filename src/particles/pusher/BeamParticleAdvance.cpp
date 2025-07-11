@@ -292,13 +292,13 @@ AdvanceBeamParticlesSlice (
 
                 if (c_use_helmholtz.value) {
                     amrex::ParticleReal Arp = 0._rt;
-                    // amrex::ParticleReal betaz = uz * gammap_inv * inv_clight;
-                    // amrex::ParticleReal betax = ux * gammap_inv * inv_clight;
+                    amrex::ParticleReal betaz = uz * gammap_inv * inv_clight;
+                    amrex::ParticleReal betax = ux * gammap_inv * inv_clight;
                     doHelmholtzGatherShapeN<depos_order.value>(
                         xp, yp, Arp, a_arr,
                         dx_inv, dy_inv, x_pos_offset, y_pos_offset);
-                    // ux_next += dt * charge_mass_ratio * (1._rt-betaz) * Arp;
-                    // uz_next += dt * charge_mass_ratio * (   betax   ) * Arp;
+                    ux_next += dt * charge_mass_ratio * (1._rt-betaz) * Arp;
+                    uz_next += dt * charge_mass_ratio * (   betax   ) * Arp;
                 }
 
                 // Now computing new longitudinal momentum
