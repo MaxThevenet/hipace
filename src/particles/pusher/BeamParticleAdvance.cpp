@@ -279,12 +279,13 @@ AdvanceBeamParticlesSlice (
                 }
 
                 // use intermediate fields to calculate next (n+1) transverse momenta
+                // Main calculation of u{x,y,z}_next and u_{x,y,z}_intermediate starts
                 amrex::ParticleReal ux_next = ux + dt * charge_mass_ratio
                     * ( ExmByp + ( clight - uz * gammap_inv ) * Byp + uy*gammap_inv*Bzp);
                 amrex::ParticleReal uy_next = uy + dt * charge_mass_ratio
                     * ( EypBxp + ( uz * gammap_inv - clight ) * Bxp - ux*gammap_inv*Bzp);
-                amrex::ParticleReal uz_next = uz + dt * charge_mass_ratio
-                    * ( Ezp + ( ux * Byp - uy * Bxp ) * gammap_inv );
+                amrex::ParticleReal uz_next = 0._rt;
+                amrex::ParticleReal uz_intermediate = 0._rt;
 
                 if (c_use_helmholtz.value) {
                     amrex::ParticleReal Arp = 0._rt;
@@ -294,20 +295,32 @@ AdvanceBeamParticlesSlice (
                         xp, yp, Arp, a_arr,
                         dx_inv, dy_inv, x_pos_offset, y_pos_offset);
                     ux_next += dt * charge_mass_ratio * (1._rt-betaz) * Arp;
+                    uz_next = uz + dt * charge_mass_ratio
+                        * ( Ezp + ( ux * Byp - uy * Bxp ) * gammap_inv );
                     uz_next += dt * charge_mass_ratio * (   betax   ) * Arp;
                 }
 
                 // Now computing new longitudinal momentum
                 const amrex::ParticleReal ux_intermediate = ( ux_next + ux ) * 0.5_rt;
                 const amrex::ParticleReal uy_intermediate = ( uy_next + uy ) * 0.5_rt;
-                const amrex::ParticleReal uz_intermediate = ( uz_next + uz ) * 0.5_rt;
+                // const amrex::ParticleReal uz_intermediate = ( uz_next + uz ) * 0.5_rt;
+                uz_intermediate = c_use_helmholtz.value
+                    ? ( uz_next + uz ) * 0.5_rt
+                    : uz + dt * 0.5_rt * charge_mass_ratio * Ezp;
 
                 const amrex::ParticleReal gamma_intermediate_inv = 1._rt / std::sqrt( 1._rt
                     + ( ux_intermediate*ux_intermediate
                        + uy_intermediate*uy_intermediate
                        + uz_intermediate*uz_intermediate )*inv_c2 );
 
-                if (spin_tracking) {
+                if (!c_use_helmholtz.value) {
+                    uz_next += uz + dt * charge_mass_ratio * ( Ezp +
+                        ( ux_intermediate*Byp - uy_intermediate*Bxp ) * gamma_intermediate_inv );
+                }
+                // Main calculation of u{x,y,z}_next and u_{x,y,z}_intermediate ends
+                // They may be modified through e.g. radiation reaction below
+
+                 if (spin_tracking) {
                     const amrex::RealVect E {ExmByp + clight*Byp, EypBxp - clight*Bxp, Ezp};
                     const amrex::RealVect B {Bxp, Byp, Bzp};
                     const amrex::RealVect u {ux_intermediate*inv_clight, uy_intermediate*inv_clight,
