@@ -26,8 +26,7 @@ MultiBeam::MultiBeam ()
     queryWithParser(pp, "mag_period", mag_period);
     queryWithParser(pp, "mag_phase", mag_phase);
     queryWithParser(pp, "mag_B0", mag_B0);
-    queryWithParser(pp, "mag_correction", mag_correction);
-    m_mag = Mag(use_mag, mag_period, mag_phase, mag_B0, mag_correction);
+    m_mag = Mag(use_mag, mag_period, mag_phase, mag_B0);
 
     queryWithParser(pp, "chicBs", m_chicBs);
     queryWithParser(pp, "chicLs", m_chicLs);

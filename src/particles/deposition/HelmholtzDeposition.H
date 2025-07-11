@@ -12,6 +12,11 @@
 #include "helmholtz/Helmholtz.H"
 #include "utils/Constants.H"
 
+/** Depose beam currents for into Helmholtz current arrays
+ * \param[in] beam Beam species that is deposited in array
+ * \param[in] Helmholtz Helmholtz object into which currents are deposited
+ * \param[in] which_beam_slice Beam slice to depose.
+ */
 void
 HelmholtzDeposition (BeamParticleContainer& beam, Helmholtz& helmholtz,
                     const int which_beam_slice);

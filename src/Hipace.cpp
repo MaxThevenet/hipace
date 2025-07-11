@@ -704,7 +704,6 @@ Hipace::SolveOneSlice (int islice, int step)
 
             // Solves Bx, By using Sx, Sy and chi
             ExplicitMGSolveBxBy(lev, WhichSlice::This);
-            }
         }
     } else {
         // Solves Bx and By in the current slice and modifies the force terms of the plasma particles

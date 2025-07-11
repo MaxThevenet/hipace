@@ -571,7 +571,7 @@ Fields::Copy (const int current_N_level, const int i_slice, FieldDiagnosticData&
                    helmholtz.UseHelmholtz(i_slice)) {
             auto helmholtz_array = helmholtz_func.array(mfi);
             amrex::Array4<amrex::Real> diag_array = fd.m_F.array();
-            
+
             amrex::ParallelFor(diag_box, fd.m_nfields,
                                [=] AMREX_GPU_DEVICE(int i, int j, int k, int n) noexcept
                 {

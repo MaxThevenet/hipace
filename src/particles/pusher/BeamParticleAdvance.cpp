@@ -42,7 +42,6 @@ AdvanceBeamParticlesSlice (
     const amrex::Real mag_period = mag.m_period;
     const amrex::Real mag_phase = mag.m_phase;
     const amrex::Real mag_B0 = mag.m_B0;
-    const amrex::Real mag_correction = mag.m_correction;
     const amrex::Real mag_kx = mag.m_kx;
     const amrex::Real mag_ky = mag.m_ky;
     const bool use_mag = mag.m_use_mag;
@@ -262,11 +261,10 @@ AdvanceBeamParticlesSlice (
                     amrex::Real Bx = 0._rt;
                     amrex::Real By = mag_B0*std::cos( ku*zprop + mag_phase );
                     amrex::Real Bz = 0._rt;
-                    if (mag_correction) {
-                        Bx += mag_B0 * std::cos( ku*zprop + mag_phase ) * mag_kx*mag_kx*xp*yp;
-                        By *= (1._rt + mag_kx*mag_kx*xp*xp/2._rt + mag_ky*mag_ky*yp*yp/2._rt);
-                        Bz -= mag_B0 * std::sin( ku*zprop + mag_phase ) * ku*yp;
-                    }
+                    // Correction for magnetic fields in undulator
+                    Bx += mag_B0 * std::cos( ku*zprop + mag_phase ) * mag_kx*mag_kx*ku*ku*xp*yp;
+                    By *= (1._rt + mag_kx*mag_kx*ku*ku*xp*xp/2._rt + mag_ky*mag_ky*ku*ku*yp*yp/2._rt);
+                    Bz -= mag_B0 * std::sin( ku*zprop + mag_phase ) * ku*yp;
                     Bxp += Bx;
                     Byp += By;
                     Bzp += Bz;
