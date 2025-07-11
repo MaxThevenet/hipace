@@ -47,3 +47,4 @@ $HIPACE_TEST_DIR/checksum/checksumAPI.py \
     --test-name helmholtz.2
 
 rm -rf helmholtz.2
+rm -rf diags

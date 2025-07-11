@@ -48,3 +48,4 @@ $HIPACE_TEST_DIR/checksum/checksumAPI.py \
     --test-name helmholtz.1
 
 rm -rf helmholtz.1
+rm -rf diags
