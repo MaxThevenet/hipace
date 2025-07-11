@@ -288,7 +288,7 @@ Hipace::InitData ()
 
     m_helmholtz.InitData();
 
-    m_diags.Initialize(m_N_level, m_multi_laser.UseLaser(), m_helmholtz.UseHelmholtz());
+    m_diags.Initialize(m_N_level, m_multi_laser.UseLaser(), m_use_helmholtz);
 
     m_initial_time = m_multi_beam.InitData(m_3D_geom[0]);
 
@@ -424,7 +424,7 @@ Hipace::Evolve ()
 
         const amrex::Box& bx = m_3D_ba[0][0];
 
-        if (m_multi_laser.UseLaser() || m_helmholtz.UseHelmholtz()) {
+        if (m_multi_laser.UseLaser() || m_use_helmholtz) {
             AMREX_ALWAYS_ASSERT(!m_adaptive_time_step.m_do_adaptive_time_step);
         }
 
