@@ -36,6 +36,8 @@ Helmholtz::ReadParameters ()
     AMREX_ALWAYS_ASSERT(m_interp_order <= 3 && m_interp_order >= 0);
     queryWithParser(pp, "insitu_period", m_insitu_period);
     queryWithParser(pp, "centered_dz", m_centered_dz);
+    queryWithParser(pp, "add_dx_jz", m_add_dx_jz);
+    queryWithParser(pp, "add_dz_jx", m_add_dz_jx);
     queryWithParser(pp, "insitu_file_prefix", m_insitu_file_prefix);
 }
 
@@ -221,6 +223,8 @@ Helmholtz::AdvanceSliceFFT (const amrex::Real dt, int step)
     const PhysConst phc = get_phys_const();
     const amrex::Real c = phc.c;
     const bool centered_dz = m_centered_dz;
+    const bool add_dx_jz = m_add_dx_jz;
+    const bool add_dz_jx = m_add_dz_jx;
 
     for ( amrex::MFIter mfi(m_slices, DfltMfi); mfi.isValid(); ++mfi ){
         const amrex::Box& bx = mfi.tilebox();
@@ -288,12 +292,20 @@ Helmholtz::AdvanceSliceFFT (const amrex::Real dt, int step)
                         + ( -3._rt/(c*dt*dz) + 2._rt/(c*c*dt*dt) ) * anm1j00;
                 }
 
-                const amrex::Real dz_jx = centered_dz ?
-                    0.5_rt * (arr(i, j, jx_n00jp1) - arr(i, j, jx_n00jm1)) / dz :
-                    0.5_rt * (- 3._rt*arr(i, j, jx_n00j00)
-                              + 4._rt*arr(i, j, jx_n00jp1)
-                              - arr(i, j, jx_n00jp2) ) / dz;
-                rhs -= 2._rt * phc.mu0 * c * dz_jx;
+                if (add_dz_jx) {
+                    const amrex::Real dz_jx = centered_dz ?
+                        0.5_rt * (arr(i, j, jx_n00jp1) - arr(i, j, jx_n00jm1)) / dz :
+                        0.5_rt * (- 3._rt*arr(i, j, jx_n00j00)
+                                  + 4._rt*arr(i, j, jx_n00jp1)
+                                  - arr(i, j, jx_n00jp2) ) / dz;
+                    rhs -= 2._rt * phc.mu0 * c * dz_jx;
+                }
+
+                if (add_dx_jz) {
+                    const amrex::Real dx_jz = i>imin && i<imax ?
+                        (arr(i+1, j, jz_n00j00) - arr(i-1, j, jz_n00j00)) / (2._rt*dx) : 0._rt;
+                    rhs += 2._rt * phc.mu0 * c * dx_jz;
+                }
 
                 rhs_arr(i,j,0) = rhs;
             });

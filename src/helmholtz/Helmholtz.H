@@ -160,6 +160,8 @@ private:
     /** interpolation order for helmholtz to field and field to helmholtz operations */
     int m_interp_order = 1;
     bool m_centered_dz {false};
+    bool m_add_dx_jz {false};
+    bool m_add_dz_jx {true};
 
     /** Array of N slices required to compute current slice */
     amrex::MultiFab m_slices;
