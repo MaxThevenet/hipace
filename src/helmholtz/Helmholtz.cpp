@@ -38,6 +38,7 @@ Helmholtz::ReadParameters ()
     queryWithParser(pp, "centered_dz", m_centered_dz);
     queryWithParser(pp, "add_dx_jz", m_add_dx_jz);
     queryWithParser(pp, "add_dz_jx", m_add_dz_jx);
+    queryWithParser(pp, "interp_z", m_interp_z);
     queryWithParser(pp, "insitu_file_prefix", m_insitu_file_prefix);
 }
 

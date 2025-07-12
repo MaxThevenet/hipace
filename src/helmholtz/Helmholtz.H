@@ -145,6 +145,7 @@ public:
     bool UseHelmholtz (const int islice) const { return m_use_helmholtz && HasSlice(islice); }
 
     bool CenteredDz () const { return m_centered_dz; }
+    bool InterpZ () const { return m_interp_z; }
 
 private:
 
@@ -164,6 +165,8 @@ private:
     bool m_centered_dz {false};
     bool m_add_dx_jz {false};
     bool m_add_dz_jx {true};
+    /** Whether laser force is interpolated (order 2) in z. Otherwise order 0 */
+    bool m_interp_z {false};
 
     /** Array of N slices required to compute current slice */
     amrex::MultiFab m_slices;

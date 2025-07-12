@@ -78,11 +78,23 @@ AdvanceBeamParticlesSlice (
     const amrex::FArrayBox& slice_fab_lev2 = fields.getSlices(lev2_idx)[0];
     const amrex::MultiFab& a_mf = helmholtz.getSlices();
 
+    // I suspect we use Ex_n00j00 to push particles but should be Ex_np1j00
+    const amrex::GpuArray<amrex::Real, 3> helm_comps_interp   {WhichHelmholtzSlice::Ex_n00jm1,
+                                                               WhichHelmholtzSlice::Ex_n00j00,
+                                                               WhichHelmholtzSlice::Ex_n00jp1};
+    const amrex::GpuArray<amrex::Real, 3> helm_comps_nointerp {WhichHelmholtzSlice::Ex_n00j00,
+                                                               WhichHelmholtzSlice::Ex_n00j00,
+                                                               WhichHelmholtzSlice::Ex_n00j00};
+    const amrex::GpuArray<amrex::Real, 3> helm_comps = helmholtz.InterpZ()
+        ? helm_comps_interp : helm_comps_nointerp;
+
     Array3<const amrex::Real> const slice_arr_lev0 = slice_fab_lev0.const_array();
     Array3<const amrex::Real> const slice_arr_lev1 = slice_fab_lev1.const_array();
     Array3<const amrex::Real> const slice_arr_lev2 = slice_fab_lev2.const_array();
+    // Array3<const amrex::Real> const& a_arr = use_helmholtz ?
+    //         a_mf[0].const_array(WhichHelmholtzSlice::Ex_n00j00) : amrex::Array4<const amrex::Real>();
     Array3<const amrex::Real> const& a_arr = use_helmholtz ?
-            a_mf[0].const_array(WhichHelmholtzSlice::Ex_n00j00) : amrex::Array4<const amrex::Real>();
+        a_mf[0].const_array() : amrex::Array4<const amrex::Real>();
     const amrex::Real ku = 2.*MathConst::pi/mag_period;
 
     // Extract properties associated with physical size of the box
@@ -296,8 +308,8 @@ AdvanceBeamParticlesSlice (
                     amrex::ParticleReal betaz = uz * gammap_inv * inv_clight;
                     amrex::ParticleReal betax = ux * gammap_inv * inv_clight;
                     doHelmholtzGatherShapeN<depos_order.value>(
-                        xp, yp, Arp, a_arr,
-                        dx_inv, dy_inv, x_pos_offset, y_pos_offset);
+                        xp, yp, Arp, a_arr, dx_inv, dy_inv,
+                        x_pos_offset, y_pos_offset, helm_comps);
                     ux_next += dt * charge_mass_ratio * (1._rt-betaz) * Arp;
                     uz_next = uz + dt * charge_mass_ratio
                         * ( Ezp + ( ux * Byp - uy * Bxp ) * gammap_inv );
