@@ -144,6 +144,8 @@ public:
      */
     bool UseHelmholtz (const int islice) const { return m_use_helmholtz && HasSlice(islice); }
 
+    bool CenteredDz () const { return m_centered_dz; }
+
 private:
 
     bool m_use_helmholtz {false}; /**< whether a helmholtz is used or not */

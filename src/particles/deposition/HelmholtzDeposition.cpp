@@ -48,6 +48,19 @@ HelmholtzDeposition (BeamParticleContainer& beam, Helmholtz& helmholtz,
     const amrex::Real clightsq = 1.0_rt/(phys_const.c*phys_const.c);
     const amrex::Real q = beam.m_charge;
 
+    int jx_slice {-1};
+    int jz_slice {-1};
+    int rho_slice {-1};
+    if (which_beam_slice == WhichBeamSlice::Next) {
+        jx_slice = WhichHelmholtzSlice::jx_n00jm1;
+        jz_slice = WhichHelmholtzSlice::jz_n00jm1;
+        rho_slice = WhichHelmholtzSlice::rho_n00jm1;
+    } else {
+        jx_slice = WhichHelmholtzSlice::jx_n00j00;
+        jz_slice = WhichHelmholtzSlice::jz_n00j00;
+        rho_slice = WhichHelmholtzSlice::rho_n00j00;
+    }
+
     amrex::AnyCTO(
         // use compile-time options
         amrex::TypeList<amrex::CompileTimeOptions<0, 1, 2, 3>>{},
@@ -65,9 +78,9 @@ HelmholtzDeposition (BeamParticleContainer& beam, Helmholtz& helmholtz,
                 beam.getBeamSlice(which_beam_slice).getParticleTileData(),
                 amrex::GpuArray<int, 0>{},
                 amrex::GpuArray<int, 3>{
-                    WhichHelmholtzSlice::jx_n00j00,
-                    WhichHelmholtzSlice::jz_n00j00,
-                    WhichHelmholtzSlice::rho_n00j00,
+                    jx_slice,
+                    jz_slice,
+                    rho_slice,
                 });
         },
         // is_valid
