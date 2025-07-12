@@ -462,7 +462,7 @@ void MultiBuffer::get_data (int slice, MultiBeam& beams, MultiLaser& laser, Helm
         }
         if (helmholtz.UseHelmholtz(slice)) {
             using namespace WhichHelmholtzSlice;
-            const int helmholtz_comp = (beam_slice == WhichBeamSlice::Next) ? Ex_n00jp2 : Ex_n00j00;
+            const int helmholtz_comp = (beam_slice == WhichBeamSlice::Next) ? Ex_n00jm1 : Ex_n00j00;
             helmholtz.InitSliceEnvelope(slice, helmholtz_comp);
         }
     } else {
@@ -878,8 +878,11 @@ void MultiBuffer::pack_data (int slice, MultiBeam& beams, MultiLaser& laser, Hel
     }
     if (helmholtz.UseHelmholtz(slice)) {
         using namespace WhichHelmholtzSlice;
+        if (beam_slice == WhichBeamSlice::Next) {
+            amrex::Abort("You shouldn't be here, or maybe Ex_np1jm1 needs to be implemented?");
+        }
         const int helmholtz_comp_0_1 = (beam_slice == WhichBeamSlice::Next) ? Ex_np1jp2 : Ex_np1j00;
-        const int helmholtz_comp_2_3 = (beam_slice == WhichBeamSlice::Next) ? Ex_n00jp2 : Ex_n00j00;
+        const int helmholtz_comp_2_3 = (beam_slice == WhichBeamSlice::Next) ? Ex_n00jm1 : Ex_n00j00;
         // copy real and imag components in one operation
         memcpy_to_buffer(slice, get_buffer_offset(slice, offset_type::helmholtz, beams, laser,
                                                   helmholtz, 0, 0),
@@ -968,8 +971,8 @@ void MultiBuffer::unpack_data (int slice, MultiBeam& beams, MultiLaser& laser, H
     }
     if (helmholtz.UseHelmholtz(slice)) {
         using namespace WhichHelmholtzSlice;
-        const int helmholtz_comp_0_1 = (beam_slice == WhichBeamSlice::Next) ? Ex_n00jp2 : Ex_n00j00;
-        const int helmholtz_comp_2_3 = (beam_slice == WhichBeamSlice::Next) ? Ex_nm1jp2 : Ex_nm1j00;
+        const int helmholtz_comp_0_1 = (beam_slice == WhichBeamSlice::Next) ? Ex_n00jm1 : Ex_n00j00;
+        const int helmholtz_comp_2_3 = (beam_slice == WhichBeamSlice::Next) ? Ex_nm1jm1 : Ex_nm1j00;
         // copy real and imag components in one operation
         memcpy_from_buffer(slice, get_buffer_offset(slice, offset_type::helmholtz, beams, laser,
                                                     helmholtz, 0, 0),

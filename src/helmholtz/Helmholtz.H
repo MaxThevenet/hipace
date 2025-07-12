@@ -28,8 +28,8 @@ namespace WhichHelmholtzSlice {
 
     enum slice {
         Ex_nm1j00 = 0,
-                    Ex_nm1jp1,  Ex_nm1jp2,
-        Ex_n00j00,  Ex_n00jp1,  Ex_n00jp2,
+                    Ex_nm1jp1,  Ex_nm1jp2,  Ex_nm1jm1,
+        Ex_n00j00,  Ex_n00jp1,  Ex_n00jp2,  Ex_n00jm1,
         Ex_np1j00,  Ex_np1jp1,  Ex_np1jp2,
 
         jx_n00jm1,  jx_n00j00,  jx_n00jp1,  jx_n00jp2,

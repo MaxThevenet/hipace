@@ -168,15 +168,15 @@ Helmholtz::ShiftHelmholtzSlices (const int islice)
         {
             using namespace WhichHelmholtzSlice;
             // Shift slices of step n-1
-            const amrex::Real tmp_nm1j00 = arr(i, j, Ex_nm1jp2);
             arr(i, j, Ex_nm1jp2) = arr(i, j, Ex_nm1jp1);
             arr(i, j, Ex_nm1jp1) = arr(i, j, Ex_nm1j00);
-            arr(i, j, Ex_nm1j00) = tmp_nm1j00;
+            arr(i, j, Ex_nm1j00) = arr(i, j, Ex_nm1jm1);
+            arr(i, j, Ex_nm1jm1) = 0._rt;
             // Shift slices of step n
-            const amrex::Real tmp_n00j00 = arr(i, j, Ex_n00jp2);
             arr(i, j, Ex_n00jp2) = arr(i, j, Ex_n00jp1);
             arr(i, j, Ex_n00jp1) = arr(i, j, Ex_n00j00);
-            arr(i, j, Ex_n00j00) = tmp_n00j00;
+            arr(i, j, Ex_n00j00) = arr(i, j, Ex_n00jm1);
+            arr(i, j, Ex_n00jm1) = 0._rt;
             // Shift slices of step n+1
             arr(i, j, Ex_np1jp2) = arr(i, j, Ex_np1jp1);
             arr(i, j, Ex_np1jp1) = arr(i, j, Ex_np1j00);
