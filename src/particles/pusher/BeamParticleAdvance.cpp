@@ -48,6 +48,7 @@ AdvanceBeamParticlesSlice (
     const amrex::GpuArray<amrex::Real, 4> Bs = {chicBs[0], chicBs[1], chicBs[2], chicBs[3]};
     const amrex::GpuArray<amrex::Real, 4> Ls = {chicLs[0], chicLs[1], chicLs[2], chicLs[3]};
     const amrex::GpuArray<amrex::Real, 4> Zs = {chicZs[0], chicZs[1], chicZs[2], chicZs[3]};
+    const bool use_chic = *std::max_element(Bs.begin(), Bs.end());
 
     if (normalized_units && radiation_reaction) {
         AMREX_ALWAYS_ASSERT_WITH_MESSAGE(background_density_SI!=0,
@@ -256,8 +257,9 @@ AdvanceBeamParticlesSlice (
                     ApplyExternalField(xp, yp, zp, time, clight, ExmByp, EypBxp, Ezp, Bxp, Byp, Bzp,
                         external_fields);
                 }
+
+                amrex::Real zprop = clight*time + zp/clight*0._rt;
                 if (use_mag) {
-                    amrex::Real zprop = clight*time + zp/clight*0._rt;
                     amrex::Real Bx = 0._rt;
                     amrex::Real By = mag_B0*std::cos( ku*zprop + mag_phase );
                     amrex::Real Bz = 0._rt;
@@ -270,6 +272,8 @@ AdvanceBeamParticlesSlice (
                     Bzp += Bz;
                     ExmByp -= clight * By;
                     EypBxp += clight * Bx;
+                }
+                if (use_chic) {
                     for (int im=0; im<4; ++im) {
                         if ((zprop >= Zs[im]) && (zprop < (Zs[im] + Ls[im]))) {
                             Byp += Bs[im];
