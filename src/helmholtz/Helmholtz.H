@@ -162,11 +162,11 @@ private:
     amrex::Box m_slice_box;
     /** interpolation order for helmholtz to field and field to helmholtz operations */
     int m_interp_order = 1;
-    bool m_centered_dz {false};
     bool m_add_dx_jz {false};
     bool m_add_dz_jx {true};
     /** Whether laser force is interpolated (order 2) in z. Otherwise order 0 */
-    bool m_interp_z {false};
+    bool m_interp_z {true};
+    bool m_centered_dz {true};
 
     /** Array of N slices required to compute current slice */
     amrex::MultiFab m_slices;
