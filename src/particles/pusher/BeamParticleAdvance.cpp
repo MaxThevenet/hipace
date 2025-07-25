@@ -19,7 +19,7 @@
 void
 AdvanceBeamParticlesSlice (
     BeamParticleContainer& beam, const Fields& fields, amrex::Vector<amrex::Geometry> const& gm,
-    const int slice, int const current_N_level, const Helmholtz& helmholtz, Mag mag,
+    const int slice, int const current_N_level, const Helmholtz& helmholtz,
     const std::array<amrex::Real, 4> chicBs,
     const std::array<amrex::Real, 4> chicLs,
     const std::array<amrex::Real, 4> chicZs)
@@ -29,6 +29,7 @@ AdvanceBeamParticlesSlice (
     const bool use_helmholtz = helmholtz.UseHelmholtz();
 
     const PhysConst phys_const = get_phys_const();
+    const Mag mag = beam.getMag();
 
     const bool do_z_push = beam.m_do_z_push;
     const int n_subcycles = beam.m_n_subcycles;

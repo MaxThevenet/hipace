@@ -12,33 +12,6 @@
 #include "fields/Fields.H"
 #include "helmholtz/Helmholtz.H"
 
-struct Mag
-{
-    /** Constructor */
-    Mag () : m_period(0.), m_phase(0.), m_B0(0.), m_kx(0.), m_ky(0.) {}
-
-    Mag (bool use_mag, amrex::Real period, amrex::Real phase, amrex::Real B0) :
-        m_use_mag(use_mag),
-        m_period(period),
-        m_phase(phase),
-        m_B0(B0),
-        m_kx(0.),
-        m_ky(2.*MathConst::pi/period) {}
-
-    /** Whether to use the magnetic undulator */
-    bool m_use_mag = false;
-    /** Undulator period (SI) */
-    amrex::Real m_period {0};
-    /** Undulator phase: By = B0 * cos(ku*z + phase) */
-    amrex::Real m_phase {0};
-    /** Undulator magnetic field */
-    amrex::Real m_B0 {0};
-    /** Rolloff parameter in x, normalized by ku. */
-    amrex::Real m_kx {0};
-    /** Rolloff parameter in y, normalized by ku. */
-    amrex::Real m_ky {0};
-};
-
 class MultiBeam
 {
 
@@ -166,7 +139,6 @@ private:
     std::array<amrex::Real, 4> m_chicLs {0., 0., 0., 0.};
     std::array<amrex::Real, 4> m_chicZs {0., 0., 0., 0.};
     amrex::Real m_tstart_push {0.};
-    Mag m_mag;
 
     /** number of real particles per beam, as opposed to ghost particles */
     amrex::Vector<amrex::Long> m_n_real_particles;

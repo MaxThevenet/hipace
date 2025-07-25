@@ -64,6 +64,33 @@ using BeamTileInit = amrex::ParticleTile<
         amrex::PolymorphicArenaAllocator
     >;
 
+struct Mag
+{
+    /** Constructor */
+    Mag () : m_period(0.), m_phase(0.), m_B0(0.), m_kx(0.), m_ky(0.) {}
+
+    Mag (bool use_mag, amrex::Real period, amrex::Real phase, amrex::Real B0) :
+        m_use_mag(use_mag),
+        m_period(period),
+        m_phase(phase),
+        m_B0(B0),
+        m_kx(0.),
+        m_ky(2.*MathConst::pi/period) {}
+
+    /** Whether to use the magnetic undulator */
+    bool m_use_mag = false;
+    /** Undulator period (SI) */
+    amrex::Real m_period {0};
+    /** Undulator phase: By = B0 * cos(ku*z + phase) */
+    amrex::Real m_phase {0};
+    /** Undulator magnetic field */
+    amrex::Real m_B0 {0};
+    /** Rolloff parameter in x, normalized by ku. */
+    amrex::Real m_kx {0};
+    /** Rolloff parameter in y, normalized by ku. */
+    amrex::Real m_ky {0};
+};
+
 /** \brief Container for particles of 1 beam species. */
 class BeamParticleContainer
 {
@@ -206,6 +233,7 @@ public:
         // don't communicate nsubcycles or mr_level
         return icomp < BeamIdx::int_nattribs_in_buffer;
     }
+    const Mag& getMag () const { return m_mag; }
 
 private:
     int m_slice_permutation = 0;
@@ -317,6 +345,7 @@ private:
     amrex::Array<std::string, AMREX_SPACEDIM> m_file_coordinates_xyz;
     int m_num_iteration {0}; /**< the iteration of the openPMD beam */
     std::string m_species_name; /**< the name of the particle species in the beam file */
+    Mag m_mag;
 
     // insitu:
 
