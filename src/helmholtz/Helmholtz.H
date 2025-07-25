@@ -22,10 +22,6 @@ namespace WhichHelmholtzSlice {
     // n stands for the time step, j for the longitudinal slice.
     // n00 is time step n, nm1 is n-1 and np1 is n+1. Similar notation for slice j.
 
-    static constexpr int num_fields = 1;
-
-    static constexpr int num_comps_per_field = 9;
-
     enum slice {
         Ex_nm1j00 = 0,
                     Ex_nm1jp1,  Ex_nm1jp2,  Ex_nm1jm1,
@@ -35,6 +31,11 @@ namespace WhichHelmholtzSlice {
         jx_n00jm1,  jx_n00j00,  jx_n00jp1,  jx_n00jp2,
         jz_n00jm1,  jz_n00j00,  jz_n00jp1,
         rho_n00jm1, rho_n00j00, rho_n00jp1,
+
+        Ei_nm1j00,  Ei_nm1jp1,  Ei_nm1jp2,  Ei_nm1jm1,
+        Ei_n00j00,  Ei_n00jp1,  Ei_n00jp2,  Ei_n00jm1,
+        Ei_np1j00,  Ei_np1jp1,  Ei_np1jp2,
+
         N
     };
 }
@@ -93,12 +94,18 @@ public:
 
 
     /** Advance a Helmholtz slice by 1 time step using a FFT solver.
-     * The complex phase of the envelope is evaluated on-axis only.
      *
      * \param[in] dt time step of the simulation
      * \param[in] step current iteration. Needed because step 0 needs a specific treatment.
      */
     void AdvanceSliceFFT (amrex::Real dt, int step);
+
+    /** Advance a Helmholtz slice by 1 time step using a FFT solver.
+     *
+     * \param[in] dt time step of the simulation
+     * \param[in] step current iteration. Needed because step 0 needs a specific treatment.
+     */
+    void AdvanceSliceFFTGenesis (amrex::Real dt, int step);
 
     /** Initialize 1 longitudinal slice of the Helmholtz, and store it in n00j00 (current time step)
      * and nm1j00 (previous time step).
@@ -146,10 +153,12 @@ public:
 
     bool CenteredDz () const { return m_centered_dz; }
     bool InterpZ () const { return m_interp_z; }
+    bool ModeIsGenesis () const { return m_mode == "genesis"; }
 
 private:
 
     bool m_use_helmholtz {false}; /**< whether a helmholtz is used or not */
+    std::string m_mode = "puffin"; // can also be "genesis"
     /** Number of guard cells for slices MultiFab */
     amrex::IntVect m_slices_nguards = {-1, -1, -1};
     /** 3D helmholtz Geometry */

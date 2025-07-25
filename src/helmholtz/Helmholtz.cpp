@@ -32,6 +32,7 @@ Helmholtz::ReadParameters ()
 
     if (!m_use_helmholtz) return;
 
+    queryWithParser(pp, "mode", m_mode);
     queryWithParser(pp, "interp_order", m_interp_order);
     AMREX_ALWAYS_ASSERT(m_interp_order <= 3 && m_interp_order >= 0);
     queryWithParser(pp, "insitu_period", m_insitu_period);
@@ -161,6 +162,7 @@ Helmholtz::ShiftHelmholtzSlices (const int islice)
     HIPACE_PROFILE("Helmholtz::ShiftHelmholtzSlices()");
 
     using namespace amrex::literals;
+    bool mode_is_genesis = ModeIsGenesis();
 
     for ( amrex::MFIter mfi(m_slices, DfltMfi); mfi.isValid(); ++mfi ){
         Array3<amrex::Real> arr = m_slices.array(mfi);
@@ -195,6 +197,22 @@ Helmholtz::ShiftHelmholtzSlices (const int islice)
             arr(i, j, rho_n00jp1) = arr(i, j, rho_n00j00);
             arr(i, j, rho_n00j00) = arr(i, j, rho_n00jm1);
             arr(i, j, rho_n00jm1) = 0._rt;
+
+            if (mode_is_genesis) {
+                // Shift slices of step n-1
+                arr(i, j, Ei_nm1jp2) = arr(i, j, Ei_nm1jp1);
+                arr(i, j, Ei_nm1jp1) = arr(i, j, Ei_nm1j00);
+                arr(i, j, Ei_nm1j00) = arr(i, j, Ei_nm1jm1);
+                arr(i, j, Ei_nm1jm1) = 0._rt;
+                // Shift slices of step n
+                arr(i, j, Ei_n00jp2) = arr(i, j, Ei_n00jp1);
+                arr(i, j, Ei_n00jp1) = arr(i, j, Ei_n00j00);
+                arr(i, j, Ei_n00j00) = arr(i, j, Ei_n00jm1);
+                arr(i, j, Ei_n00jm1) = 0._rt;
+                // Shift slices of step n+1
+                arr(i, j, Ei_np1jp2) = arr(i, j, Ei_np1jp1);
+                arr(i, j, Ei_np1jp1) = arr(i, j, Ei_np1j00);
+            }
         });
     }
 }
@@ -205,11 +223,157 @@ Helmholtz::AdvanceSlice (const int islice, amrex::Real dt, int step)
 
     if (!UseHelmholtz(islice)) return;
 
-    AdvanceSliceFFT(dt, step);
+    if (ModeIsGenesis()) {
+        AdvanceSliceFFTGenesis(dt, step);
+    } else {
+        AdvanceSliceFFT(dt, step);
+    }
 }
 
 void
 Helmholtz::AdvanceSliceFFT (const amrex::Real dt, int step)
+{
+
+    HIPACE_PROFILE("Helmholtz::AdvanceSliceFFT()");
+
+    using namespace amrex::literals;
+    using Complex = amrex::GpuComplex<amrex::Real>;
+
+    const amrex::Real dx = m_helmholtz_geom_3D.CellSize(0);
+    const amrex::Real dy = m_helmholtz_geom_3D.CellSize(1);
+    const amrex::Real dz = m_helmholtz_geom_3D.CellSize(2);
+
+    const PhysConst phc = get_phys_const();
+    const amrex::Real c = phc.c;
+    const bool centered_dz = m_centered_dz;
+    const bool add_dx_jz = m_add_dx_jz;
+    const bool add_dz_jx = m_add_dz_jx;
+
+    for ( amrex::MFIter mfi(m_slices, DfltMfi); mfi.isValid(); ++mfi ){
+        const amrex::Box& bx = mfi.tilebox();
+        const int imin = bx.smallEnd(0);
+        const int imax = bx.bigEnd  (0);
+        const int jmin = bx.smallEnd(1);
+        const int jmax = bx.bigEnd  (1);
+
+        // solution: complex array
+        // The right-hand side is computed and stored in rhs
+        // Then rhs is Fourier-transformed into rhs_fourier, then multiplied by -1/(k**2+a)
+        // rhs_fourier is FFT-back-transformed to sol, and sol is normalized and copied into np1j00.
+        Array3<Complex> sol_arr = m_sol.array();
+        Array3<Complex> rhs_arr = m_rhs.array();
+        amrex::Array4<Complex> rhs_fourier_arr = m_rhs_fourier.array();
+
+        Array3<amrex::Real> arr = m_slices.array(mfi);
+
+        int const Nx = bx.length(0);
+        int const Ny = bx.length(1);
+
+        // Get the central point. Useful to get the on-axis phase and calculate kx and ky.
+        int const imid = (Nx+1)/2;
+        int const jmid = (Ny+1)/2;
+
+        amrex::ParallelFor(
+            bx,
+            [=] AMREX_GPU_DEVICE(int i, int j, int) noexcept
+            {
+                using namespace WhichHelmholtzSlice;
+                // Transverse Laplacian of A_j^n-1
+                amrex::Real lap;
+                if (step == 0) {
+                    lap = i>imin && i<imax && j>jmin && j<jmax ?
+                        (arr(i+1, j,Ex_n00j00)+arr(i-1, j,Ex_n00j00) - 2._rt*arr(i,j,Ex_n00j00))/(dx*dx) +
+                        (arr(i, j+1,Ex_n00j00)+arr(i, j-1,Ex_n00j00) - 2._rt*arr(i,j,Ex_n00j00))/(dy*dy) : 0._rt;
+                } else {
+                    lap = i>imin && i<imax && j>jmin && j<jmax ?
+                        (arr(i+1, j,Ex_nm1j00)+arr(i-1, j,Ex_nm1j00) - 2._rt*arr(i,j,Ex_nm1j00))/(dx*dx) +
+                        (arr(i, j+1,Ex_nm1j00)+arr(i, j-1,Ex_nm1j00) - 2._rt*arr(i,j,Ex_nm1j00))/(dy*dy) : 0._rt;
+                }
+                const amrex::Real an00j00 = arr(i, j, Ex_n00j00);
+                const amrex::Real anp1jp1 = arr(i, j, Ex_np1jp1);
+                const amrex::Real anp1jp2 = arr(i, j, Ex_np1jp2);
+                amrex::Real rhs;
+                if (step == 0) {
+                    // First time step: non-centered push to go
+                    // from step 0 to step 1 without knowing -1.
+                    const amrex::Real an00jp1 = arr(i, j, Ex_n00jp1);
+                    const amrex::Real an00jp2 = arr(i, j, Ex_n00jp2);
+                    rhs =
+                        + 8._rt/(c*dt*dz)*(-anp1jp1+an00jp1)
+                        + 2._rt/(c*dt*dz)*(+anp1jp2-an00jp2)
+                        - lap
+                        + ( -6._rt/(c*dt*dz) ) * an00j00;
+                } else {
+                    const amrex::Real anm1jp1 = arr(i, j, Ex_nm1jp1);
+                    const amrex::Real anm1jp2 = arr(i, j, Ex_nm1jp2);
+                    const amrex::Real anm1j00 = arr(i, j, Ex_nm1j00);
+                    rhs =
+                        + 4._rt/(c*dt*dz)*(-anp1jp1+anm1jp1)
+                        + 1._rt/(c*dt*dz)*(+anp1jp2-anm1jp2)
+                        - 4._rt/(c*c*dt*dt)*an00j00
+                        - lap
+                        + ( -3._rt/(c*dt*dz) + 2._rt/(c*c*dt*dt) ) * anm1j00;
+                }
+
+                if (add_dz_jx) {
+                    const amrex::Real dz_jx = centered_dz ?
+                        0.5_rt * (arr(i, j, jx_n00jp1) - arr(i, j, jx_n00jm1)) / dz :
+                        0.5_rt * (- 3._rt*arr(i, j, jx_n00j00)
+                                  + 4._rt*arr(i, j, jx_n00jp1)
+                                  - arr(i, j, jx_n00jp2) ) / dz;
+                    rhs -= 2._rt * phc.mu0 * c * dz_jx;
+                }
+
+                if (add_dx_jz) {
+                    const amrex::Real dx_jz = i>imin && i<imax ?
+                        (arr(i+1, j, jz_n00j00) - arr(i-1, j, jz_n00j00)) / (2._rt*dx) : 0._rt;
+                    rhs += 2._rt * phc.mu0 * c * dx_jz;
+                }
+
+                rhs_arr(i,j,0) = rhs;
+            });
+
+        // Transform rhs to Fourier space
+        m_forward_fft.Execute();
+
+
+        // Multiply by appropriate factors in Fourier space
+        amrex::Real dkx = 2.*MathConst::pi/m_helmholtz_geom_3D.ProbLength(0);
+        amrex::Real dky = 2.*MathConst::pi/m_helmholtz_geom_3D.ProbLength(1);
+        const amrex::Real acoeff = step == 0 ? 6._rt/(c*dt*dz) : 3._rt/(c*dt*dz) + 2._rt/(c*c*dt*dt);
+
+        amrex::ParallelFor(
+            bx,
+            [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
+                // divide rhs_fourier by -(k^2+a)
+                amrex::Real kx = (i<imid) ? dkx*i : dkx*(i-Nx);
+                amrex::Real ky = (j<jmid) ? dky*j : dky*(j-Ny);
+                const amrex::Real inv_k2a = std::abs(kx*kx + ky*ky + acoeff) > 0. ? 1._rt/(kx*kx + ky*ky + acoeff) : 0.;
+                rhs_fourier_arr(i,j,k,0) *= -inv_k2a;
+            });
+
+        // Transform rhs to Fourier space to get solution in sol
+        m_backward_fft.Execute();
+
+        // Normalize and store solution in np1j00[0]. Guard cells are filled with 0s.
+        amrex::Box grown_bx = bx;
+        grown_bx.grow(m_slices_nguards);
+        const amrex::Real inv_numPts = 1./bx.numPts();
+        amrex::ParallelFor(
+            grown_bx,
+            [=] AMREX_GPU_DEVICE(int i, int j, int) noexcept {
+                using namespace WhichHelmholtzSlice;
+                if (i>=imin && i<=imax && j>=jmin && j<=jmax) {
+                    arr(i, j, Ex_np1j00) = sol_arr(i,j,0).real() * inv_numPts;
+                } else {
+                    arr(i, j, Ex_np1j00) = 0._rt;
+                }
+            });
+    }
+}
+
+void
+Helmholtz::AdvanceSliceFFTGenesis (const amrex::Real dt, int step)
 {
 
     HIPACE_PROFILE("Helmholtz::AdvanceSliceFFT()");
