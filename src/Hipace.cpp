@@ -660,7 +660,7 @@ Hipace::SolveOneSlice (int islice, int step)
     }
 
     if (m_use_helmholtz && !m_helmholtz.CenteredDz()) {
-        m_multi_beam.HelmholtzDeposition(m_helmholtz, WhichBeamSlice::This);
+        m_multi_beam.HelmholtzDeposition(m_helmholtz, WhichBeamSlice::This, m_physical_time);
         m_helmholtz.AdvanceSlice(islice, m_dt, step);
     }
     if (!m_use_helmholtz) {
@@ -678,7 +678,7 @@ Hipace::SolveOneSlice (int islice, int step)
     }
 
     if (m_use_helmholtz && m_helmholtz.CenteredDz()) {
-        m_multi_beam.HelmholtzDeposition(m_helmholtz, WhichBeamSlice::Next);
+        m_multi_beam.HelmholtzDeposition(m_helmholtz, WhichBeamSlice::Next, m_physical_time);
         m_helmholtz.AdvanceSlice(islice, m_dt, step);
     }
 

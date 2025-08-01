@@ -66,10 +66,10 @@ MultiBeam::DepositCurrentSlice (
 }
 
 void
-MultiBeam::HelmholtzDeposition (Helmholtz& helmholtz, const int which_beam_slice)
+MultiBeam::HelmholtzDeposition (Helmholtz& helmholtz, const int which_beam_slice, amrex::Real time)
 {
     for (int i=0; i<m_nbeams; i++) {
-        ::HelmholtzDeposition(m_all_beams[i], helmholtz, which_beam_slice);
+        ::HelmholtzDeposition(m_all_beams[i], helmholtz, which_beam_slice, time);
     }
 }
 

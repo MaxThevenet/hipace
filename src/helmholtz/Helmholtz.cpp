@@ -29,6 +29,8 @@ Helmholtz::ReadParameters ()
     amrex::ParmParse pp("helmholtz");
 
     queryWithParser(pp, "use_helmholtz", m_use_helmholtz);
+    queryWithParser(pp, "lambda0", m_lambda0);
+    m_k0 = 2.*MathConst::pi/m_lambda0;
 
     if (!m_use_helmholtz) return;
 

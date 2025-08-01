@@ -154,11 +154,15 @@ public:
     bool CenteredDz () const { return m_centered_dz; }
     bool InterpZ () const { return m_interp_z; }
     bool ModeIsGenesis () const { return m_mode == "genesis"; }
+    amrex::Real getLambda0 () const { return m_lambda0; }
+    amrex::Real getk0 () const { return m_k0; }
 
 private:
 
     bool m_use_helmholtz {false}; /**< whether a helmholtz is used or not */
     std::string m_mode = "puffin"; // can also be "genesis"
+    amrex::Real m_lambda0;
+    amrex::Real m_k0;
     /** Number of guard cells for slices MultiFab */
     amrex::IntVect m_slices_nguards = {-1, -1, -1};
     /** 3D helmholtz Geometry */
