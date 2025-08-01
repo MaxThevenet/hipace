@@ -243,8 +243,8 @@ DepositCurrent (PlasmaParticleContainer& plasma, Fields & fields,
                         if (depos_idx[5] != -1) { // deposit_rhomjz
                             amrex::Gpu::Atomic::Add(arr.ptr(i, j, depos_idx[5]), wrhomjz);
                         }
-                    }
-                }
+                    } 
+               }
             });
 
         n_qsa_violation = gpu_n_qsa_violation.dataValue();

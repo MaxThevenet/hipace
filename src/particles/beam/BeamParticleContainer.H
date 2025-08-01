@@ -67,15 +67,16 @@ using BeamTileInit = amrex::ParticleTile<
 struct Mag
 {
     /** Constructor */
-    Mag () : m_period(0.), m_phase(0.), m_B0(0.), m_kx(0.), m_ky(0.) {}
+    Mag () : m_period(0.), m_phase(0.), m_B0(0.), m_kx(0.), m_ky(0.), m_fc(0.) {}
 
-    Mag (bool use_mag, amrex::Real period, amrex::Real phase, amrex::Real B0) :
+    Mag (bool use_mag, amrex::Real period, amrex::Real phase, amrex::Real B0, amrex::Real fc) :
         m_use_mag(use_mag),
         m_period(period),
         m_phase(phase),
         m_B0(B0),
         m_kx(0.),
-        m_ky(2.*MathConst::pi/period) {}
+        m_ky(2.*MathConst::pi/period),
+        m_fc(fc) {}
 
     /** Whether to use the magnetic undulator */
     bool m_use_mag = false;
@@ -89,6 +90,8 @@ struct Mag
     amrex::Real m_kx {0};
     /** Rolloff parameter in y, normalized by ku. */
     amrex::Real m_ky {0};
+    /** Fc factor for Genesis mode. */
+    amrex::Real m_fc {0};
 };
 
 /** \brief Container for particles of 1 beam species. */

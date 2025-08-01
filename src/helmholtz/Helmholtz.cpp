@@ -122,16 +122,22 @@ Helmholtz::InitData ()
     m_rhs_fourier.resize(m_slice_box, 1, amrex::The_Arena());
 
     // Create FFT plans
-    amrex::IntVect fft_size = m_slice_box.length();
+    if (ModeIsGenesis()) {
+        // need one ghost cell for 2^n-1 MG solve
+        m_mg_acoeff_real.resize(amrex::grow(m_slice_box, amrex::IntVect{1, 1, 0}), 1, amrex::The_Arena());
+        m_rhs_mg.resize(amrex::grow(m_slice_box, amrex::IntVect{1, 1, 0}), 2, amrex::The_Arena());
+    } else {
+        amrex::IntVect fft_size = m_slice_box.length();
 
-    std::size_t fwd_area = m_forward_fft.Initialize(FFTType::C2C_2D_fwd, fft_size[0], fft_size[1]);
-    std::size_t bkw_area = m_backward_fft.Initialize(FFTType::C2C_2D_bkw, fft_size[0], fft_size[1]);
+        std::size_t fwd_area = m_forward_fft.Initialize(FFTType::C2C_2D_fwd, fft_size[0], fft_size[1]);
+        std::size_t bkw_area = m_backward_fft.Initialize(FFTType::C2C_2D_bkw, fft_size[0], fft_size[1]);
 
-    // Allocate work area for both FFTs
-    m_fft_work_area.resize(std::max(fwd_area, bkw_area));
+        // Allocate work area for both FFTs
+        m_fft_work_area.resize(std::max(fwd_area, bkw_area));
 
-    m_forward_fft.SetBuffers(m_rhs.dataPtr(), m_rhs_fourier.dataPtr(), m_fft_work_area.dataPtr());
-    m_backward_fft.SetBuffers(m_rhs_fourier.dataPtr(), m_sol.dataPtr(), m_fft_work_area.dataPtr());
+        m_forward_fft.SetBuffers(m_rhs.dataPtr(), m_rhs_fourier.dataPtr(), m_fft_work_area.dataPtr());
+        m_backward_fft.SetBuffers(m_rhs_fourier.dataPtr(), m_sol.dataPtr(), m_fft_work_area.dataPtr());
+    }
 
     if (m_insitu_period > 0) {
 #ifdef HIPACE_USE_OPENPMD
@@ -226,7 +232,7 @@ Helmholtz::AdvanceSlice (const int islice, amrex::Real dt, int step)
     if (!UseHelmholtz(islice)) return;
 
     if (ModeIsGenesis()) {
-        AdvanceSliceFFTGenesis(dt, step);
+        AdvanceSliceMGGenesis(dt, step);
     } else {
         AdvanceSliceFFT(dt, step);
     }
@@ -375,13 +381,14 @@ Helmholtz::AdvanceSliceFFT (const amrex::Real dt, int step)
 }
 
 void
-Helmholtz::AdvanceSliceFFTGenesis (const amrex::Real dt, int step)
+Helmholtz::AdvanceSliceMGGenesis (amrex::Real dt, int step)
 {
 
-    HIPACE_PROFILE("Helmholtz::AdvanceSliceFFT()");
+    HIPACE_PROFILE("Helmholtz::AdvanceSliceMGGenesis()");
 
     using namespace amrex::literals;
     using Complex = amrex::GpuComplex<amrex::Real>;
+    constexpr Complex I(0.,1.);
 
     const amrex::Real dx = m_helmholtz_geom_3D.CellSize(0);
     const amrex::Real dy = m_helmholtz_geom_3D.CellSize(1);
@@ -389,9 +396,13 @@ Helmholtz::AdvanceSliceFFTGenesis (const amrex::Real dt, int step)
 
     const PhysConst phc = get_phys_const();
     const amrex::Real c = phc.c;
-    const bool centered_dz = m_centered_dz;
-    const bool add_dx_jz = m_add_dx_jz;
-    const bool add_dz_jx = m_add_dz_jx;
+    const amrex::Real k0 = 2.*MathConst::pi/m_lambda0;
+    const bool do_avg_rhs = m_MG_average_rhs;
+
+    amrex::Real acoeff_real_scalar = 0._rt;
+    amrex::Real acoeff_imag_scalar = 0._rt;
+
+    amrex::Real djn {0.};
 
     for ( amrex::MFIter mfi(m_slices, DfltMfi); mfi.isValid(); ++mfi ){
         const amrex::Box& bx = mfi.tilebox();
@@ -400,119 +411,168 @@ Helmholtz::AdvanceSliceFFTGenesis (const amrex::Real dt, int step)
         const int jmin = bx.smallEnd(1);
         const int jmax = bx.bigEnd  (1);
 
-        // solution: complex array
-        // The right-hand side is computed and stored in rhs
-        // Then rhs is Fourier-transformed into rhs_fourier, then multiplied by -1/(k**2+a)
-        // rhs_fourier is FFT-back-transformed to sol, and sol is normalized and copied into np1j00.
-        Array3<Complex> sol_arr = m_sol.array();
-        Array3<Complex> rhs_arr = m_rhs.array();
-        amrex::Array4<Complex> rhs_fourier_arr = m_rhs_fourier.array();
-
         Array3<amrex::Real> arr = m_slices.array(mfi);
+        Array3<amrex::Real> rhs_mg_arr = m_rhs_mg.array();
+        Array3<amrex::Real> acoeff_real_arr = m_mg_acoeff_real.array();
 
-        int const Nx = bx.length(0);
-        int const Ny = bx.length(1);
+        // Calculate phase terms. 0 if !m_use_phase
+        amrex::Real tj00 = 0.;
+        amrex::Real tjp1 = 0.;
+        amrex::Real tjp2 = 0.;
 
-        // Get the central point. Useful to get the on-axis phase and calculate kx and ky.
-        int const imid = (Nx+1)/2;
-        int const jmid = (Ny+1)/2;
+        if (m_use_phase) {
+            int const Nx = bx.length(0);
+            int const Ny = bx.length(1);
+
+            // Get the central point.
+            int const imid = (Nx+1)/2;
+            int const jmid = (Ny+1)/2;
+
+            // Calculate complex arguments (theta) needed
+            // Just once, on axis, as done in Wake-T
+            // This is done with a reduce operation, returning the sum of the four elements nearest
+            // the axis (both real and imag parts, and for the 3 arrays relevant) ...
+            amrex::ReduceOps<
+                amrex::ReduceOpSum, amrex::ReduceOpSum, amrex::ReduceOpSum,
+                amrex::ReduceOpSum, amrex::ReduceOpSum, amrex::ReduceOpSum> reduce_op;
+            amrex::ReduceData<
+                amrex::Real, amrex::Real, amrex::Real,
+                amrex::Real, amrex::Real, amrex::Real> reduce_data(reduce_op);
+            using ReduceTuple = typename decltype(reduce_data)::Type;
+            reduce_op.eval(bx, reduce_data,
+                [=] AMREX_GPU_DEVICE (int i, int j, int) -> ReduceTuple
+                {
+                    using namespace WhichHelmholtzSlice;
+                    // Even number of transverse cells: average 2 cells
+                    // Odd number of cells: only keep central one
+                    const bool do_keep_x = Nx % 2 == 0 ?
+                        i == imid-1 || i == imid : i == imid;
+                    const bool do_keep_y = Ny % 2 == 0 ?
+                        j == jmid-1 || j == jmid : j == jmid;
+                    if ( do_keep_x && do_keep_y ) {
+                        return {
+                            arr(i, j, Ex_n00j00), arr(i, j, Ei_n00j00),
+                            arr(i, j, Ex_n00jp1), arr(i, j, Ei_n00jp1),
+                            arr(i, j, Ex_n00jp2), arr(i, j, Ei_n00jp2)
+                        };
+                    } else {
+                        return {0._rt, 0._rt, 0._rt, 0._rt, 0._rt, 0._rt};
+                    }
+                });
+            // ... and taking the argument of the resulting complex number.
+            ReduceTuple hv = reduce_data.value(reduce_op);
+            tj00 = std::atan2(amrex::get<1>(hv), amrex::get<0>(hv));
+            tjp1 = std::atan2(amrex::get<3>(hv), amrex::get<2>(hv));
+            tjp2 = std::atan2(amrex::get<5>(hv), amrex::get<4>(hv));
+        }
+
+        amrex::Real dt1 = tj00 - tjp1;
+        amrex::Real dt2 = tjp1 - tjp2;
+        if (dt1 <-1.5_rt*MathConst::pi) dt1 += 2._rt*MathConst::pi;
+        if (dt1 > 1.5_rt*MathConst::pi) dt1 -= 2._rt*MathConst::pi;
+        if (dt2 <-1.5_rt*MathConst::pi) dt2 += 2._rt*MathConst::pi;
+        if (dt2 > 1.5_rt*MathConst::pi) dt2 -= 2._rt*MathConst::pi;
+        Complex exp1 = amrex::exp(I*(tj00-tjp1));
+        Complex exp2 = amrex::exp(I*(tj00-tjp2));
+
+        // D_j^n as defined in Benedetti's 2017 paper
+        djn = ( -3._rt*dt1 + dt2 ) / (2._rt*dz);
+        acoeff_real_scalar = step == 0 ? 6._rt/(c*dt*dz)
+            : 3._rt/(c*dt*dz) + 2._rt/(c*c*dt*dt);
+        acoeff_imag_scalar = step == 0 ? -4._rt * ( k0 + djn ) / (c*dt)
+            : -2._rt * ( k0 + djn ) / (c*dt);
 
         amrex::ParallelFor(
-            bx,
-            [=] AMREX_GPU_DEVICE(int i, int j, int) noexcept
+            to2D(bx),
+            [=] AMREX_GPU_DEVICE(int i, int j) noexcept
             {
                 using namespace WhichHelmholtzSlice;
-                // Transverse Laplacian of A_j^n-1
-                amrex::Real lap;
+                // Transverse Laplacian of real and imaginary parts of A_j^n-1
+                amrex::Real lapR, lapI;
                 if (step == 0) {
-                    lap = i>imin && i<imax && j>jmin && j<jmax ?
-                        (arr(i+1, j,Ex_n00j00)+arr(i-1, j,Ex_n00j00) - 2._rt*arr(i,j,Ex_n00j00))/(dx*dx) +
-                        (arr(i, j+1,Ex_n00j00)+arr(i, j-1,Ex_n00j00) - 2._rt*arr(i,j,Ex_n00j00))/(dy*dy) : 0._rt;
+                    lapR = i>imin && i<imax && j>jmin && j<jmax ?
+                        (arr(i+1, j, Ex_n00j00)+arr(i-1, j, Ex_n00j00)-2._rt*arr(i, j, Ex_n00j00))/(dx*dx) +
+                        (arr(i, j+1, Ex_n00j00)+arr(i, j-1, Ex_n00j00)-2._rt*arr(i, j, Ex_n00j00))/(dy*dy) : 0._rt;
+                    lapI = i>imin && i<imax && j>jmin && j<jmax ?
+                        (arr(i+1, j, Ei_n00j00)+arr(i-1, j, Ei_n00j00)-2._rt*arr(i, j, Ei_n00j00))/(dx*dx) +
+                        (arr(i, j+1, Ei_n00j00)+arr(i, j-1, Ei_n00j00)-2._rt*arr(i, j, Ei_n00j00))/(dy*dy) : 0._rt;
                 } else {
-                    lap = i>imin && i<imax && j>jmin && j<jmax ?
-                        (arr(i+1, j,Ex_nm1j00)+arr(i-1, j,Ex_nm1j00) - 2._rt*arr(i,j,Ex_nm1j00))/(dx*dx) +
-                        (arr(i, j+1,Ex_nm1j00)+arr(i, j-1,Ex_nm1j00) - 2._rt*arr(i,j,Ex_nm1j00))/(dy*dy) : 0._rt;
+                    lapR = i>imin && i<imax && j>jmin && j<jmax ?
+                        (arr(i+1, j, Ex_nm1j00)+arr(i-1, j, Ex_nm1j00)-2._rt*arr(i, j, Ex_nm1j00))/(dx*dx) +
+                        (arr(i, j+1, Ex_nm1j00)+arr(i, j-1, Ex_nm1j00)-2._rt*arr(i, j, Ex_nm1j00))/(dy*dy) : 0._rt;
+                    lapI = i>imin && i<imax && j>jmin && j<jmax ?
+                        (arr(i+1, j, Ei_nm1j00)+arr(i-1, j, Ei_nm1j00)-2._rt*arr(i, j, Ei_nm1j00))/(dx*dx) +
+                        (arr(i, j+1, Ei_nm1j00)+arr(i, j-1, Ei_nm1j00)-2._rt*arr(i, j, Ei_nm1j00))/(dy*dy) : 0._rt;
                 }
-                const amrex::Real an00j00 = arr(i, j, Ex_n00j00);
-                const amrex::Real anp1jp1 = arr(i, j, Ex_np1jp1);
-                const amrex::Real anp1jp2 = arr(i, j, Ex_np1jp2);
-                amrex::Real rhs;
+                const Complex lapA = lapR + I*lapI;
+                const Complex an00j00 = arr(i, j, Ex_n00j00) + I * arr(i, j, Ei_n00j00);
+                const Complex anp1jp1 = arr(i, j, Ex_np1jp1) + I * arr(i, j, Ei_np1jp1);
+                const Complex anp1jp2 = arr(i, j, Ex_np1jp2) + I * arr(i, j, Ei_np1jp2);
+                const amrex::Real chi = arr(i, j, jx_n00j00);
+                const Complex source = I * (arr(i, j, jz_n00j00) + I * arr(i, j, rho_n00j00));
+// 1/ga      cos(t)/ga sin(t)/ga
+// jx_n00j00 jz_n00j00 rho_n00j00
+                    acoeff_real_arr(i,j,0) = do_avg_rhs ?
+                        acoeff_real_scalar + chi : acoeff_real_scalar;
+
+                Complex rhs;
                 if (step == 0) {
                     // First time step: non-centered push to go
                     // from step 0 to step 1 without knowing -1.
-                    const amrex::Real an00jp1 = arr(i, j, Ex_n00jp1);
-                    const amrex::Real an00jp2 = arr(i, j, Ex_n00jp2);
+                    const Complex an00jp1 = arr(i, j, Ex_n00jp1) + I * arr(i, j, Ei_n00jp1);
+                    const Complex an00jp2 = arr(i, j, Ex_n00jp2) + I * arr(i, j, Ei_n00jp2);
                     rhs =
-                        + 8._rt/(c*dt*dz)*(-anp1jp1+an00jp1)
-                        + 2._rt/(c*dt*dz)*(+anp1jp2-an00jp2)
-                        - lap
-                        + ( -6._rt/(c*dt*dz) ) * an00j00;
+                        + 8._rt/(c*dt*dz)*(-anp1jp1+an00jp1)*exp1
+                        + 2._rt/(c*dt*dz)*(+anp1jp2-an00jp2)*exp2
+                        - lapA
+                        + ( -6._rt/(c*dt*dz) + 4._rt*I*djn/(c*dt) + I*4._rt*k0/(c*dt) ) * an00j00;
+                    if (do_avg_rhs) {
+                        rhs += chi * an00j00;
+                    } else {
+                        rhs += chi * an00j00 * 2._rt;
+                    }
                 } else {
-                    const amrex::Real anm1jp1 = arr(i, j, Ex_nm1jp1);
-                    const amrex::Real anm1jp2 = arr(i, j, Ex_nm1jp2);
-                    const amrex::Real anm1j00 = arr(i, j, Ex_nm1j00);
+                    const Complex anm1jp1 = arr(i, j, Ex_nm1jp1) + I * arr(i, j, Ei_nm1jp1);
+                    const Complex anm1jp2 = arr(i, j, Ex_nm1jp2) + I * arr(i, j, Ei_nm1jp2);
+                    const Complex anm1j00 = arr(i, j, Ex_nm1j00) + I * arr(i, j, Ei_nm1j00);
                     rhs =
-                        + 4._rt/(c*dt*dz)*(-anp1jp1+anm1jp1)
-                        + 1._rt/(c*dt*dz)*(+anp1jp2-anm1jp2)
+                        + 4._rt/(c*dt*dz)*(-anp1jp1+anm1jp1)*exp1
+                        + 1._rt/(c*dt*dz)*(+anp1jp2-anm1jp2)*exp2
                         - 4._rt/(c*c*dt*dt)*an00j00
-                        - lap
-                        + ( -3._rt/(c*dt*dz) + 2._rt/(c*c*dt*dt) ) * anm1j00;
+                        - lapA
+                        + ( -3._rt/(c*dt*dz) + 2._rt*I*djn/(c*dt) + 2._rt/(c*c*dt*dt) + I*2._rt*k0/(c*dt) ) * anm1j00;
+                    if (do_avg_rhs) {
+                        rhs += chi * anm1j00;
+                    } else {
+                        rhs += chi * an00j00 * 2._rt;
+                    }
                 }
-
-                if (add_dz_jx) {
-                    const amrex::Real dz_jx = centered_dz ?
-                        0.5_rt * (arr(i, j, jx_n00jp1) - arr(i, j, jx_n00jm1)) / dz :
-                        0.5_rt * (- 3._rt*arr(i, j, jx_n00j00)
-                                  + 4._rt*arr(i, j, jx_n00jp1)
-                                  - arr(i, j, jx_n00jp2) ) / dz;
-                    rhs -= 2._rt * phc.mu0 * c * dz_jx;
-                }
-
-                if (add_dx_jz) {
-                    const amrex::Real dx_jz = i>imin && i<imax ?
-                        (arr(i+1, j, jz_n00j00) - arr(i-1, j, jz_n00j00)) / (2._rt*dx) : 0._rt;
-                    rhs += 2._rt * phc.mu0 * c * dx_jz;
-                }
-
-                rhs_arr(i,j,0) = rhs;
+                rhs += 2._rt * source; // usual factor of 2 from discr. of dzeta in lhs
+                rhs_mg_arr(i,j,0) = rhs.real();
+                rhs_mg_arr(i,j,1) = rhs.imag();
             });
+    }
 
-        // Transform rhs to Fourier space
-        m_forward_fft.Execute();
+    if (!m_mg) {
+        m_mg = std::make_unique<hpmg::MultiGrid>(m_helmholtz_geom_3D.CellSize(0),
+                                                 m_helmholtz_geom_3D.CellSize(1),
+                                                 m_slices.boxArray()[0], 2);
+    }
 
+    const int max_iters = 200;
+    amrex::MultiFab np1j00 (m_slices, amrex::make_alias, WhichHelmholtzSlice::tmp1, 2);
+    m_mg->solve2(np1j00[0], m_rhs_mg, m_mg_acoeff_real, acoeff_imag_scalar,
+                 m_MG_tolerance_rel, m_MG_tolerance_abs, max_iters, m_MG_verbose);
 
-        // Multiply by appropriate factors in Fourier space
-        amrex::Real dkx = 2.*MathConst::pi/m_helmholtz_geom_3D.ProbLength(0);
-        amrex::Real dky = 2.*MathConst::pi/m_helmholtz_geom_3D.ProbLength(1);
-        const amrex::Real acoeff = step == 0 ? 6._rt/(c*dt*dz) : 3._rt/(c*dt*dz) + 2._rt/(c*c*dt*dt);
-
-        amrex::ParallelFor(
-            bx,
-            [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
-                // divide rhs_fourier by -(k^2+a)
-                amrex::Real kx = (i<imid) ? dkx*i : dkx*(i-Nx);
-                amrex::Real ky = (j<jmid) ? dky*j : dky*(j-Ny);
-                const amrex::Real inv_k2a = std::abs(kx*kx + ky*ky + acoeff) > 0. ? 1._rt/(kx*kx + ky*ky + acoeff) : 0.;
-                rhs_fourier_arr(i,j,k,0) *= -inv_k2a;
-            });
-
-        // Transform rhs to Fourier space to get solution in sol
-        m_backward_fft.Execute();
-
-        // Normalize and store solution in np1j00[0]. Guard cells are filled with 0s.
-        amrex::Box grown_bx = bx;
-        grown_bx.grow(m_slices_nguards);
-        const amrex::Real inv_numPts = 1./bx.numPts();
-        amrex::ParallelFor(
-            grown_bx,
-            [=] AMREX_GPU_DEVICE(int i, int j, int) noexcept {
-                using namespace WhichHelmholtzSlice;
-                if (i>=imin && i<=imax && j>=jmin && j<=jmax) {
-                    arr(i, j, Ex_np1j00) = sol_arr(i,j,0).real() * inv_numPts;
-                } else {
-                    arr(i, j, Ex_np1j00) = 0._rt;
-                }
-            });
+    for ( amrex::MFIter mfi(m_slices, DfltMfi); mfi.isValid(); ++mfi ){
+        Array3<amrex::Real> arr = m_slices.array(mfi);
+        amrex::ParallelFor(mfi.tilebox(),
+        [=] AMREX_GPU_DEVICE(int i, int j, int) noexcept
+        {
+            using namespace WhichHelmholtzSlice;
+            arr(i, j, Ex_np1j00) = arr(i, j, tmp1);
+            arr(i, j, Ei_np1j00) = arr(i, j, tmp2);
+        });
     }
 }
 

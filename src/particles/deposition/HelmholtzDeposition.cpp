@@ -14,6 +14,7 @@
 #include "utils/GPUUtil.H"
 #include "utils/HipaceProfilerWrapper.H"
 #include "Hipace.H"
+#include <cmath>
 
 void
 HelmholtzDeposition (BeamParticleContainer& beam, Helmholtz& helmholtz,
@@ -30,8 +31,8 @@ HelmholtzDeposition (BeamParticleContainer& beam, Helmholtz& helmholtz,
 
 
     // Offset for converting positions to indexes
-    amrex::Real const x_pos_offset = GetPosOffset(0, gm, gm.Domain());
-    amrex::Real const y_pos_offset = GetPosOffset(1, gm, gm.Domain());
+    amrex::Real const x_pos_offset = GetPosOffset(0., gm, gm.Domain());
+    amrex::Real const y_pos_offset = GetPosOffset(1., gm, gm.Domain());
 
     PhysConst const phys_const = get_phys_const();
 
@@ -39,6 +40,7 @@ HelmholtzDeposition (BeamParticleContainer& beam, Helmholtz& helmholtz,
     const amrex::Real ku = 2*MathConst::pi/mag.m_period;
     const amrex::Real k = helmholtz.getk0();
     const amrex::Real K = phys_const.q_e * mag.m_B0 * mag.m_period / (2*MathConst::pi*phys_const.m_e*phys_const.c);
+    const amrex::Real fcK = mag.m_fc * K;
 
     // Extract box properties
     const amrex::Real dxi = gm.InvCellSize(0);
@@ -130,8 +132,9 @@ HelmholtzDeposition (BeamParticleContainer& beam, Helmholtz& helmholtz,
             const amrex::Real gaminv = 1.0_rt/std::sqrt(1.0_rt + ux*ux*clightsq
                                                          + uy*uy*clightsq
                                                          + uz*uz*clightsq);
-            const amrex::Real wq = ptd.rdata(BeamIdx::w)[ip];
+            const amrex::Real wq = q*ptd.rdata(BeamIdx::w)[ip]*invvol;
             const amrex::Real theta = (k+ku)*ptd.pos(2, ip) - k*phys_const.c*time;
+            const amrex::Real wqg = wq * gaminv * q * PhysConstSI::mu0 / PhysConstSI::m_e;
 
             // wqx, wqy wqz are particle current in each direction
             const amrex::Real wqx = wq*ux*gaminv;
@@ -155,18 +158,18 @@ HelmholtzDeposition (BeamParticleContainer& beam, Helmholtz& helmholtz,
             for (int iy=0; iy<=depos_order; iy++){
                 for (int ix=0; ix<=depos_order; ix++){
                     if (mode_is_genesis) {
-                        // jx  array contains 1/gamma_j
-                        // jy  array contains cos(theta_j) / gamma_j
-                        // rho array contains sin(theta_j) / gamma_j
+                        // jx  array contains                  e*ne/gamma_j
+                        // jy  array contains fcK*cos(theta_j)*e*ne/gamma_j
+                        // rho array contains fcK*sin(theta_j)*e*ne/gamma_j
                         amrex::Gpu::Atomic::Add(
                             arr.ptr(i_cell+ix, j_cell+iy, depos_idx[0]),
-                            sx_cell[ix]*sy_cell[iy]*wq*gaminv);
+                            sx_cell[ix]*sy_cell[iy]*wqg);
                         amrex::Gpu::Atomic::Add(
                             arr.ptr(i_cell+ix, j_cell+iy, depos_idx[1]),
-                            sx_cell[ix]*sy_cell[iy]*wq*std::cos(theta)*gaminv);
+                            sx_cell[ix]*sy_cell[iy]*wqg*fcK*std::cos(theta));
                         amrex::Gpu::Atomic::Add(
                             arr.ptr(i_cell+ix, j_cell+iy, depos_idx[2]),
-                            sx_cell[ix]*sy_cell[iy]*wq*std::sin(theta)*gaminv);
+                            sx_cell[ix]*sy_cell[iy]*wqg*fcK*std::sin(theta));
                     } else {
                         amrex::Gpu::Atomic::Add(
                             arr.ptr(i_cell+ix, j_cell+iy, depos_idx[0]),

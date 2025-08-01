@@ -10,6 +10,7 @@
 #ifndef Helmholtz_H_
 #define Helmholtz_H_
 
+#include "mg_solver/HpMultiGrid.H"
 #include "fields/fft_poisson_solver/fft/AnyFFT.H"
 
 #include <AMReX_MultiFab.H>
@@ -35,6 +36,8 @@ namespace WhichHelmholtzSlice {
         Ei_nm1j00,  Ei_nm1jp1,  Ei_nm1jp2,  Ei_nm1jm1,
         Ei_n00j00,  Ei_n00jp1,  Ei_n00jp2,  Ei_n00jm1,
         Ei_np1j00,  Ei_np1jp1,  Ei_np1jp2,
+
+        tmp1, tmp2,
 
         N
     };
@@ -105,7 +108,7 @@ public:
      * \param[in] dt time step of the simulation
      * \param[in] step current iteration. Needed because step 0 needs a specific treatment.
      */
-    void AdvanceSliceFFTGenesis (amrex::Real dt, int step);
+    void AdvanceSliceMGGenesis (amrex::Real dt, int step);
 
     /** Initialize 1 longitudinal slice of the Helmholtz, and store it in n00j00 (current time step)
      * and nm1j00 (previous time step).
@@ -160,6 +163,7 @@ public:
 private:
 
     bool m_use_helmholtz {false}; /**< whether a helmholtz is used or not */
+    bool m_use_phase {true};
     std::string m_mode = "puffin"; // can also be "genesis"
     amrex::Real m_lambda0;
     amrex::Real m_k0;
@@ -183,6 +187,17 @@ private:
 
     /** Array of N slices required to compute current slice */
     amrex::MultiFab m_slices;
+    amrex::Real m_MG_tolerance_rel = 1.e-4;
+    amrex::Real m_MG_tolerance_abs = 0.;
+    int m_MG_verbose = 0;
+    /** Whether to use time-averaged RHS in envelope solver. */
+    bool m_MG_average_rhs = true;
+    /** hpmg solver for the envelope solver */
+    std::unique_ptr<hpmg::MultiGrid> m_mg;
+    /** store rhs for MG solver */
+    amrex::FArrayBox m_rhs_mg;
+    /** store real part of acoeff of MG solver */
+    amrex::FArrayBox m_mg_acoeff_real;
 
     /** FFTW plan for forward C2C transform to solve Complex Poisson equation */
     AnyFFT m_forward_fft;
