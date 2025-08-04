@@ -15,6 +15,7 @@
 #include "utils/HipaceProfilerWrapper.H"
 #include "utils/GPUUtil.H"
 #include "utils/OMPUtil.H"
+#include <AMReX_GpuComplex.H>
 
 void
 AdvanceBeamParticlesSlice (
@@ -80,14 +81,25 @@ AdvanceBeamParticlesSlice (
     const amrex::MultiFab& a_mf = helmholtz.getSlices();
 
     // I suspect we use Ex_n00j00 to push particles but should be Ex_np1j00
-    const amrex::GpuArray<amrex::Real, 3> helm_comps_interp   {WhichHelmholtzSlice::Ex_n00jm1,
-                                                               WhichHelmholtzSlice::Ex_n00j00,
-                                                               WhichHelmholtzSlice::Ex_n00jp1};
-    const amrex::GpuArray<amrex::Real, 3> helm_comps_nointerp {WhichHelmholtzSlice::Ex_n00j00,
-                                                               WhichHelmholtzSlice::Ex_n00j00,
-                                                               WhichHelmholtzSlice::Ex_n00j00};
-    const amrex::GpuArray<amrex::Real, 3> helm_comps = helmholtz.InterpZ()
-        ? helm_comps_interp : helm_comps_nointerp;
+    const amrex::GpuArray<int, 3> helm1 {
+        WhichHelmholtzSlice::Ex_n00jm1, WhichHelmholtzSlice::Ex_n00j00, WhichHelmholtzSlice::Ex_n00jp1};
+    const amrex::GpuArray<int, 3> helm2 {
+        WhichHelmholtzSlice::Ex_n00j00, WhichHelmholtzSlice::Ex_n00j00, WhichHelmholtzSlice::Ex_n00j00};
+    const amrex::GpuArray<int, 3> helm_comps = helmholtz.InterpZ() ? helm1 : helm2;
+
+    // Imaginary part also needed for Genesis mode
+    const amrex::GpuArray<int, 3> helm3 {
+        WhichHelmholtzSlice::Ei_n00jm1, WhichHelmholtzSlice::Ei_n00j00, WhichHelmholtzSlice::Ei_n00jp1};
+    const amrex::GpuArray<int, 3> helm4 {
+        WhichHelmholtzSlice::Ei_n00j00, WhichHelmholtzSlice::Ei_n00j00, WhichHelmholtzSlice::Ei_n00j00};
+    const amrex::GpuArray<int, 3> helm_comps_i = helmholtz.InterpZ() ? helm3 : helm4;
+
+    // Beam density, also needed for Genesis mode
+    const amrex::GpuArray<int, 3> helm5 {
+        WhichHelmholtzSlice::jx_n00jm1, WhichHelmholtzSlice::jx_n00j00, WhichHelmholtzSlice::jx_n00jp1};
+    const amrex::GpuArray<int, 3> helm6 {
+        WhichHelmholtzSlice::jx_n00j00, WhichHelmholtzSlice::jx_n00j00, WhichHelmholtzSlice::jx_n00j00};
+    const amrex::GpuArray<int, 3> helm_comps_d = helmholtz.InterpZ() ? helm5 : helm6;
 
     Array3<const amrex::Real> const slice_arr_lev0 = slice_fab_lev0.const_array();
     Array3<const amrex::Real> const slice_arr_lev1 = slice_fab_lev1.const_array();
@@ -96,7 +108,11 @@ AdvanceBeamParticlesSlice (
     //         a_mf[0].const_array(WhichHelmholtzSlice::Ex_n00j00) : amrex::Array4<const amrex::Real>();
     Array3<const amrex::Real> const& a_arr = use_helmholtz ?
         a_mf[0].const_array() : amrex::Array4<const amrex::Real>();
+    const bool helm_mode_is_genesis = helmholtz.ModeIsGenesis();
     const amrex::Real ku = 2.*MathConst::pi/mag_period;
+    const amrex::Real k = helmholtz.getk0();
+    const amrex::Real K = phys_const.q_e * mag_B0 * mag_period / (2*MathConst::pi*phys_const.m_e*phys_const.c);
+    const amrex::Real fcK = mag.m_fc * K;
 
     // Extract properties associated with physical size of the box
     const amrex::Real dx_inv_lev0 = gm[lev0_idx].InvCellSize(0);
@@ -305,16 +321,57 @@ AdvanceBeamParticlesSlice (
                 amrex::ParticleReal uz_intermediate = 0._rt;
 
                 if (c_use_helmholtz.value) {
-                    amrex::ParticleReal Arp = 0._rt;
-                    amrex::ParticleReal betaz = uz * gammap_inv * inv_clight;
                     amrex::ParticleReal betax = ux * gammap_inv * inv_clight;
-                    doHelmholtzGatherShapeN<depos_order.value>(
-                        xp, yp, Arp, a_arr, dx_inv, dy_inv,
-                        x_pos_offset, y_pos_offset, helm_comps);
-                    ux_next += dt * charge_mass_ratio * (1._rt-betaz) * Arp;
-                    uz_next = uz + dt * charge_mass_ratio
-                        * ( Ezp + ( ux * Byp - uy * Bxp ) * gammap_inv );
-                    uz_next += dt * charge_mass_ratio * (   betax   ) * Arp;
+                    amrex::ParticleReal betay = uy * gammap_inv * inv_clight;
+                    amrex::ParticleReal betaz = uz * gammap_inv * inv_clight;
+                    if (helm_mode_is_genesis) {
+                        using Complex = amrex::GpuComplex<amrex::Real>;
+                        constexpr Complex I(0.,1.);
+                        amrex::ParticleReal Frp = 0._rt;
+                        doHelmholtzGatherShapeN<depos_order.value>(
+                            xp, yp, Frp, a_arr, dx_inv, dy_inv,
+                            x_pos_offset, y_pos_offset, helm_comps);
+                        amrex::ParticleReal Fip = 0._rt;
+                        doHelmholtzGatherShapeN<depos_order.value>(
+                            xp, yp, Fip, a_arr, dx_inv, dy_inv,
+                            x_pos_offset, y_pos_offset, helm_comps_i);
+                        // ne * q^2 * mu0 / (ga * me) == (omegap_gamma / c)^2
+                        amrex::ParticleReal nep = 0._rt;
+                        doHelmholtzGatherShapeN<depos_order.value>(
+                            xp, yp, nep, a_arr, dx_inv, dy_inv,
+                            x_pos_offset, y_pos_offset, helm_comps_d);
+                        amrex::Real omegap = clight * std::sqrt(nep);
+                        amrex::Real omega = std::sqrt( k*k*clight*clight + omegap*omegap );
+                        amrex::Real betarsq = betax*betax + betay*betay;
+                        amrex::Real theta = (k+ku)*zp + ku*clight*time;
+                        // Here we assume gamma_j = gamma from Eq. (2.59) of Reiche's PhD thesis
+                        amrex::Real theta_dot =
+                            + clight*ku
+                            - omega * (1._rt + K*K) / 2._rt * gammap_inv * gammap_inv
+                            - omega * betarsq / 2._rt
+                            - omega * (Frp*Frp+Fip*Fip) / 2._rt * gammap_inv * gammap_inv
+                            + omega * fcK * gammap_inv * gammap_inv *
+                                ((Frp+I*Fip)*amrex::exp(I*theta)).imag();
+                        // u = p/m = gamma*v proper velocity, so u has the dimension of a velocity
+                        amrex::Real uxdot = -dt * clight * clight * K*K * mag_kx*mag_kx * gammap_inv * gammap_inv * xp;
+                        amrex::Real gammadot =
+                            -omega * fcK * gammap_inv * ((Frp+I*Fip)*amrex::exp(I*theta)).real()
+                            + 0._rt; // 0 is for longitudinal contribution
+                        ux_next += uxdot;
+                        uz_next += ( 1._rt/gammap_inv * gammadot - ux * uxdot ) / uz;
+                        if (do_z_push) {
+                            zp += ( theta_dot + k * clight ) / ( k + ku );
+                        }
+                    } else {
+                        amrex::ParticleReal Frp = 0._rt;
+                        doHelmholtzGatherShapeN<depos_order.value>(
+                            xp, yp, Frp, a_arr, dx_inv, dy_inv,
+                            x_pos_offset, y_pos_offset, helm_comps);
+                        ux_next += dt * charge_mass_ratio * (1._rt-betaz) * Frp;
+                        uz_next = uz + dt * charge_mass_ratio
+                            * ( Ezp + ( ux * Byp - uy * Bxp ) * gammap_inv );
+                        uz_next += dt * charge_mass_ratio * (   betax   ) * Frp;
+                    }
                 }
 
                 // Now computing new longitudinal momentum
@@ -431,7 +488,11 @@ AdvanceBeamParticlesSlice (
                  */
                 xp += dt * 0.5_rt * ux_next * gamma_next_inv;
                 yp += dt * 0.5_rt * uy_next * gamma_next_inv;
-                if (do_z_push) zp += dt * ( uz_next * gamma_next_inv - clight );
+                if (do_z_push &&
+                    !(c_use_helmholtz.value && helm_mode_is_genesis)) {
+                    zp += dt * ( uz_next * gamma_next_inv - clight );
+                }
+
                 ux = ux_next;
                 uy = uy_next;
                 uz = uz_next;

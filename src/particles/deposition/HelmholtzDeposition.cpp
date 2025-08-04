@@ -89,7 +89,7 @@ HelmholtzDeposition (BeamParticleContainer& beam, Helmholtz& helmholtz,
                 amrex::GpuArray<int, 3>{
                     jx_slice,
                     jz_slice,
-                    rho_slice,
+                    rho_slice
                 });
         },
         // is_valid
@@ -141,6 +141,7 @@ HelmholtzDeposition (BeamParticleContainer& beam, Helmholtz& helmholtz,
             // const amrex::Real wqy = wq*uy*gaminv;
             const amrex::Real wqz = wq*uz*gaminv;
             const amrex::Real wqrho = wq;
+            const amrex::Real wqne = ptd.rdata(BeamIdx::w)[ip]*invvol;
 
             // --- Compute shape factors
             // x direction

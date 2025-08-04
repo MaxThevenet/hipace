@@ -271,7 +271,7 @@ void doLaserGatherShapeN (const amrex::Real xp,
  * \tparam depos_order_xy Order of the transverse shape factor for the field gather
  * \param[in] xp Particle position x
  * \param[in] yp Particle position y
- * \param[in,out] Ar Real part of laser field on particle: Re(a)
+ * \param[in,out] val Value gathered from array and returned
  * \param[in] a_arr field array for field a
  * \param[in] dx_inv inverse cell spacing in x direction
  * \param[in] dy_inv inverse cell spacing in y direction
@@ -283,13 +283,13 @@ template <int depos_order_xy>
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 void doHelmholtzGatherShapeN (const amrex::Real xp,
                               const amrex::Real yp,
-                              amrex::Real& Ar,
+                              amrex::Real& val,
                               Array3<amrex::Real const> const& a_arr,
                               const amrex::Real dx_inv,
                               const amrex::Real dy_inv,
                               const amrex::Real x_pos_offset,
                               const amrex::Real y_pos_offset,
-                              const amrex::GpuArray<amrex::Real, 3> helm_comps)
+                              const amrex::GpuArray<int, 3> helm_comps)
 {
     // x,y direction
     const amrex::Real x = (xp-x_pos_offset)*dx_inv;
@@ -308,12 +308,9 @@ void doHelmholtzGatherShapeN (const amrex::Real xp,
     // Gather field Aabssq, on particle from field on grid a_arr
     for (int iy=0; iy<=depos_order_xy; iy++){
         for (int ix=0; ix<=depos_order_xy; ix++){
-            Ar += .25 * sx_cell[ix]*sy_cell[iy]*a_arr(i_cell+ix  , j_cell+iy  , helm_comps[0])
-                + .50 * sx_cell[ix]*sy_cell[iy]*a_arr(i_cell+ix  , j_cell+iy  , helm_comps[1])
-                + .25 * sx_cell[ix]*sy_cell[iy]*a_arr(i_cell+ix  , j_cell+iy  , helm_comps[2]);
-            //Ar += .125 * sx_cell[ix]*sy_cell[iy]*a_arr(i_cell+ix  , j_cell+iy  , helm_comps[0])
-            //    + .750 * sx_cell[ix]*sy_cell[iy]*a_arr(i_cell+ix  , j_cell+iy  , helm_comps[1])
-            //    + .125 * sx_cell[ix]*sy_cell[iy]*a_arr(i_cell+ix  , j_cell+iy  , helm_comps[2]);
+            val += .25 * sx_cell[ix]*sy_cell[iy]*a_arr(i_cell+ix, j_cell+iy, helm_comps[0])
+                 + .50 * sx_cell[ix]*sy_cell[iy]*a_arr(i_cell+ix, j_cell+iy, helm_comps[1] )
+                 + .25 * sx_cell[ix]*sy_cell[iy]*a_arr(i_cell+ix, j_cell+iy, helm_comps[2]);
         }
     }
 }
