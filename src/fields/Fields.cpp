@@ -120,7 +120,8 @@ Fields::AllocData (
                     "rho_n00jm1", "rho_n00j00", "rho_n00jp1",
                     "Ei_nm1j00",  "Ei_nm1jp1",  "Ei_nm1jp2",  "Ei_nm1jm1",
                     "Ei_n00j00",  "Ei_n00jp1",  "Ei_n00jp2",  "Ei_n00jm1",
-                    "Ei_np1j00",  "Ei_np1jp1",  "Ei_np1jp2"
+                    "Ei_np1j00",  "Ei_np1jp1",  "Ei_np1jp2",
+                    "tmp1", "tmp2"
                     );
             }
 

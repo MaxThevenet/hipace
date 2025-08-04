@@ -27,13 +27,11 @@ void
 Helmholtz::ReadParameters ()
 {
     amrex::ParmParse pp("helmholtz");
-
     queryWithParser(pp, "use_helmholtz", m_use_helmholtz);
-    queryWithParser(pp, "lambda0", m_lambda0);
-    m_k0 = 2.*MathConst::pi/m_lambda0;
 
     if (!m_use_helmholtz) return;
 
+    getWithParser(pp, "lambda0", m_lambda0);
     queryWithParser(pp, "mode", m_mode);
     queryWithParser(pp, "interp_order", m_interp_order);
     AMREX_ALWAYS_ASSERT(m_interp_order <= 3 && m_interp_order >= 0);
@@ -43,6 +41,7 @@ Helmholtz::ReadParameters ()
     queryWithParser(pp, "add_dz_jx", m_add_dz_jx);
     queryWithParser(pp, "interp_z", m_interp_z);
     queryWithParser(pp, "insitu_file_prefix", m_insitu_file_prefix);
+    m_k0 = 2.*MathConst::pi/m_lambda0;
 }
 
 void
@@ -396,7 +395,7 @@ Helmholtz::AdvanceSliceMGGenesis (amrex::Real dt, int step)
 
     const PhysConst phc = get_phys_const();
     const amrex::Real c = phc.c;
-    const amrex::Real k0 = 2.*MathConst::pi/m_lambda0;
+    const amrex::Real k0 = m_k0;
     const bool do_avg_rhs = m_MG_average_rhs;
 
     amrex::Real acoeff_real_scalar = 0._rt;
