@@ -288,7 +288,7 @@ AdvanceBeamParticlesSlice (
                 }
 
                 amrex::Real zprop = clight*time + zp/clight*0._rt;
-                if (use_mag) {
+                if (use_mag && !helm_mode_is_genesis) {
                     amrex::Real Bx = 0._rt;
                     amrex::Real By = mag_B0*std::cos( ku*zprop + mag_phase );
                     amrex::Real Bz = 0._rt;
@@ -325,8 +325,7 @@ AdvanceBeamParticlesSlice (
                     amrex::ParticleReal betay = uy * gammap_inv * inv_clight;
                     amrex::ParticleReal betaz = uz * gammap_inv * inv_clight;
                     if (helm_mode_is_genesis) {
-                        using Complex = amrex::GpuComplex<amrex::Real>;
-                        constexpr Complex I(0.,1.);
+                        constexpr amrex::GpuComplex<amrex::Real> I(0.,1.);
                         amrex::ParticleReal Frp = 0._rt;
                         doHelmholtzGatherShapeN<depos_order.value>(
                             xp, yp, Frp, a_arr, dx_inv, dy_inv,
@@ -353,14 +352,16 @@ AdvanceBeamParticlesSlice (
                             + omega * fcK * gammap_inv * gammap_inv *
                                 ((Frp+I*Fip)*amrex::exp(I*theta)).imag();
                         // u = p/m = gamma*v proper velocity, so u has the dimension of a velocity
-                        amrex::Real uxdot = -dt * clight * clight * K*K * mag_kx*mag_kx * gammap_inv * gammap_inv * xp;
+                        amrex::Real uxdot = - clight * clight * K*K * mag_kx*mag_kx * gammap_inv * xp;
                         amrex::Real gammadot =
                             -omega * fcK * gammap_inv * ((Frp+I*Fip)*amrex::exp(I*theta)).real()
                             + 0._rt; // 0 is for longitudinal contribution
-                        ux_next += uxdot;
-                        uz_next += ( 1._rt/gammap_inv * gammadot - ux * uxdot ) / uz;
+                        amrex::Real uzdot = ( clight*clight/gammap_inv * gammadot - ux * uxdot ) / uz;
+                        ux_next += dt * uxdot;
+                        uz_next = uz + dt * uzdot;
                         if (do_z_push) {
-                            zp += ( theta_dot + k * clight ) / ( k + ku );
+                            // zp += dt * ( theta_dot + k * clight ) / ( k + ku );
+                            zp += dt * ( theta_dot - ku * clight ) / ( k + ku );
                         }
                     } else {
                         amrex::ParticleReal Frp = 0._rt;
