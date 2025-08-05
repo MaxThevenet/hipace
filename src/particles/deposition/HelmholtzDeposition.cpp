@@ -160,7 +160,7 @@ HelmholtzDeposition (BeamParticleContainer& beam, Helmholtz& helmholtz,
                 for (int ix=0; ix<=depos_order; ix++){
                     if (mode_is_genesis) {
                         // jx  array contains                  e*ne/gamma_j
-                        // jy  array contains fcK*cos(theta_j)*e*ne/gamma_j
+                        // jz  array contains fcK*cos(theta_j)*e*ne/gamma_j
                         // rho array contains fcK*sin(theta_j)*e*ne/gamma_j
                         amrex::Gpu::Atomic::Add(
                             arr.ptr(i_cell+ix, j_cell+iy, depos_idx[0]),
