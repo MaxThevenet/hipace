@@ -110,6 +110,7 @@ public:
      */
     void AdvanceSliceMGGenesis (amrex::Real dt, int step);
     void AdvanceSliceFFTGenesis (amrex::Real dt, int step);
+    void AdvanceSliceFFTGenesisRed (amrex::Real dt, int step);
 
     /** Initialize 1 longitudinal slice of the Helmholtz, and store it in n00j00 (current time step)
      * and nm1j00 (previous time step).

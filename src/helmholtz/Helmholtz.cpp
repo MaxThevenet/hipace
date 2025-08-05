@@ -236,7 +236,7 @@ Helmholtz::AdvanceSlice (const int islice, amrex::Real dt, int step)
         if (m_use_mg) {
             AdvanceSliceMGGenesis(dt, step);
         } else {
-            AdvanceSliceFFTGenesis(dt, step);
+            AdvanceSliceFFTGenesisRed(dt, step);
         }
     } else {
         AdvanceSliceFFT(dt, step);
@@ -766,6 +766,147 @@ Helmholtz::AdvanceSliceFFTGenesis (const amrex::Real dt, int step)
         const Complex acoeff =
             step == 0 ? 6._rt/(c*dt*dz) - I * 4._rt * ( k0 + djn ) / (c*dt) :
              3._rt/(c*dt*dz) + 2._rt/(c*c*dt*dt) - I * 2._rt * ( k0 + djn ) / (c*dt);
+        amrex::ParallelFor(
+            to2D(bx),
+            [=] AMREX_GPU_DEVICE(int i, int j) noexcept {
+                // divide rhs_fourier by -(k^2+a)
+                amrex::Real kx = (i<imid) ? dkx*i : dkx*(i-Nx);
+                amrex::Real ky = (j<jmid) ? dky*j : dky*(j-Ny);
+                const Complex inv_k2a = abs(kx*kx + ky*ky + acoeff) > 0. ?
+                    1._rt/(kx*kx + ky*ky + acoeff) : 0.;
+                rhs_fourier_arr(i,j) *= -inv_k2a;
+            });
+
+        // Transform rhs to Fourier space to get solution in sol
+        m_backward_fft.Execute();
+
+        // Normalize and store solution in np1j00[0]. Guard cells are filled with 0s.
+        amrex::Box grown_bx = bx;
+        grown_bx.grow(m_slices_nguards);
+        const amrex::Real inv_numPts = 1./bx.numPts();
+        amrex::ParallelFor(
+            to2D(grown_bx),
+            [=] AMREX_GPU_DEVICE(int i, int j) noexcept {
+                using namespace WhichHelmholtzSlice;
+                if (i>=imin && i<=imax && j>=jmin && j<=jmax) {
+                    arr(i, j, Ex_np1j00) = sol_arr(i,j,0).real() * inv_numPts;
+                    arr(i, j, Ei_np1j00) = sol_arr(i,j,0).imag() * inv_numPts;
+                } else {
+                    arr(i, j, Ex_np1j00) = 0._rt;
+                    arr(i, j, Ei_np1j00) = 0._rt;
+                }
+            });
+    }
+}
+
+void
+Helmholtz::AdvanceSliceFFTGenesisRed (const amrex::Real dt, int step)
+{
+
+    HIPACE_PROFILE("Helmholtz::AdvanceSliceFFTGenesis()");
+
+    using namespace amrex::literals;
+    using Complex = amrex::GpuComplex<amrex::Real>;
+    constexpr Complex I(0.,1.);
+
+    const amrex::Real dx = m_helmholtz_geom_3D.CellSize(0);
+    const amrex::Real dy = m_helmholtz_geom_3D.CellSize(1);
+    const amrex::Real dz = m_helmholtz_geom_3D.CellSize(2);
+
+    const PhysConst phc = get_phys_const();
+    const amrex::Real c = phc.c;
+    const amrex::Real k0 = m_k0;
+
+    for ( amrex::MFIter mfi(m_slices, DfltMfi); mfi.isValid(); ++mfi ){
+        const amrex::Box& bx = mfi.tilebox();
+        const int imin = bx.smallEnd(0);
+        const int imax = bx.bigEnd  (0);
+        const int jmin = bx.smallEnd(1);
+        const int jmax = bx.bigEnd  (1);
+
+        // solution: complex array
+        // The right-hand side is computed and stored in rhs
+        // Then rhs is Fourier-transformed into rhs_fourier, then multiplied by -1/(k**2+a)
+        // rhs_fourier is FFT-back-transformed to sol, and sol is normalized and copied into np1j00.
+        Array3<Complex> sol_arr = m_sol.array();
+        Array3<Complex> rhs_arr = m_rhs.array();
+        Array2<Complex> rhs_fourier_arr = m_rhs_fourier.array();
+
+        Array3<amrex::Real> arr = m_slices.array(mfi);
+
+        int const Nx = bx.length(0);
+        int const Ny = bx.length(1);
+
+        // Get the central point. Useful to get the on-axis phase and calculate kx and ky.
+        int const imid = (Nx+1)/2;
+        int const jmid = (Ny+1)/2;
+
+        amrex::ParallelFor(
+            to2D(bx),
+            [=] AMREX_GPU_DEVICE(int i, int j) noexcept
+            {
+                using namespace WhichHelmholtzSlice;
+                // Transverse Laplacian of real and imaginary parts of A_j^n-1
+                amrex::Real lapR, lapI;
+                if (step == 0) {
+                    lapR = i>imin && i<imax && j>jmin && j<jmax ?
+                        (arr(i+1, j, Ex_n00j00)+arr(i-1, j, Ex_n00j00)-2._rt*arr(i, j, Ex_n00j00))/(dx*dx) +
+                        (arr(i, j+1, Ex_n00j00)+arr(i, j-1, Ex_n00j00)-2._rt*arr(i, j, Ex_n00j00))/(dy*dy) : 0._rt;
+                    lapI = i>imin && i<imax && j>jmin && j<jmax ?
+                        (arr(i+1, j, Ei_n00j00)+arr(i-1, j, Ei_n00j00)-2._rt*arr(i, j, Ei_n00j00))/(dx*dx) +
+                        (arr(i, j+1, Ei_n00j00)+arr(i, j-1, Ei_n00j00)-2._rt*arr(i, j, Ei_n00j00))/(dy*dy) : 0._rt;
+                } else {
+                    lapR = i>imin && i<imax && j>jmin && j<jmax ?
+                        (arr(i+1, j, Ex_nm1j00)+arr(i-1, j, Ex_nm1j00)-2._rt*arr(i, j, Ex_nm1j00))/(dx*dx) +
+                        (arr(i, j+1, Ex_nm1j00)+arr(i, j-1, Ex_nm1j00)-2._rt*arr(i, j, Ex_nm1j00))/(dy*dy) : 0._rt;
+                    lapI = i>imin && i<imax && j>jmin && j<jmax ?
+                        (arr(i+1, j, Ei_nm1j00)+arr(i-1, j, Ei_nm1j00)-2._rt*arr(i, j, Ei_nm1j00))/(dx*dx) +
+                        (arr(i, j+1, Ei_nm1j00)+arr(i, j-1, Ei_nm1j00)-2._rt*arr(i, j, Ei_nm1j00))/(dy*dy) : 0._rt;
+                }
+                const Complex lapA = lapR + I*lapI;
+                const Complex an00j00 = arr(i, j, Ex_n00j00) + I * arr(i, j, Ei_n00j00);
+                const Complex anp1jp1 = arr(i, j, Ex_np1jp1) + I * arr(i, j, Ei_np1jp1);
+                const Complex anp1jp2 = arr(i, j, Ex_np1jp2) + I * arr(i, j, Ei_np1jp2);
+                // const amrex::Real chi = arr(i, j, jx_n00j00);
+                const amrex::Real chi = 0.50_rt * arr(i, j, jx_n00j00)
+                                      + 0.25_rt * arr(i, j, jx_n00jp1)
+                                      + 0.25_rt * arr(i, j, jx_n00jm1);
+                const Complex source = 0.50_rt * arr(i, j, jz_n00j00) + I * arr(i, j, rho_n00j00) +
+                                       0.25_rt * arr(i, j, jz_n00jp1) + I * arr(i, j, rho_n00jp1) +
+                                       0.25_rt * arr(i, j, jz_n00jm1) + I * arr(i, j, rho_n00jm1);
+                Complex rhs;
+                if (step == 0) {
+                    // First time step: non-centered push to go
+                    // from step 0 to step 1 without knowing -1.
+                    const Complex an00jp1 = arr(i, j, Ex_n00jp1) + I * arr(i, j, Ei_n00jp1);
+                    const Complex an00jp2 = arr(i, j, Ex_n00jp2) + I * arr(i, j, Ei_n00jp2);
+                    rhs =
+                        + 2._rt * chi * an00j00
+                        - lapA
+                        + I*4._rt*k0/(c*dt) * an00j00;
+                } else {
+                    const Complex anm1jp1 = arr(i, j, Ex_nm1jp1) + I * arr(i, j, Ei_nm1jp1);
+                    const Complex anm1jp2 = arr(i, j, Ex_nm1jp2) + I * arr(i, j, Ei_nm1jp2);
+                    const Complex anm1j00 = arr(i, j, Ex_nm1j00) + I * arr(i, j, Ei_nm1j00);
+                    rhs =
+                        + 2._rt * chi * an00j00
+                        - lapA
+                        + I*2._rt*k0/(c*dt) * anm1j00;
+                }
+                rhs += 2._rt * source; // usual factor of 2 from discr. of dzeta in lhs
+                rhs_arr(i,j,0) = rhs;
+            });
+
+        // Transform rhs to Fourier space
+        m_forward_fft.Execute();
+
+        // Multiply by appropriate factors in Fourier space
+        amrex::Real dkx = 2.*MathConst::pi/m_helmholtz_geom_3D.ProbLength(0);
+        amrex::Real dky = 2.*MathConst::pi/m_helmholtz_geom_3D.ProbLength(1);
+        // acoeff_imag is supposed to be a nx*ny array.
+        // For the sake of simplicity, we evaluate it on-axis only.
+        const Complex acoeff =
+            step == 0 ? - I * 4._rt * k0 / (c*dt) : - I * 2._rt * k0 / (c*dt);
         amrex::ParallelFor(
             to2D(bx),
             [=] AMREX_GPU_DEVICE(int i, int j) noexcept {
