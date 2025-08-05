@@ -109,6 +109,7 @@ public:
      * \param[in] step current iteration. Needed because step 0 needs a specific treatment.
      */
     void AdvanceSliceMGGenesis (amrex::Real dt, int step);
+    void AdvanceSliceFFTGenesis (amrex::Real dt, int step);
 
     /** Initialize 1 longitudinal slice of the Helmholtz, and store it in n00j00 (current time step)
      * and nm1j00 (previous time step).
@@ -187,6 +188,7 @@ private:
 
     /** Array of N slices required to compute current slice */
     amrex::MultiFab m_slices;
+    bool m_use_mg {false};
     amrex::Real m_MG_tolerance_rel = 1.e-4;
     amrex::Real m_MG_tolerance_abs = 0.;
     int m_MG_verbose = 0;
