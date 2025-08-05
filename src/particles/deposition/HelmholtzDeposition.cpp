@@ -133,7 +133,8 @@ HelmholtzDeposition (BeamParticleContainer& beam, Helmholtz& helmholtz,
                                                          + uy*uy*clightsq
                                                          + uz*uz*clightsq);
             const amrex::Real wq = q*ptd.rdata(BeamIdx::w)[ip]*invvol;
-            const amrex::Real theta = (k+ku)*ptd.pos(2, ip) - k*phys_const.c*time;
+            // const amrex::Real theta = (k+ku)*ptd.pos(2, ip) - k*phys_const.c*time;
+            const amrex::Real theta = (k+ku)*ptd.pos(2, ip) + k*phys_const.c*time;
             const amrex::Real wqg = wq * gaminv * q * PhysConstSI::mu0 / PhysConstSI::m_e;
 
             // wqx, wqy wqz are particle current in each direction
@@ -159,18 +160,18 @@ HelmholtzDeposition (BeamParticleContainer& beam, Helmholtz& helmholtz,
             for (int iy=0; iy<=depos_order; iy++){
                 for (int ix=0; ix<=depos_order; ix++){
                     if (mode_is_genesis) {
-                        // jx  array contains                  e*ne/gamma_j
-                        // jz  array contains fcK*cos(theta_j)*e*ne/gamma_j
-                        // rho array contains fcK*sin(theta_j)*e*ne/gamma_j
+                        // jx  array contains chi   =  e^2*mu0/me*ne/gamma_j
+                        // jz  array contains Re(S) = fcK*sin(-theta_j)*chi
+                        // rho array contains Im(S) = fcK*cos(-theta_j)*chi
                         amrex::Gpu::Atomic::Add(
                             arr.ptr(i_cell+ix, j_cell+iy, depos_idx[0]),
                             sx_cell[ix]*sy_cell[iy]*wqg);
                         amrex::Gpu::Atomic::Add(
                             arr.ptr(i_cell+ix, j_cell+iy, depos_idx[1]),
-                            sx_cell[ix]*sy_cell[iy]*wqg*fcK*std::cos(theta));
+                            sx_cell[ix]*sy_cell[iy]*fcK*std::sin(theta)*wqg);
                         amrex::Gpu::Atomic::Add(
                             arr.ptr(i_cell+ix, j_cell+iy, depos_idx[2]),
-                            sx_cell[ix]*sy_cell[iy]*wqg*fcK*std::sin(theta));
+                            sx_cell[ix]*sy_cell[iy]*fcK*std::cos(theta)*wqg);
                     } else {
                         amrex::Gpu::Atomic::Add(
                             arr.ptr(i_cell+ix, j_cell+iy, depos_idx[0]),
