@@ -11,6 +11,7 @@
 #define Helmholtz_H_
 
 #include "fields/fft_poisson_solver/fft/AnyFFT.H"
+#include "utils/Parser.H"
 
 #include <AMReX_MultiFab.H>
 #include <AMReX_Vector.H>
@@ -103,9 +104,10 @@ public:
     /** Initialize 1 longitudinal slice of the Helmholtz, and store it in n00j00 (current time step)
      * and nm1j00 (previous time step).
      *
+     * \param[in] islice slice index, referring to the 3D slice
      * \param[in] comp Helmholtz component to initialize
      */
-    void InitHelmholtzSlice (const int comp);
+    void InitHelmholtzSlice (const int islice, const int comp);
 
     /** Compute in-situ Helmholtz diagnostics of current slice, store in member variable
      * \param[in] step current time step
@@ -183,6 +185,13 @@ private:
     SpectralFieldLoc m_rhs;
     /** Complex FAB to store the RHS in Fourier space */
     SpectralFieldLoc m_rhs_fourier;
+    // Initial field
+    amrex::Parser m_parser_lr;/**< owns data for profile_real_str */
+    amrex::Parser m_parser_li;/**< owns data for profile_imag_str */
+    /** stores the output function of makeFunctionWithParser for profile_real_str */
+    amrex::ParserExecutor<3> m_profile_real;
+    /** stores the output function of makeFunctionWithParser for profile_imag_str */
+    amrex::ParserExecutor<3> m_profile_imag;
 
     // Data for in-situ diagnostics:
     /** Number of real helmholtz properties for in-situ per-slice reduced diagnostics. */
