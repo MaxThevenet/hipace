@@ -10,6 +10,34 @@
 
 #include "BeamParticleContainer.H"
 #include "fields/Fields.H"
+#include "helmholtz/Helmholtz.H"
+
+struct Mag
+{
+    /** Constructor */
+    Mag () : m_period(0.), m_phase(0.), m_B0(0.), m_kx(0.), m_ky(0.) {}
+
+    Mag (bool use_mag, amrex::Real period, amrex::Real phase, amrex::Real B0) :
+        m_use_mag(use_mag),
+        m_period(period),
+        m_phase(phase),
+        m_B0(B0),
+        m_kx(0.),
+        m_ky(2.*MathConst::pi/period) {}
+
+    /** Whether to use the magnetic undulator */
+    bool m_use_mag = false;
+    /** Undulator period (SI) */
+    amrex::Real m_period {0};
+    /** Undulator phase: By = B0 * cos(ku*z + phase) */
+    amrex::Real m_phase {0};
+    /** Undulator magnetic field */
+    amrex::Real m_B0 {0};
+    /** Rolloff parameter in x, normalized by ku. */
+    amrex::Real m_kx {0};
+    /** Rolloff parameter in y, normalized by ku. */
+    amrex::Real m_ky {0};
+};
 
 class MultiBeam
 {
@@ -42,6 +70,8 @@ public:
         const bool do_beam_rhomjz_deposition, const int which_slice, const int which_beam_slice,
         const bool only_highest=false);
 
+    void HelmholtzDeposition (Helmholtz& helmholtz, const int which_beam_slice);
+
     void shiftSlippedParticles (const int slice, amrex::Geometry const& geom);
 
     /** Loop over all beam species and advance slice islice of all beam species
@@ -49,10 +79,11 @@ public:
      * \param[in] gm Geometry object at level lev
      * \param[in] slice longitudinal slice
      * \param[in] current_N_level number of MR levels active on the current slice
+     * \param[in] helmholtz the helmholtz grid
      */
     void AdvanceBeamParticlesSlice (
         const Fields& fields, amrex::Vector<amrex::Geometry> const& gm, const int slice,
-        int const current_N_level);
+        int const current_N_level, const Helmholtz& helmholtz);
 
     /** Compute reduced beam diagnostics of current slice, store in member variable.
      * \param[in] step time step of simulation
@@ -130,6 +161,13 @@ public:
 private:
 
     int m_nbeams {0}; /**< number of beam containers */
+
+    std::array<amrex::Real, 4> m_chicBs {0., 0., 0., 0.};
+    std::array<amrex::Real, 4> m_chicLs {0., 0., 0., 0.};
+    std::array<amrex::Real, 4> m_chicZs {0., 0., 0., 0.};
+    amrex::Real m_tstart_push {0.};
+    Mag m_mag;
+
     /** number of real particles per beam, as opposed to ghost particles */
     amrex::Vector<amrex::Long> m_n_real_particles;
 };

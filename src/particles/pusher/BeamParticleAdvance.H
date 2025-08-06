@@ -11,6 +11,7 @@
 #include "particles/beam/BeamParticleContainer.H"
 #include "fields/Fields.H"
 #include "Hipace.H"
+#include "helmholtz/Helmholtz.H"
 
 /** Push beam particles contained in one z slice
  * \param[in,out] beam species of which the current is deposited
@@ -18,10 +19,18 @@
  * \param[in] gm Geometry of the simulation, to get the cell size etc.
  * \param[in] slice longitudinal slice
  * \param[in] current_N_level number of MR levels active on the current slice
+ * \param[in] helmholtz the helmholtz grid
+ * \param[in] mag magnetic undulator object
+ * \param[in] chicBs array of 4 elements for the magnetic field values in a chicane
+ * \param[in] chicLs array of 4 elements for the magnet lengths in a chicane
+ * \param[in] chicZs array of 4 elements for the position of beginning of magnets in a chicane
  */
 void
 AdvanceBeamParticlesSlice (
     BeamParticleContainer& beam, const Fields& fields, amrex::Vector<amrex::Geometry> const& gm,
-    const int slice, int const current_N_level);
+    const int slice, int const current_N_level, const Helmholtz& helmholtz, Mag mag,
+    const std::array<amrex::Real, 4> chicBs,
+    const std::array<amrex::Real, 4> chicLs,
+    const std::array<amrex::Real, 4> chicZs);
 
 #endif //  BEAMPARTICLEADVANCE_H_
