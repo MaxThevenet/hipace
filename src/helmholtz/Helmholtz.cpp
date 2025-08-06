@@ -42,7 +42,15 @@ Helmholtz::ReadParameters ()
     queryWithParser(pp, "add_dz_jx", m_add_dz_jx);
     queryWithParser(pp, "interp_z", m_interp_z);
     queryWithParser(pp, "use_phase", m_use_phase);
+
+    std::string profile_real_str = "0.";
+    std::string profile_imag_str = "0.";
+    queryWithParser(pp, "field_real(x,y,z)", profile_real_str);
+    queryWithParser(pp, "field_imag(x,y,z)", profile_imag_str);
+    m_profile_real = makeFunctionWithParser<3>( profile_real_str, m_parser_lr, {"x", "y", "z"});
+    m_profile_imag = makeFunctionWithParser<3>( profile_imag_str, m_parser_li, {"x", "y", "z"});
     queryWithParser(pp, "insitu_file_prefix", m_insitu_file_prefix);
+
     m_k0 = 2.*MathConst::pi/m_lambda0;
 }
 
@@ -160,7 +168,7 @@ Helmholtz::InitSliceEnvelope (const int islice, const int comp)
 
     HIPACE_PROFILE("Helmholtz::InitSliceEnvelope()");
 
-    InitHelmholtzSlice(comp);
+    InitHelmholtzSlice(islice, comp);
 }
 
 void
@@ -582,23 +590,42 @@ Helmholtz::AdvanceSliceMGGenesis (amrex::Real dt, int step)
 }
 
 void
-Helmholtz::InitHelmholtzSlice (const int comp)
+Helmholtz::InitHelmholtzSlice (const int islice, const int comp)
 {
     HIPACE_PROFILE("Helmholtz::InitHelmholtzSlice()");
 
     using namespace amrex::literals;
+
+    const amrex::Real poff_x = GetPosOffset(0, m_helmholtz_geom_3D, m_helmholtz_geom_3D.Domain());
+    const amrex::Real poff_y = GetPosOffset(1, m_helmholtz_geom_3D, m_helmholtz_geom_3D.Domain());
+    const amrex::Real poff_z = GetPosOffset(2, m_helmholtz_geom_3D, m_helmholtz_geom_3D.Domain());
+    const amrex::GpuArray<amrex::Real, 3> dx_arr = m_helmholtz_geom_3D.CellSizeArray();
 
 #ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for ( amrex::MFIter mfi(m_slices, DfltMfiTlng); mfi.isValid(); ++mfi ){
         amrex::Array4<amrex::Real> const & arr = m_slices.array(mfi);
+        auto profile_real = m_profile_real;
+        auto profile_imag = m_profile_imag;
         // Initialize a Gaussian helmholtz envelope on slice islice
         amrex::ParallelFor(mfi.tilebox(),
             [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
-                arr(i, j, k, comp ) = 0._rt;
-            });
+                // arr(i, j, k, comp ) = 0._rt;
+                const amrex::Real x = i * dx_arr[0] + poff_x;
+                const amrex::Real y = j * dx_arr[1] + poff_y;
+                const amrex::Real z = islice * dx_arr[2] + poff_z;
+                if (comp == WhichHelmholtzSlice::Ex_n00jm1 ||
+                    comp == WhichHelmholtzSlice::Ex_n00j00) {
+                    arr(i, j, k, comp ) = profile_real(x,y,z);
+                }
+                if (comp == WhichHelmholtzSlice::Ei_n00jm1 ||
+                    comp == WhichHelmholtzSlice::Ei_n00j00) {
+                    arr(i, j, k, comp ) = profile_imag(x,y,z);
+                }
+            }
+            );
     }
 }
 
