@@ -867,13 +867,14 @@ Helmholtz::AdvanceSliceFFTGenesisRed (const amrex::Real dt, int step)
                 const Complex an00j00 = arr(i, j, Ex_n00j00) + I * arr(i, j, Ei_n00j00);
                 const Complex anp1jp1 = arr(i, j, Ex_np1jp1) + I * arr(i, j, Ei_np1jp1);
                 const Complex anp1jp2 = arr(i, j, Ex_np1jp2) + I * arr(i, j, Ei_np1jp2);
-                // const amrex::Real chi = arr(i, j, jx_n00j00);
-                const amrex::Real chi = 0.50_rt * arr(i, j, jx_n00j00)
-                                      + 0.25_rt * arr(i, j, jx_n00jp1)
-                                      + 0.25_rt * arr(i, j, jx_n00jm1);
-                const Complex source = 0.50_rt * arr(i, j, jz_n00j00) + I * arr(i, j, rho_n00j00) +
-                                       0.25_rt * arr(i, j, jz_n00jp1) + I * arr(i, j, rho_n00jp1) +
-                                       0.25_rt * arr(i, j, jz_n00jm1) + I * arr(i, j, rho_n00jm1);
+                const amrex::Real chi = arr(i, j, jx_n00j00);
+                const Complex source = arr(i, j, jz_n00j00) + I * arr(i, j, rho_n00j00);
+                //const amrex::Real chi = 0.50_rt * arr(i, j, jx_n00j00)
+                //                      + 0.25_rt * arr(i, j, jx_n00jp1)
+                //                      + 0.25_rt * arr(i, j, jx_n00jm1);
+                //const Complex source = 0.50_rt * arr(i, j, jz_n00j00) + I * arr(i, j, rho_n00j00) +
+                //                       0.25_rt * arr(i, j, jz_n00jp1) + I * arr(i, j, rho_n00jp1) +
+                //                       0.25_rt * arr(i, j, jz_n00jm1) + I * arr(i, j, rho_n00jm1);
                 Complex rhs;
                 if (step == 0) {
                     // First time step: non-centered push to go

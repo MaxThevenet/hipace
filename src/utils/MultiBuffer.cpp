@@ -905,11 +905,11 @@ void MultiBuffer::pack_data (int slice, MultiBeam& beams, MultiLaser& laser, Hel
                          helmholtz.getSlices()[0].box().numPts() * sizeof(amrex::Real));
         // copy imag
         memcpy_to_buffer(slice, get_buffer_offset(slice, offset_type::helmholtz, beams, laser,
-                                                  helmholtz, 0, 0),
+                                                  helmholtz, 0, 2),
                          helmholtz.getSlices()[0].dataPtr(helmholtz_comp_2),
                          helmholtz.getSlices()[0].box().numPts() * sizeof(amrex::Real));
         memcpy_to_buffer(slice, get_buffer_offset(slice, offset_type::helmholtz, beams, laser,
-                                                  helmholtz, 0, 1),
+                                                  helmholtz, 0, 3),
                          helmholtz.getSlices()[0].dataPtr(helmholtz_comp_3),
                          helmholtz.getSlices()[0].box().numPts() * sizeof(amrex::Real));
     }
@@ -1011,11 +1011,11 @@ void MultiBuffer::unpack_data (int slice, MultiBeam& beams, MultiLaser& laser, H
                            helmholtz.getSlices()[0].box().numPts() * sizeof(amrex::Real));
         // copy imag
         memcpy_from_buffer(slice, get_buffer_offset(slice, offset_type::helmholtz, beams, laser,
-                                                    helmholtz, 0, 0),
+                                                    helmholtz, 0, 2),
                            helmholtz.getSlices()[0].dataPtr(helmholtz_comp_2),
                            helmholtz.getSlices()[0].box().numPts() * sizeof(amrex::Real));
         memcpy_from_buffer(slice, get_buffer_offset(slice, offset_type::helmholtz, beams, laser,
-                                                    helmholtz, 0, 1),
+                                                    helmholtz, 0, 3),
                            helmholtz.getSlices()[0].dataPtr(helmholtz_comp_3),
                            helmholtz.getSlices()[0].box().numPts() * sizeof(amrex::Real));
     }
