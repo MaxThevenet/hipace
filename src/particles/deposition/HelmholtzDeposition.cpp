@@ -31,8 +31,8 @@ HelmholtzDeposition (BeamParticleContainer& beam, Helmholtz& helmholtz,
 
 
     // Offset for converting positions to indexes
-    amrex::Real const x_pos_offset = GetPosOffset(0., gm, gm.Domain());
-    amrex::Real const y_pos_offset = GetPosOffset(1., gm, gm.Domain());
+    amrex::Real const x_pos_offset = GetPosOffset(0, gm, gm.Domain());
+    amrex::Real const y_pos_offset = GetPosOffset(1, gm, gm.Domain());
 
     PhysConst const phys_const = get_phys_const();
 
@@ -161,8 +161,8 @@ HelmholtzDeposition (BeamParticleContainer& beam, Helmholtz& helmholtz,
                 for (int ix=0; ix<=depos_order; ix++){
                     if (mode_is_genesis) {
                         // jx  array contains chi   =  e^2*mu0/me*ne/gamma_j
-                        // jz  array contains Re(S) = fcK*sin(-theta_j)*chi
-                        // rho array contains Im(S) = fcK*cos(-theta_j)*chi
+                        // jz  array contains Re(S) = fcK*sin(theta_j)*chi
+                        // rho array contains Im(S) = fcK*cos(theta_j)*chi
                         amrex::Gpu::Atomic::Add(
                             arr.ptr(i_cell+ix, j_cell+iy, depos_idx[0]),
                             sx_cell[ix]*sy_cell[iy]*wqg);
