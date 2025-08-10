@@ -111,7 +111,7 @@ AdvanceBeamParticlesSlice (
     const bool helm_mode_is_genesis = helmholtz.ModeIsGenesis();
     const amrex::Real ku = 2.*MathConst::pi/mag_period;
     const amrex::Real k = helmholtz.getk0();
-    const amrex::Real K = phys_const.q_e * mag_B0 * mag_period / (2*MathConst::pi*phys_const.m_e*phys_const.c);
+    const amrex::Real K = phys_const.q_e * mag_B0 * mag_period / (2*MathConst::pi*phys_const.m_e*phys_const.c) / sts::sqrt(2.);
     const amrex::Real fcK = mag.m_fc * K;
 
     // Extract properties associated with physical size of the box
@@ -345,8 +345,7 @@ AdvanceBeamParticlesSlice (
                         // Here we assume gamma_j = gamma from Eq. (2.59) of Reiche's PhD thesis
                         amrex::Real theta_dot =
                             + clight*ku
-                            - omega * (1._rt + K*K/2._rt) / 2._rt * gammap_inv * gammap_inv
-//                            - omega * (1._rt + K*K) / 2._rt * gammap_inv * gammap_inv
+                            - omega * (1._rt + K*K) / 2._rt * gammap_inv * gammap_inv
                             - omega * betarsq / 2._rt
                             - omega * (Frp*Frp+Fip*Fip) / 2._rt * gammap_inv * gammap_inv
                             + omega * fcK * gammap_inv * gammap_inv *

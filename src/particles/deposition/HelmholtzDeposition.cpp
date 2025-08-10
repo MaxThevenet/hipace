@@ -39,7 +39,7 @@ HelmholtzDeposition (BeamParticleContainer& beam, Helmholtz& helmholtz,
     const Mag mag = beam.getMag();
     const amrex::Real ku = 2.*MathConst::pi/mag.m_period;
     const amrex::Real kr = helmholtz.getk0();
-    const amrex::Real K = phys_const.q_e * mag.m_B0 * mag.m_period / (2*MathConst::pi*phys_const.m_e*phys_const.c);
+    const amrex::Real K = phys_const.q_e * mag.m_B0 * mag.m_period / (2*MathConst::pi*phys_const.m_e*phys_const.c) / std::sqrt(2.);
     const amrex::Real fcK = mag.m_fc * K;
 
     // Extract box properties
