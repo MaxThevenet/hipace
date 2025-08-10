@@ -971,7 +971,6 @@ Helmholtz::InSituComputeDiags (int step, amrex::Real time, int islice,
     AMREX_ALWAYS_ASSERT(m_insitu_rdata.size()>0 && m_insitu_sum_rdata.size()>0 &&
                         m_insitu_cdata.size()>0);
 
-    const bool mode_is_gensis = ModeIsGenesis();
     const int nslices = m_helmholtz_geom_3D.Domain().length(2);
     const int helmholtz_slice = islice - m_helmholtz_geom_3D.Domain().smallEnd(2);
     const amrex::Real poff_x = GetPosOffset(0, m_helmholtz_geom_3D, m_helmholtz_geom_3D.Domain());
@@ -979,6 +978,7 @@ Helmholtz::InSituComputeDiags (int step, amrex::Real time, int islice,
     const amrex::Real dx = m_helmholtz_geom_3D.CellSize(0);
     const amrex::Real dy = m_helmholtz_geom_3D.CellSize(1);
     const amrex::Real dxdydz = dx * dy * m_helmholtz_geom_3D.CellSize(2);
+    const bool mode_is_genesis = ModeIsGenesis();
 
     const int xmid_lo = m_helmholtz_geom_3D.Domain().smallEnd(0) + (m_helmholtz_geom_3D.Domain().length(0) - 1) / 2;
     const int xmid_hi = m_helmholtz_geom_3D.Domain().smallEnd(0) + (m_helmholtz_geom_3D.Domain().length(0)) / 2;

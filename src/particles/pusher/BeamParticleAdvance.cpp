@@ -111,7 +111,7 @@ AdvanceBeamParticlesSlice (
     const bool helm_mode_is_genesis = helmholtz.ModeIsGenesis();
     const amrex::Real ku = 2.*MathConst::pi/mag_period;
     const amrex::Real k = helmholtz.getk0();
-    const amrex::Real K = phys_const.q_e * mag_B0 * mag_period / (2*MathConst::pi*phys_const.m_e*phys_const.c) / sts::sqrt(2.);
+    const amrex::Real K = phys_const.q_e * mag_B0 * mag_period / (2*MathConst::pi*phys_const.m_e*phys_const.c) / std::sqrt(2.);
     const amrex::Real fcK = mag.m_fc * K;
 
     // Extract properties associated with physical size of the box
