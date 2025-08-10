@@ -28,7 +28,9 @@ namespace WhichHelmholtzSlice {
         Ex_nm1j00 = 0,
                     Ex_nm1jp1,  Ex_nm1jp2,  Ex_nm1jm1,
         Ex_n00j00,  Ex_n00jp1,  Ex_n00jp2,  Ex_n00jm1,
-        Ex_np1j00,  Ex_np1jp1,  Ex_np1jp2,
+        Ex_np1j00,  Ei_np1j00,
+        Ex_np1jp1,  Ei_np1jp1,
+        Ex_np1jp2,  Ei_np1jp2,
 
         jx_n00jm1,  jx_n00j00,  jx_n00jp1,  jx_n00jp2,
         jz_n00jm1,  jz_n00j00,  jz_n00jp1,
@@ -36,9 +38,6 @@ namespace WhichHelmholtzSlice {
 
         Ei_nm1j00,  Ei_nm1jp1,  Ei_nm1jp2,  Ei_nm1jm1,
         Ei_n00j00,  Ei_n00jp1,  Ei_n00jp2,  Ei_n00jm1,
-        Ei_np1j00,  Ei_np1jp1,  Ei_np1jp2,
-
-        tmp1, tmp2,
 
         N
     };

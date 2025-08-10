@@ -37,8 +37,8 @@ HelmholtzDeposition (BeamParticleContainer& beam, Helmholtz& helmholtz,
     PhysConst const phys_const = get_phys_const();
 
     const Mag mag = beam.getMag();
-    const amrex::Real ku = 2*MathConst::pi/mag.m_period;
-    const amrex::Real k = helmholtz.getk0();
+    const amrex::Real ku = 2.*MathConst::pi/mag.m_period;
+    const amrex::Real kr = helmholtz.getk0();
     const amrex::Real K = phys_const.q_e * mag.m_B0 * mag.m_period / (2*MathConst::pi*phys_const.m_e*phys_const.c);
     const amrex::Real fcK = mag.m_fc * K;
 
@@ -134,7 +134,7 @@ HelmholtzDeposition (BeamParticleContainer& beam, Helmholtz& helmholtz,
                                                          + uz*uz*clightsq);
             const amrex::Real wq = q*ptd.rdata(BeamIdx::w)[ip]*invvol;
             // const amrex::Real theta = (k+ku)*ptd.pos(2, ip) - k*phys_const.c*time;
-            const amrex::Real theta = (k+ku)*ptd.pos(2, ip) + ku*phys_const.c*time;
+            const amrex::Real theta = (kr+ku)*ptd.pos(2, ip) + ku*phys_const.c*time;
             const amrex::Real wqg = wq * gaminv * q * PhysConstSI::mu0 / PhysConstSI::m_e;
 
             // wqx, wqy wqz are particle current in each direction

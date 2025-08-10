@@ -573,20 +573,9 @@ Helmholtz::AdvanceSliceMGGenesis (amrex::Real dt, int step)
     }
 
     const int max_iters = 200;
-    amrex::MultiFab np1j00 (m_slices, amrex::make_alias, WhichHelmholtzSlice::tmp1, 2);
+    amrex::MultiFab np1j00 (m_slices, amrex::make_alias, WhichHelmholtzSlice::Ex_np1j00, 2);
     m_mg->solve2(np1j00[0], m_rhs_mg, m_mg_acoeff_real, acoeff_imag_scalar,
                  m_MG_tolerance_rel, m_MG_tolerance_abs, max_iters, m_MG_verbose);
-
-    for ( amrex::MFIter mfi(m_slices, DfltMfi); mfi.isValid(); ++mfi ){
-        Array3<amrex::Real> arr = m_slices.array(mfi);
-        amrex::ParallelFor(mfi.tilebox(),
-        [=] AMREX_GPU_DEVICE(int i, int j, int) noexcept
-        {
-            using namespace WhichHelmholtzSlice;
-            arr(i, j, Ex_np1j00) = arr(i, j, tmp1);
-            arr(i, j, Ei_np1j00) = arr(i, j, tmp2);
-        });
-    }
 }
 
 void
