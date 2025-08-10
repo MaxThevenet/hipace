@@ -323,7 +323,6 @@ AdvanceBeamParticlesSlice (
                 if (c_use_helmholtz.value) {
                     amrex::ParticleReal betax = ux * gammap_inv * inv_clight;
                     amrex::ParticleReal betay = uy * gammap_inv * inv_clight;
-                    amrex::ParticleReal betaz = uz * gammap_inv * inv_clight;
                     if (helm_mode_is_genesis) {
                         constexpr amrex::GpuComplex<amrex::Real> I(0.,1.);
                         amrex::ParticleReal Frp = 0._rt;
@@ -346,7 +345,8 @@ AdvanceBeamParticlesSlice (
                         // Here we assume gamma_j = gamma from Eq. (2.59) of Reiche's PhD thesis
                         amrex::Real theta_dot =
                             + clight*ku
-                            - omega * (1._rt + K*K) / 2._rt * gammap_inv * gammap_inv
+                            - omega * (1._rt + K*K/2._rt) / 2._rt * gammap_inv * gammap_inv
+//                            - omega * (1._rt + K*K) / 2._rt * gammap_inv * gammap_inv
                             - omega * betarsq / 2._rt
                             - omega * (Frp*Frp+Fip*Fip) / 2._rt * gammap_inv * gammap_inv
                             + omega * fcK * gammap_inv * gammap_inv *
@@ -360,10 +360,12 @@ AdvanceBeamParticlesSlice (
                         ux_next += dt * uxdot;
                         uz_next = uz + dt * uzdot;
                         if (do_z_push) {
-                            // zp += dt * ( theta_dot + k * clight ) / ( k + ku );
-                            zp += dt * ( theta_dot - ku * clight ) / ( k + ku );
+                            amrex::Real betaz = (k + theta_dot/clight) / ( k + ku );
+                            zp += clight * dt * (betaz - 1._rt);
+                            // zp += dt * ( theta_dot - ku * clight ) / ( k + ku );
                         }
                     } else {
+                        amrex::ParticleReal betaz = uz * gammap_inv * inv_clight;
                         amrex::ParticleReal Frp = 0._rt;
                         doHelmholtzGatherShapeN<depos_order.value>(
                             xp, yp, Frp, a_arr, dx_inv, dy_inv,
