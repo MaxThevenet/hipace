@@ -971,6 +971,7 @@ Helmholtz::InSituComputeDiags (int step, amrex::Real time, int islice,
     AMREX_ALWAYS_ASSERT(m_insitu_rdata.size()>0 && m_insitu_sum_rdata.size()>0 &&
                         m_insitu_cdata.size()>0);
 
+    const bool mode_is_gensis = ModeIsGenesis();
     const int nslices = m_helmholtz_geom_3D.Domain().length(2);
     const int helmholtz_slice = islice - m_helmholtz_geom_3D.Domain().smallEnd(2);
     const amrex::Real poff_x = GetPosOffset(0, m_helmholtz_geom_3D, m_helmholtz_geom_3D.Domain());
@@ -998,13 +999,14 @@ Helmholtz::InSituComputeDiags (int step, amrex::Real time, int islice,
             {
                 using namespace WhichHelmholtzSlice;
                 const amrex::Real ex = arr(i,j, Ex_n00j00);
-                const amrex::Real aabssq = ex * ex;
+                const amrex::Real ei = mode_is_genesis ? arr(i,j, Ei_n00j00) : 0._rt;
+                const amrex::Real aabssq = ex*ex + ei*ei;
 
                 const amrex::Real x = i * dx + poff_x;
                 const amrex::Real y = j * dy + poff_y;
 
                 const bool is_on_axis = (i==xmid_lo || i==xmid_hi) && (j==ymid_lo || j==ymid_hi);
-                const Complex aaxis{is_on_axis ? ex : 0._rt, 0._rt};
+                const Complex aaxis{is_on_axis ? ex : 0._rt, is_on_axis ? ei : 0._rt};
 
                 return {            // Tuple contains:
                     aabssq,         // 0    max(|a|^2)
