@@ -601,7 +601,6 @@ Helmholtz::AdvanceSliceFFTEnvelope (const amrex::Real dt, int step)
 
     const amrex::Real dx = m_helmholtz_geom_3D.CellSize(0);
     const amrex::Real dy = m_helmholtz_geom_3D.CellSize(1);
-    const amrex::Real dz = m_helmholtz_geom_3D.CellSize(2);
 
     const PhysConst phc = get_phys_const();
     const amrex::Real c = phc.c;
@@ -656,8 +655,6 @@ Helmholtz::AdvanceSliceFFTEnvelope (const amrex::Real dt, int step)
                 }
                 const Complex lapA = lapR + I*lapI;
                 const Complex an00j00 = arr(i, j, Ex_n00j00) + I * arr(i, j, Ei_n00j00);
-                const Complex anp1jp1 = arr(i, j, Ex_np1jp1) + I * arr(i, j, Ei_np1jp1);
-                const Complex anp1jp2 = arr(i, j, Ex_np1jp2) + I * arr(i, j, Ei_np1jp2);
                 const amrex::Real chi = arr(i, j, jx_n00j00);
                 const Complex source = zfilter_source ?
                     0.50_rt * arr(i, j, jz_n00j00) + I * arr(i, j, rho_n00j00) +
@@ -669,15 +666,11 @@ Helmholtz::AdvanceSliceFFTEnvelope (const amrex::Real dt, int step)
                 if (step == 0) {
                     // First time step: non-centered push to go
                     // from step 0 to step 1 without knowing -1.
-                    const Complex an00jp1 = arr(i, j, Ex_n00jp1) + I * arr(i, j, Ei_n00jp1);
-                    const Complex an00jp2 = arr(i, j, Ex_n00jp2) + I * arr(i, j, Ei_n00jp2);
                     rhs =
                         + 2._rt * chi * an00j00
                         - lapA
                         + I*4._rt*k0/(c*dt) * an00j00;
                 } else {
-                    const Complex anm1jp1 = arr(i, j, Ex_nm1jp1) + I * arr(i, j, Ei_nm1jp1);
-                    const Complex anm1jp2 = arr(i, j, Ex_nm1jp2) + I * arr(i, j, Ei_nm1jp2);
                     const Complex anm1j00 = arr(i, j, Ex_nm1j00) + I * arr(i, j, Ei_nm1j00);
                     rhs =
                         + 2._rt * chi * an00j00
