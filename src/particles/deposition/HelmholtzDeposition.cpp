@@ -27,7 +27,7 @@ HelmholtzDeposition (BeamParticleContainer& beam, Helmholtz& helmholtz,
     amrex::FArrayBox& isl_fab = helmholtz.getSlices()[0];
     const amrex::Geometry& gm = helmholtz.GetHelmholtzGeom();
     const CheckDomainBounds helmholtz_bounds {gm};
-    bool mode_is_genesis = helmholtz.ModeIsGenesis();
+    bool mode_is_envelope = helmholtz.ModeIsEnvelope();
 
 
     // Offset for converting positions to indexes
@@ -158,7 +158,7 @@ HelmholtzDeposition (BeamParticleContainer& beam, Helmholtz& helmholtz,
             // Deposit current into jx, jy, jz, rhomjz
             for (int iy=0; iy<=depos_order; iy++){
                 for (int ix=0; ix<=depos_order; ix++){
-                    if (mode_is_genesis) {
+                    if (mode_is_envelope) {
                         // jx  array contains chi   =  e^2*mu0/me*ne/gamma_j
                         // jz  array contains Re(S) = fcK*sin(theta_j)*chi
                         // rho array contains Im(S) = fcK*cos(theta_j)*chi

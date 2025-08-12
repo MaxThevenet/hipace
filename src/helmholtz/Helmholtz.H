@@ -103,14 +103,22 @@ public:
      */
     void AdvanceSliceFFT (amrex::Real dt, int step);
 
-    /** Advance a Helmholtz slice by 1 time step using a FFT solver.
+    /** Advance a Helmholtz slice by 1 time step using a multigrid solver.
+     * This assumes the FEL envelope equations.
      *
      * \param[in] dt time step of the simulation
      * \param[in] step current iteration. Needed because step 0 needs a specific treatment.
      */
-    void AdvanceSliceMGGenesis (amrex::Real dt, int step);
-    void AdvanceSliceFFTGenesis (amrex::Real dt, int step);
-    void AdvanceSliceFFTGenesisRed (amrex::Real dt, int step);
+    void AdvanceSliceMGEnvelope (amrex::Real dt, int step);
+
+    /** Advance a Helmholtz slice by 1 time step using a FFT solver.
+     * This assumes the FEL envelope equations.
+     * Note that some terms on the LHS were neglected, consistent with Eq. 2.57 of S. Reiche's PhD thesis.
+     *
+     * \param[in] dt time step of the simulation
+     * \param[in] step current iteration. Needed because step 0 needs a specific treatment.
+     */
+    void AdvanceSliceFFTEnvelope (amrex::Real dt, int step);
 
     /** Initialize 1 longitudinal slice of the Helmholtz, and store it in n00j00 (current time step)
      * and nm1j00 (previous time step).
@@ -159,7 +167,7 @@ public:
 
     bool CenteredDz () const { return m_centered_dz; }
     bool InterpZ () const { return m_interp_z; }
-    bool ModeIsGenesis () const { return m_mode == "genesis"; }
+    bool ModeIsEnvelope () const { return m_mode == "envelope"; }
     amrex::Real getLambda0 () const { return m_lambda0; }
     amrex::Real getk0 () const { return m_k0; }
 

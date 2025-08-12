@@ -64,6 +64,7 @@ using BeamTileInit = amrex::ParticleTile<
         amrex::PolymorphicArenaAllocator
     >;
 
+/** \brief Container for a magnetic undulator. */
 struct Mag
 {
     /** Constructor */
@@ -90,7 +91,7 @@ struct Mag
     amrex::Real m_kx {0};
     /** Rolloff parameter in y, normalized by ku. */
     amrex::Real m_ky {0};
-    /** Fc factor for Genesis mode. */
+    /** Fc factor for envelope mode. */
     amrex::Real m_fc {0};
 };
 

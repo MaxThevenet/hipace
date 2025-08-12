@@ -87,14 +87,14 @@ AdvanceBeamParticlesSlice (
         WhichHelmholtzSlice::Ex_n00j00, WhichHelmholtzSlice::Ex_n00j00, WhichHelmholtzSlice::Ex_n00j00};
     const amrex::GpuArray<int, 3> helm_comps = helmholtz.InterpZ() ? helm1 : helm2;
 
-    // Imaginary part also needed for Genesis mode
+    // Imaginary part also needed for Envelope mode
     const amrex::GpuArray<int, 3> helm3 {
         WhichHelmholtzSlice::Ei_n00jm1, WhichHelmholtzSlice::Ei_n00j00, WhichHelmholtzSlice::Ei_n00jp1};
     const amrex::GpuArray<int, 3> helm4 {
         WhichHelmholtzSlice::Ei_n00j00, WhichHelmholtzSlice::Ei_n00j00, WhichHelmholtzSlice::Ei_n00j00};
     const amrex::GpuArray<int, 3> helm_comps_i = helmholtz.InterpZ() ? helm3 : helm4;
 
-    // Beam density, also needed for Genesis mode
+    // Beam density, also needed for Envelope mode
     const amrex::GpuArray<int, 3> helm5 {
         WhichHelmholtzSlice::jx_n00jm1, WhichHelmholtzSlice::jx_n00j00, WhichHelmholtzSlice::jx_n00jp1};
     const amrex::GpuArray<int, 3> helm6 {
@@ -108,7 +108,7 @@ AdvanceBeamParticlesSlice (
     //         a_mf[0].const_array(WhichHelmholtzSlice::Ex_n00j00) : amrex::Array4<const amrex::Real>();
     Array3<const amrex::Real> const& a_arr = use_helmholtz ?
         a_mf[0].const_array() : amrex::Array4<const amrex::Real>();
-    const bool helm_mode_is_genesis = helmholtz.ModeIsGenesis();
+    const bool helm_mode_is_envelope = helmholtz.ModeIsEnvelope();
     const amrex::Real ku = 2.*MathConst::pi/mag_period;
     const amrex::Real k = helmholtz.getk0();
     const amrex::Real K = phys_const.q_e * mag_B0 * mag_period / (2*MathConst::pi*phys_const.m_e*phys_const.c) / std::sqrt(2.);
@@ -288,7 +288,7 @@ AdvanceBeamParticlesSlice (
                 }
 
                 amrex::Real zprop = clight*time + zp/clight*0._rt;
-                if (use_mag && !helm_mode_is_genesis) {
+                if (use_mag && !helm_mode_is_envelope) {
                     amrex::Real Bx = 0._rt;
                     amrex::Real By = mag_B0*std::cos( ku*zprop + mag_phase );
                     amrex::Real Bz = 0._rt;
@@ -323,7 +323,7 @@ AdvanceBeamParticlesSlice (
                 if (c_use_helmholtz.value) {
                     amrex::ParticleReal betax = ux * gammap_inv * inv_clight;
                     amrex::ParticleReal betay = uy * gammap_inv * inv_clight;
-                    if (helm_mode_is_genesis) {
+                    if (helm_mode_is_envelope) {
                         constexpr amrex::GpuComplex<amrex::Real> I(0.,1.);
                         amrex::ParticleReal Frp = 0._rt;
                         doHelmholtzGatherShapeN<depos_order.value>(
@@ -490,7 +490,7 @@ AdvanceBeamParticlesSlice (
                 xp += dt * 0.5_rt * ux_next * gamma_next_inv;
                 yp += dt * 0.5_rt * uy_next * gamma_next_inv;
                 if (do_z_push &&
-                    !(c_use_helmholtz.value && helm_mode_is_genesis)) {
+                    !(c_use_helmholtz.value && helm_mode_is_envelope)) {
                     zp += dt * ( uz_next * gamma_next_inv - clight );
                 }
 

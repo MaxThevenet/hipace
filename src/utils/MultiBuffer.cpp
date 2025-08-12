@@ -85,7 +85,7 @@ void MultiBuffer::initialize (int nslices, MultiBeam& beams, MultiLaser& laser,
         m_async_memcpy = false;
     }
 
-    m_helmholtz_ncomp = helmholtz.ModeIsGenesis() ? 4 : 2;
+    m_helmholtz_ncomp = helmholtz.ModeIsEnvelope() ? 4 : 2;
 
     AMREX_ALWAYS_ASSERT_WITH_MESSAGE(
         ((double(m_max_trailing_slices) * n_ranks) > nslices)
@@ -466,7 +466,7 @@ void MultiBuffer::get_data (int slice, MultiBeam& beams, MultiLaser& laser, Helm
             using namespace WhichHelmholtzSlice;
             int helmholtz_comp = (beam_slice == WhichBeamSlice::Next) ? Ex_n00jm1 : Ex_n00j00;
             helmholtz.InitSliceEnvelope(slice, helmholtz_comp);
-            if (helmholtz.ModeIsGenesis()) {
+            if (helmholtz.ModeIsEnvelope()) {
                 helmholtz_comp = (beam_slice == WhichBeamSlice::Next) ? Ei_n00jm1 : Ei_n00j00;
                 helmholtz.InitSliceEnvelope(slice, helmholtz_comp);
             }
@@ -901,7 +901,7 @@ void MultiBuffer::pack_data (int slice, MultiBeam& beams, MultiLaser& laser, Hel
                          helmholtz.getSlices()[0].dataPtr(helmholtz_comp_1),
                          helmholtz.getSlices()[0].box().numPts() * sizeof(amrex::Real));
         // copy imag
-        if (helmholtz.ModeIsGenesis()) {
+        if (helmholtz.ModeIsEnvelope()) {
             const int helmholtz_comp_2 =
                 (beam_slice == WhichBeamSlice::Next) ? Ei_np1jp2 : Ei_np1j00;
             const int helmholtz_comp_3 =
@@ -1009,7 +1009,7 @@ void MultiBuffer::unpack_data (int slice, MultiBeam& beams, MultiLaser& laser, H
                            helmholtz.getSlices()[0].dataPtr(helmholtz_comp_1),
                            helmholtz.getSlices()[0].box().numPts() * sizeof(amrex::Real));
         // copy imag
-        if (helmholtz.ModeIsGenesis()) {
+        if (helmholtz.ModeIsEnvelope()) {
             const int helmholtz_comp_2 =
                 (beam_slice == WhichBeamSlice::Next) ? Ei_n00jm1 : Ei_n00j00;
             const int helmholtz_comp_3 =
