@@ -32,6 +32,7 @@ Helmholtz::ReadParameters ()
     if (!m_use_helmholtz) return;
 
     getWithParser(pp, "mode", m_mode);
+    AMREX_ALWAYS_ASSERT(m_mode == "envelope" || m_mode == "full_field");
     if (ModeIsEnvelope()) {
         getWithParser(pp, "lambda0", m_lambda0);
         queryWithParser(pp, "use_mg", m_use_mg);
