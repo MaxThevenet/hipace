@@ -31,9 +31,13 @@ Helmholtz::ReadParameters ()
 
     if (!m_use_helmholtz) return;
 
-    getWithParser(pp, "lambda0", m_lambda0);
-    queryWithParser(pp, "mode", m_mode);
-    queryWithParser(pp, "use_mg", m_use_mg);
+    getWithParser(pp, "mode", m_mode);
+    if (ModeIsGenesis()) {
+        getWithParser(pp, "lambda0", m_lambda0);
+        queryWithParser(pp, "use_mg", m_use_mg);
+        m_k0 = 2.*MathConst::pi/m_lambda0;
+        queryWithParser(pp, "use_phase", m_use_phase);
+    }
     queryWithParser(pp, "interp_order", m_interp_order);
     AMREX_ALWAYS_ASSERT(m_interp_order <= 3 && m_interp_order >= 0);
     queryWithParser(pp, "insitu_period", m_insitu_period);
@@ -41,7 +45,6 @@ Helmholtz::ReadParameters ()
     queryWithParser(pp, "add_dx_jz", m_add_dx_jz);
     queryWithParser(pp, "add_dz_jx", m_add_dz_jx);
     queryWithParser(pp, "interp_z", m_interp_z);
-    queryWithParser(pp, "use_phase", m_use_phase);
 
     std::string profile_real_str = "0.";
     std::string profile_imag_str = "0.";
@@ -50,8 +53,6 @@ Helmholtz::ReadParameters ()
     m_profile_real = makeFunctionWithParser<3>( profile_real_str, m_parser_lr, {"x", "y", "z"});
     m_profile_imag = makeFunctionWithParser<3>( profile_imag_str, m_parser_li, {"x", "y", "z"});
     queryWithParser(pp, "insitu_file_prefix", m_insitu_file_prefix);
-
-    m_k0 = 2.*MathConst::pi/m_lambda0;
 }
 
 void
@@ -130,12 +131,13 @@ Helmholtz::InitData ()
     m_rhs.resize(m_slice_box, 1, amrex::The_Arena());
     m_rhs_fourier.resize(m_slice_box, 1, amrex::The_Arena());
 
-    // Create FFT plans
-    if (ModeIsGenesis() && m_use_mg) {
+    if (m_use_mg) {
+        // Initialize Multigrid solver
         // need one ghost cell for 2^n-1 MG solve
         m_mg_acoeff_real.resize(amrex::grow(m_slice_box, amrex::IntVect{1, 1, 0}), 1, amrex::The_Arena());
         m_rhs_mg.resize(amrex::grow(m_slice_box, amrex::IntVect{1, 1, 0}), 2, amrex::The_Arena());
     } else {
+        // Create FFT plans
         amrex::IntVect fft_size = m_slice_box.length();
 
         std::size_t fwd_area = m_forward_fft.Initialize(FFTType::C2C_2D_fwd, fft_size[0], fft_size[1]);
@@ -245,6 +247,7 @@ Helmholtz::AdvanceSlice (const int islice, amrex::Real dt, int step)
             AdvanceSliceMGGenesis(dt, step);
         } else {
             AdvanceSliceFFTGenesisRed(dt, step);
+            // AdvanceSliceFFTGenesis(dt, step);
         }
     } else {
         AdvanceSliceFFT(dt, step);

@@ -361,7 +361,6 @@ AdvanceBeamParticlesSlice (
                         if (do_z_push) {
                             amrex::Real betaz = (k + theta_dot/clight) / ( k + ku );
                             zp += clight * dt * (betaz - 1._rt);
-                            // zp += dt * ( theta_dot - ku * clight ) / ( k + ku );
                         }
                     } else {
                         amrex::ParticleReal betaz = uz * gammap_inv * inv_clight;

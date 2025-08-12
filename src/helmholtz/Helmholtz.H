@@ -167,9 +167,9 @@ private:
 
     bool m_use_helmholtz {false}; /**< whether a helmholtz is used or not */
     bool m_use_phase {true};
-    std::string m_mode = "puffin"; // can also be "genesis"
-    amrex::Real m_lambda0;
-    amrex::Real m_k0;
+    std::string m_mode = "";
+    amrex::Real m_lambda0 {0.};
+    amrex::Real m_k0 {0.};
     /** Number of guard cells for slices MultiFab */
     amrex::IntVect m_slices_nguards = {-1, -1, -1};
     /** 3D helmholtz Geometry */

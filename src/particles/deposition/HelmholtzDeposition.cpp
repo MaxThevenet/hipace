@@ -133,7 +133,6 @@ HelmholtzDeposition (BeamParticleContainer& beam, Helmholtz& helmholtz,
                                                          + uy*uy*clightsq
                                                          + uz*uz*clightsq);
             const amrex::Real wq = q*ptd.rdata(BeamIdx::w)[ip]*invvol;
-            // const amrex::Real theta = (k+ku)*ptd.pos(2, ip) - k*phys_const.c*time;
             const amrex::Real theta = (kr+ku)*ptd.pos(2, ip) + ku*phys_const.c*time;
             const amrex::Real wqg = wq * gaminv * q * PhysConstSI::mu0 / PhysConstSI::m_e;
 
