@@ -52,6 +52,7 @@ Helmholtz::ReadParameters ()
     queryWithParser(pp, "field_imag(x,y,z)", profile_imag_str);
     m_profile_real = makeFunctionWithParser<3>( profile_real_str, m_parser_lr, {"x", "y", "z"});
     m_profile_imag = makeFunctionWithParser<3>( profile_imag_str, m_parser_li, {"x", "y", "z"});
+
     queryWithParser(pp, "insitu_file_prefix", m_insitu_file_prefix);
 }
 
@@ -526,10 +527,10 @@ Helmholtz::AdvanceSliceMGGenesis (amrex::Real dt, int step)
                 const Complex anp1jp2 = arr(i, j, Ex_np1jp2) + I * arr(i, j, Ei_np1jp2);
                 const amrex::Real chi = arr(i, j, jx_n00j00);
                 const Complex source = arr(i, j, jz_n00j00) + I * arr(i, j, rho_n00j00);
-// 1/ga      cos(t)/ga sin(t)/ga
-// jx_n00j00 jz_n00j00 rho_n00j00
-                    acoeff_real_arr(i,j,0) = do_avg_rhs ?
-                        acoeff_real_scalar + chi : acoeff_real_scalar;
+                // 1/ga      cos(t)/ga sin(t)/ga
+                // jx_n00j00 jz_n00j00 rho_n00j00
+                acoeff_real_arr(i,j,0) = do_avg_rhs ?
+                    acoeff_real_scalar + chi : acoeff_real_scalar;
 
                 Complex rhs;
                 if (step == 0) {
