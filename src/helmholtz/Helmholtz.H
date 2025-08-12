@@ -195,6 +195,7 @@ private:
     /** Whether laser force is interpolated (order 2) in z. Otherwise order 0 */
     bool m_interp_z {true};
     bool m_centered_dz {true};
+    bool m_zfilter_source {false};
 
     /** Array of N slices required to compute current slice */
     amrex::MultiFab m_slices;

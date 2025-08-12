@@ -37,6 +37,7 @@ Helmholtz::ReadParameters ()
         queryWithParser(pp, "use_mg", m_use_mg);
         m_k0 = 2.*MathConst::pi/m_lambda0;
         queryWithParser(pp, "use_phase", m_use_phase);
+        queryWithParser(pp, "zfilter_source", m_zfilter_source);
     }
     queryWithParser(pp, "interp_order", m_interp_order);
     AMREX_ALWAYS_ASSERT(m_interp_order <= 3 && m_interp_order >= 0);
@@ -414,6 +415,7 @@ Helmholtz::AdvanceSliceMGEnvelope (amrex::Real dt, int step)
     const amrex::Real c = phc.c;
     const amrex::Real k0 = m_k0;
     const bool do_avg_rhs = m_MG_average_rhs;
+    const bool zfilter_source = m_zfilter_source;
 
     amrex::Real acoeff_real_scalar = 0._rt;
     amrex::Real acoeff_imag_scalar = 0._rt;
@@ -525,7 +527,12 @@ Helmholtz::AdvanceSliceMGEnvelope (amrex::Real dt, int step)
                 const Complex anp1jp1 = arr(i, j, Ex_np1jp1) + I * arr(i, j, Ei_np1jp1);
                 const Complex anp1jp2 = arr(i, j, Ex_np1jp2) + I * arr(i, j, Ei_np1jp2);
                 const amrex::Real chi = arr(i, j, jx_n00j00);
-                const Complex source = arr(i, j, jz_n00j00) + I * arr(i, j, rho_n00j00);
+                const Complex source = zfilter_source ?
+                    0.50_rt * arr(i, j, jz_n00j00) + I * arr(i, j, rho_n00j00) +
+                    0.25_rt * arr(i, j, jz_n00jp1) + I * arr(i, j, rho_n00jp1) +
+                    0.25_rt * arr(i, j, jz_n00jm1) + I * arr(i, j, rho_n00jm1)
+                    :
+                    arr(i, j, jz_n00j00) + I * arr(i, j, rho_n00j00);
                 // 1/ga      cos(t)/ga sin(t)/ga
                 // jx_n00j00 jz_n00j00 rho_n00j00
                 acoeff_real_arr(i,j,0) = do_avg_rhs ?
@@ -598,6 +605,7 @@ Helmholtz::AdvanceSliceFFTEnvelope (const amrex::Real dt, int step)
     const PhysConst phc = get_phys_const();
     const amrex::Real c = phc.c;
     const amrex::Real k0 = m_k0;
+    const bool zfilter_source = m_zfilter_source;
 
     for ( amrex::MFIter mfi(m_slices, DfltMfi); mfi.isValid(); ++mfi ){
         const amrex::Box& bx = mfi.tilebox();
@@ -650,13 +658,12 @@ Helmholtz::AdvanceSliceFFTEnvelope (const amrex::Real dt, int step)
                 const Complex anp1jp1 = arr(i, j, Ex_np1jp1) + I * arr(i, j, Ei_np1jp1);
                 const Complex anp1jp2 = arr(i, j, Ex_np1jp2) + I * arr(i, j, Ei_np1jp2);
                 const amrex::Real chi = arr(i, j, jx_n00j00);
-                const Complex source = arr(i, j, jz_n00j00) + I * arr(i, j, rho_n00j00);
-                //const amrex::Real chi = 0.50_rt * arr(i, j, jx_n00j00)
-                //                      + 0.25_rt * arr(i, j, jx_n00jp1)
-                //                      + 0.25_rt * arr(i, j, jx_n00jm1);
-                //const Complex source = 0.50_rt * arr(i, j, jz_n00j00) + I * arr(i, j, rho_n00j00) +
-                //                       0.25_rt * arr(i, j, jz_n00jp1) + I * arr(i, j, rho_n00jp1) +
-                //                       0.25_rt * arr(i, j, jz_n00jm1) + I * arr(i, j, rho_n00jm1);
+                const Complex source = zfilter_source ?
+                    0.50_rt * arr(i, j, jz_n00j00) + I * arr(i, j, rho_n00j00) +
+                    0.25_rt * arr(i, j, jz_n00jp1) + I * arr(i, j, rho_n00jp1) +
+                    0.25_rt * arr(i, j, jz_n00jm1) + I * arr(i, j, rho_n00jm1)
+                    :
+                    arr(i, j, jz_n00j00) + I * arr(i, j, rho_n00j00);
                 Complex rhs;
                 if (step == 0) {
                     // First time step: non-centered push to go
