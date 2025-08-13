@@ -165,7 +165,7 @@ public:
      */
     bool UseHelmholtz (const int islice) const { return m_use_helmholtz && HasSlice(islice); }
 
-    bool CenteredDz () const { return m_centered_dz; }
+    bool DepositNext () const { return m_centered_dz + m_zfilter_source; }
     bool InterpZ () const { return m_interp_z; }
     bool ModeIsEnvelope () const { return m_mode == "envelope"; }
     amrex::Real getLambda0 () const { return m_lambda0; }

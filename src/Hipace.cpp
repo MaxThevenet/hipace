@@ -659,7 +659,7 @@ Hipace::SolveOneSlice (int islice, int step)
         m_grid_current.DepositCurrentSlice(m_fields, m_3D_geom[lev], lev, islice);
     }
 
-    if (m_use_helmholtz && !m_helmholtz.CenteredDz()) {
+    if (m_use_helmholtz && !m_helmholtz.DepositNext()) {
         m_multi_beam.HelmholtzDeposition(m_helmholtz, WhichBeamSlice::This, m_physical_time);
         m_helmholtz.AdvanceSlice(islice, m_dt, step);
     }
@@ -677,7 +677,7 @@ Hipace::SolveOneSlice (int islice, int step)
         m_multi_beam.ReorderParticles( WhichBeamSlice::Next, step, m_slice_geom[0]);
     }
 
-    if (m_use_helmholtz && m_helmholtz.CenteredDz()) {
+    if (m_use_helmholtz && m_helmholtz.DepositNext()) {
         m_multi_beam.HelmholtzDeposition(m_helmholtz, WhichBeamSlice::Next, m_physical_time);
         m_helmholtz.AdvanceSlice(islice, m_dt, step);
     }

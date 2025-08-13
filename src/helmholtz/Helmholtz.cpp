@@ -532,8 +532,7 @@ Helmholtz::AdvanceSliceMGEnvelope (amrex::Real dt, int step)
                     0.50_rt * arr(i, j, jz_n00j00) + I * arr(i, j, rho_n00j00) +
                     0.25_rt * arr(i, j, jz_n00jp1) + I * arr(i, j, rho_n00jp1) +
                     0.25_rt * arr(i, j, jz_n00jm1) + I * arr(i, j, rho_n00jm1)
-                    :
-                    arr(i, j, jz_n00j00) + I * arr(i, j, rho_n00j00);
+                    :         arr(i, j, jz_n00j00) + I * arr(i, j, rho_n00j00);
                 // 1/ga      cos(t)/ga sin(t)/ga
                 // jx_n00j00 jz_n00j00 rho_n00j00
                 acoeff_real_arr(i,j,0) = do_avg_rhs ?
@@ -660,8 +659,7 @@ Helmholtz::AdvanceSliceFFTEnvelope (const amrex::Real dt, int step)
                     0.50_rt * arr(i, j, jz_n00j00) + I * arr(i, j, rho_n00j00) +
                     0.25_rt * arr(i, j, jz_n00jp1) + I * arr(i, j, rho_n00jp1) +
                     0.25_rt * arr(i, j, jz_n00jm1) + I * arr(i, j, rho_n00jm1)
-                    :
-                    arr(i, j, jz_n00j00) + I * arr(i, j, rho_n00j00);
+                    :         arr(i, j, jz_n00j00) + I * arr(i, j, rho_n00j00);
                 Complex rhs;
                 if (step == 0) {
                     // First time step: non-centered push to go
