@@ -806,6 +806,8 @@ Helmholtz::InSituComputeDiags (int step, amrex::Real time, int islice,
                 const amrex::Real ex = arr(i,j, Ex_n00j00);
                 const amrex::Real ei = mode_is_envelope ? arr(i,j, Ei_n00j00) : 0._rt;
                 const amrex::Real aabssq = ex*ex + ei*ei;
+                const amrex::Real s1 = arr(i,j, jz_n00j00);
+                const amrex::Real s2 = arr(i,j, rho_n00j00);
 
                 const amrex::Real x = i * dx + poff_x;
                 const amrex::Real y = j * dy + poff_y;
@@ -820,7 +822,9 @@ Helmholtz::InSituComputeDiags (int step, amrex::Real time, int islice,
                     aabssq*x*x,     // 3    [|a|^2*x*x]
                     aabssq*y,       // 4    [|a|^2*y]
                     aabssq*y*y,     // 5    [|a|^2*y*y]
-                    aaxis           // 6    axis(a)
+                    s1,             // 6    [jz], actually [fcK*sin(theta_j)*chi] for envelope
+                    s2,             // 7    [rho], actually [fcK*cos(theta_j)*chi] for envelope
+                    aaxis           // 8    axis(a)
                 };
             });
     }
@@ -886,6 +890,8 @@ Helmholtz::InSituWriteToFile (int step, amrex::Real time, int max_step, amrex::R
         {"[|a|^2*x*x]"    , &m_insitu_rdata[3*nslices], nslices},
         {"[|a|^2*y]"      , &m_insitu_rdata[4*nslices], nslices},
         {"[|a|^2*y*y]"    , &m_insitu_rdata[5*nslices], nslices},
+        {"[s1]"           , &m_insitu_rdata[6*nslices], nslices},
+        {"[s2]"           , &m_insitu_rdata[7*nslices], nslices},
         {"axis(a)"        , &m_insitu_cdata[0], nslices},
         {"integrated", {
             {"max(|a|^2)"     , &m_insitu_sum_rdata[0]},
@@ -893,7 +899,9 @@ Helmholtz::InSituWriteToFile (int step, amrex::Real time, int max_step, amrex::R
             {"[|a|^2*x]"      , &m_insitu_sum_rdata[2]},
             {"[|a|^2*x*x]"    , &m_insitu_sum_rdata[3]},
             {"[|a|^2*y]"      , &m_insitu_sum_rdata[4]},
-            {"[|a|^2*y*y]"    , &m_insitu_sum_rdata[5]}
+            {"[|a|^2*y*y]"    , &m_insitu_sum_rdata[5]},
+            {"[s1]"           , &m_insitu_sum_rdata[6]},
+            {"[s2]"           , &m_insitu_sum_rdata[7]}
         }}
     };
 
