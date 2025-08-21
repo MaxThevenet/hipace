@@ -204,6 +204,7 @@ AdvanceBeamParticlesSlice (
                 spin[2] = ptd.m_runtime_rdata[2][ip];
             }
 
+            amrex::Real my_time = time + i * dt;
             for (; i < n_subcycles; i++) {
 
                 if (zp < min_z) {
@@ -317,8 +318,7 @@ AdvanceBeamParticlesSlice (
                     * ( ExmByp + ( clight - uz * gammap_inv ) * Byp + uy*gammap_inv*Bzp);
                 amrex::ParticleReal uy_next = uy + dt * charge_mass_ratio
                     * ( EypBxp + ( uz * gammap_inv - clight ) * Bxp - ux*gammap_inv*Bzp);
-                amrex::ParticleReal uz_next = 0._rt;
-                amrex::ParticleReal uz_intermediate = 0._rt;
+                amrex::ParticleReal uz_next = uz;
 
                 if (c_use_helmholtz.value) {
                     amrex::ParticleReal betax = ux * gammap_inv * inv_clight;
@@ -341,7 +341,8 @@ AdvanceBeamParticlesSlice (
                         amrex::Real omegap = clight * std::sqrt(nep);
                         amrex::Real omega = std::sqrt( k*k*clight*clight + omegap*omegap );
                         amrex::Real betarsq = betax*betax + betay*betay;
-                        amrex::Real theta = (k+ku)*zp + ku*clight*time;
+                        amrex::Real theta = (k+ku)*zp + ku*clight*my_time;
+                        my_time += dt;
                         // Here we assume gamma_j = gamma from Eq. (2.59) of Reiche's PhD thesis
                         amrex::Real theta_dot =
                             + clight*ku
@@ -357,10 +358,10 @@ AdvanceBeamParticlesSlice (
                             + 0._rt; // 0 is for longitudinal contribution
                         amrex::Real uzdot = ( clight*clight/gammap_inv * gammadot - ux * uxdot ) / uz;
                         ux_next += dt * uxdot;
-                        uz_next = uz + dt * uzdot;
+                        uz_next += dt * uzdot;
                         if (do_z_push) {
                             amrex::Real betaz = (k + theta_dot/clight) / ( k + ku );
-                            zp += clight * dt * (betaz - 1._rt);
+                            zp += dt * clight * (betaz - 1._rt);
                         }
                     } else {
                         amrex::ParticleReal betaz = uz * gammap_inv * inv_clight;
@@ -369,7 +370,7 @@ AdvanceBeamParticlesSlice (
                             xp, yp, Frp, a_arr, dx_inv, dy_inv,
                             x_pos_offset, y_pos_offset, helm_comps);
                         ux_next += dt * charge_mass_ratio * (1._rt-betaz) * Frp;
-                        uz_next = uz + dt * charge_mass_ratio
+                        uz_next += dt * charge_mass_ratio
                             * ( Ezp + ( ux * Byp - uy * Bxp ) * gammap_inv );
                         uz_next += dt * charge_mass_ratio * (   betax   ) * Frp;
                     }
@@ -379,7 +380,7 @@ AdvanceBeamParticlesSlice (
                 const amrex::ParticleReal ux_intermediate = ( ux_next + ux ) * 0.5_rt;
                 const amrex::ParticleReal uy_intermediate = ( uy_next + uy ) * 0.5_rt;
                 // const amrex::ParticleReal uz_intermediate = ( uz_next + uz ) * 0.5_rt;
-                uz_intermediate = c_use_helmholtz.value
+                amrex::ParticleReal uz_intermediate = c_use_helmholtz.value
                     ? ( uz_next + uz ) * 0.5_rt
                     : uz + dt * 0.5_rt * charge_mass_ratio * Ezp;
 
@@ -389,7 +390,7 @@ AdvanceBeamParticlesSlice (
                        + uz_intermediate*uz_intermediate )*inv_c2 );
 
                 if (!c_use_helmholtz.value) {
-                    uz_next += uz + dt * charge_mass_ratio * ( Ezp +
+                    uz_next += dt * charge_mass_ratio * ( Ezp +
                         ( ux_intermediate*Byp - uy_intermediate*Bxp ) * gamma_intermediate_inv );
                 }
                 // Main calculation of u{x,y,z}_next and u_{x,y,z}_intermediate ends
@@ -489,8 +490,7 @@ AdvanceBeamParticlesSlice (
                  */
                 xp += dt * 0.5_rt * ux_next * gamma_next_inv;
                 yp += dt * 0.5_rt * uy_next * gamma_next_inv;
-                if (do_z_push &&
-                    !(c_use_helmholtz.value && helm_mode_is_envelope)) {
+                if (do_z_push && !(c_use_helmholtz.value && helm_mode_is_envelope)) {
                     zp += dt * ( uz_next * gamma_next_inv - clight );
                 }
 
