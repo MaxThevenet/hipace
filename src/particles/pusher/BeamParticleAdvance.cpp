@@ -111,8 +111,8 @@ AdvanceBeamParticlesSlice (
     const bool helm_mode_is_envelope = helmholtz.ModeIsEnvelope();
     const amrex::Real ku = 2.*MathConst::pi/mag_period;
     const amrex::Real k = helmholtz.getk0();
-    const amrex::Real K = phys_const.q_e * mag_B0 * mag_period / (2*MathConst::pi*phys_const.m_e*phys_const.c) / std::sqrt(2.);
-    const amrex::Real fcK = mag.m_fc * K;
+    const amrex::Real K = phys_const.q_e * mag_B0 * mag_period / (2*MathConst::pi*phys_const.m_e*phys_const.c);
+    const amrex::Real fcK = mag.m_fc * K / std::sqrt(2);
 
     // Extract properties associated with physical size of the box
     const amrex::Real dx_inv_lev0 = gm[lev0_idx].InvCellSize(0);
@@ -346,15 +346,15 @@ AdvanceBeamParticlesSlice (
                         // Here we assume gamma_j = gamma from Eq. (2.59) of Reiche's PhD thesis
                         amrex::Real theta_dot =
                             + clight*ku
-                            - omega * (1._rt + K*K) / 2._rt * gammap_inv * gammap_inv
+                            - omega * (1._rt + K*K/2._rt) / 2._rt * gammap_inv * gammap_inv
                             - omega * betarsq / 2._rt
-                            - omega * (Frp*Frp+Fip*Fip) / 2._rt * gammap_inv * gammap_inv
+                            - omega * (Frp*Frp+Fip*Fip) / 4._rt * gammap_inv * gammap_inv
                             + omega * fcK * gammap_inv * gammap_inv *
-                                ((Frp+I*Fip)*amrex::exp(I*theta)).imag();
+                            ((Frp+I*Fip)*amrex::exp(I*theta)).imag() / std::sqrt(2._rt);
                         // u = p/m = gamma*v proper velocity, so u has the dimension of a velocity
-                        amrex::Real uxdot = - clight * clight * K*K * mag_kx*mag_kx * gammap_inv * xp;
+                        amrex::Real uxdot = - clight * clight * K*K/2._rt * mag_kx*mag_kx * gammap_inv * xp;
                         amrex::Real gammadot =
-                            -omega * fcK * gammap_inv * ((Frp+I*Fip)*amrex::exp(I*theta)).real()
+                            -omega * fcK * gammap_inv * ((Frp+I*Fip)*amrex::exp(I*theta)).real() / std::sqrt(2._rt)
                             + 0._rt; // 0 is for longitudinal contribution
                         amrex::Real uzdot = ( clight*clight/gammap_inv * gammadot - ux * uxdot ) / uz;
                         ux_next += dt * uxdot;
