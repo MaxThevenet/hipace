@@ -101,6 +101,10 @@ PlasmaParticleContainer::ReadParameters ()
     bool density_func_specified = queryWithParserAlt(pp, "density(x,y,z)", density_func_str, pp_alt);
     m_density_func = makeFunctionWithParser<3>(density_func_str, m_parser, {"x", "y", "z"});
 
+    std::string transverse_profile_str = "1.";
+    queryWithParserAlt(pp, "transverse_profile(x,y)", transverse_profile_str, pp_alt);
+    m_transverse_profile = makeFunctionWithParser<2>(transverse_profile_str, m_transverse_parser, {"x", "y"});
+
     queryWithParserAlt(pp, "min_density", m_min_density, pp_alt);
 
     std::string density_table_file_name{};

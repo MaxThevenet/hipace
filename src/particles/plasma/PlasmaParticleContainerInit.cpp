@@ -102,6 +102,7 @@ InitParticles (const amrex::RealVect& a_u_std,
         const amrex::Real c_light = get_phys_const().c;
         UpdateDensityFunction(c_light * Hipace::m_physical_time);
         auto density_func = m_density_func;
+        auto transverse_profile = m_transverse_profile;
         const amrex::Real c_t = c_light * Hipace::m_physical_time;
         const amrex::Real min_density = m_min_density;
 
@@ -176,7 +177,7 @@ InitParticles (const amrex::RealVect& a_u_std,
                         y >= a_bounds.hi(1) || y < a_bounds.lo(1) ||
                         rsq > radius_sq ||
                         rsq < a_hollow_core_radius*a_hollow_core_radius ||
-                        density_func(x, y, c_t) <= min_density) continue;
+                        density_func(x, y, c_t) * transverse_profile(x, y) <= min_density) continue;
 
                     num_particles_cell += 1;
                 }
@@ -230,7 +231,7 @@ InitParticles (const amrex::RealVect& a_u_std,
                     y >= a_bounds.hi(1) || y < a_bounds.lo(1) ||
                     rsq > radius_sq ||
                     rsq < a_hollow_core_radius*a_hollow_core_radius ||
-                    density_func(x, y, c_t) <= min_density) return;
+                    density_func(x, y, c_t) * transverse_profile(x, y) <= min_density) return;
 
                 int ix = i - lo.x;
                 int iy = j - lo.y;
@@ -290,7 +291,7 @@ InitParticles (const amrex::RealVect& a_u_std,
                     y >= a_bounds.hi(1) || y < a_bounds.lo(1) ||
                     rsq > radius_sq ||
                     rsq < a_hollow_core_radius*a_hollow_core_radius ||
-                    density_func(x, y, c_t) <= min_density) return;
+                    density_func(x, y, c_t) * transverse_profile(x, y) <= min_density) return;
 
                 amrex::Real u[3] = {0.,0.,0.};
                 ParticleUtil::get_gaussian_random_momentum(u, a_u_mean, a_u_std, engine);
@@ -303,14 +304,14 @@ InitParticles (const amrex::RealVect& a_u_std,
                 if (use_fine_patch) {
                     const int fine_loc = arr_fine(i, j, comp_a);
                     if (fine_loc == 0) {
-                        ptd.rdata(PlasmaIdx::w)[pidx] = density_func(x, y, c_t) * scale_fac_lev[0];
+                        ptd.rdata(PlasmaIdx::w)[pidx] = density_func(x, y, c_t) * transverse_profile(x, y) * scale_fac_lev[0];
                     } else if (fine_loc <= fine_transition_cells + 1) {
-                        ptd.rdata(PlasmaIdx::w)[pidx] = density_func(x, y, c_t) * scale_fac_lev[1];
+                        ptd.rdata(PlasmaIdx::w)[pidx] = density_func(x, y, c_t) * transverse_profile(x, y) * scale_fac_lev[1];
                     } else {
-                        ptd.rdata(PlasmaIdx::w)[pidx] = density_func(x, y, c_t) * scale_fac_lev[2];
+                        ptd.rdata(PlasmaIdx::w)[pidx] = density_func(x, y, c_t) * transverse_profile(x, y) * scale_fac_lev[2];
                     }
                 } else {
-                    ptd.rdata(PlasmaIdx::w)[pidx] = density_func(x, y, c_t) * scale_fac_lev[0];
+                    ptd.rdata(PlasmaIdx::w)[pidx] = density_func(x, y, c_t) * transverse_profile(x, y) * scale_fac_lev[0];
                 }
 
                 ptd.rdata(PlasmaIdx::ux)[pidx] = u[0] * c_light;

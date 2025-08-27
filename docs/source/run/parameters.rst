@@ -432,11 +432,16 @@ When both are specified, the per-species value is used.
 
 * ``<plasma name>.density_table_file`` (`string`) optional (default "")
     Alternative to ``<plasma name>.density(x,y,z)``. Specify the name of a text file containing
-    multiple densities for different positions. File syntax: ``<position> <density function>`` for
+    multiple densities for different longitudinal positions. File syntax: ``<position> <density function>`` for
     every line. If a line doesn't start with a position it is ignored (comments can be made
     with `#`). `<density function>` is evaluated like ``<plasma name>.density(x,y,z)``. The simulation
     position :math:`time \cdot c` is rounded up to the nearest `<position>` in the file to get it's
     `<density function>` which is used for that time step.
+
+* ``<plasma name>.transverse_profile(x,y)`` (`string`) optional (default `"1."`)
+    Transverse profile of the plasma.
+    This can be combined with density function or file, the result is then multiplied by ``transverse_profile`` when initializing the plasma.
+    A typical use case is to set the longitudinal profile with ``density_table_file`` and the transverse with ``transverse_profile`` for the full 3D profile, provided these are separable.
 
 * ``<plasma name> or plasmas.ppc`` (2 `integer`)
     The number of plasma particles per cell in x and y.
