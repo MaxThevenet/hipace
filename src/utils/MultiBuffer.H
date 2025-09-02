@@ -64,13 +64,13 @@ private:
         nprogress,
     };
 
-    // to specify the input for get_buffer_offset
-    enum struct offset_type {
-        beam_idcpu,
-        beam_real,
-        beam_int,
-        laser,
-        total
+    // to get the location in the buffer of the individual data
+    struct BufferOffset {
+        std::vector<std::optional<std::size_t>> m_beam_idcpu;
+        std::vector<std::map<int, std::size_t>> m_beam_real;
+        std::vector<std::map<int, std::size_t>> m_beam_int;
+        std::map<int, std::size_t> m_laser;
+        std::size_t m_total;
     };
 
     // struct to store per-slice data
@@ -151,8 +151,7 @@ private:
     void write_metadata (int slice, MultiBeam& beams, MultiLaser& laser, int beam_slice);
 
     // helper function to get location of individual arrays inside a buffer
-    std::size_t get_buffer_offset (int slice, offset_type type, MultiBeam& beams, MultiLaser& laser,
-                                   int ibeam, int comp);
+    BufferOffset get_buffer_offset (int slice, MultiBeam& beams, MultiLaser& laser);
 
     // copy gpu array into buffer at buffer_offset, either dtoh or dtod
     void memcpy_to_buffer (int slice, std::size_t buffer_offset,
