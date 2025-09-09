@@ -54,12 +54,6 @@ class Helmholtz
 
 public:
 
-    /** Constructor */
-    explicit Helmholtz ()
-    {
-        ReadParameters();
-    }
-
     void ReadParameters ();
 
     /** get function for the 2D slices */

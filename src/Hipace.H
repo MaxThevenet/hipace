@@ -86,6 +86,9 @@ public:
      * and initialize longitudinal and transverse MPI communicators */
     Hipace ();
 
+    /** Read parameters from the input file */
+    void ReadParameters ();
+
     /** Get singleton instance */
     static Hipace& GetInstance ();
 
@@ -184,6 +187,8 @@ public:
     amrex::Vector<amrex::DistributionMapping> m_slice_dm;
     /** xy slice BoxArray, vector over MR levels. Contains only one box */
     amrex::Vector<amrex::BoxArray> m_slice_ba;
+    /** size of the plasma fine patch for each MR level */
+    amrex::Vector<std::array<amrex::Real, 2>> m_plasma_fine_patch;
     /** Pointer to current (and only) instance of class Hipace */
     inline static Hipace* m_instance = nullptr;
     /** Whether to use normalized units */

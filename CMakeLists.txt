@@ -9,7 +9,7 @@
 # Preamble ####################################################################
 #
 cmake_minimum_required(VERSION 3.24.0)
-project(HiPACE VERSION 25.06)
+project(HiPACE VERSION 25.09)
 
 # helper functions
 include(${HiPACE_SOURCE_DIR}/cmake/HiPACEFunctions.cmake)
@@ -448,8 +448,20 @@ if(BUILD_TESTING)
                     WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
             )
 
-            add_test(NAME production.SI.2Rank
-                    COMMAND bash ${HiPACE_SOURCE_DIR}/tests/production.SI.2Rank.sh
+            add_test(NAME production_pwfa.SI.2Rank
+                    COMMAND bash ${HiPACE_SOURCE_DIR}/tests/production_pwfa.SI.2Rank.sh
+                            $<TARGET_FILE:HiPACE> ${HiPACE_SOURCE_DIR}
+                    WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
+            )
+
+            add_test(NAME production_lwfa.SI.2Rank
+                    COMMAND bash ${HiPACE_SOURCE_DIR}/tests/production_lwfa.SI.2Rank.sh
+                            $<TARGET_FILE:HiPACE> ${HiPACE_SOURCE_DIR}
+                    WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
+            )
+
+            add_test(NAME mesh_refinement.SI.2Rank
+                    COMMAND bash ${HiPACE_SOURCE_DIR}/tests/mesh_refinement.SI.2Rank.sh
                             $<TARGET_FILE:HiPACE> ${HiPACE_SOURCE_DIR}
                     WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
             )

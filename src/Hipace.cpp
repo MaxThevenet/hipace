@@ -73,14 +73,24 @@ Hipace::GetInstance ()
 }
 
 Hipace::Hipace () :
-    Hipace_early_init(this),
-    m_fields(m_N_level),
-    m_multi_beam(),
-    m_multi_plasma(),
-    m_adaptive_time_step(m_multi_beam.get_nbeams()),
-    m_multi_laser(),
-    m_helmholtz(),
-    m_diags(m_N_level, m_multi_laser.UseLaser(), m_helmholtz.UseHelmholtz())
+    Hipace_early_init(this)
+{
+    m_fields.ReadParameters(m_N_level);
+    m_multi_beam.ReadParameters();
+    m_multi_plasma.ReadParameters();
+    m_adaptive_time_step.ReadParameters(m_multi_beam.get_nbeams());
+    m_multi_laser.ReadParameters();
+    m_helmholtz.ReadParameters();
+    m_grid_current.ReadParameters();
+    m_diags.ReadParameters(m_N_level, m_multi_laser.UseLaser(), m_helmholtz.UseHelmholtz());
+#ifdef HIPACE_USE_OPENPMD
+    m_openpmd_writer.ReadParameters();
+#endif
+    ReadParameters();
+}
+
+void
+Hipace::ReadParameters ()
 {
     amrex::ParmParse pp;// Traditionally, max_step and stop_time do not have prefix.
     queryWithParser(pp, "max_step", m_max_step);
@@ -242,7 +252,8 @@ Hipace::Hipace () :
     /** Initialize the collision objects */
     m_ncollisions = m_collision_names.size();
     for (int i = 0; i < m_ncollisions; ++i) {
-        m_all_collisions.emplace_back(CoulombCollision(m_multi_plasma.m_names, m_multi_beam.m_names, m_collision_names[i]));
+        m_all_collisions.emplace_back(CoulombCollision());
+        m_all_collisions.back().ReadParameters(m_multi_plasma.m_names, m_multi_beam.m_names, m_collision_names[i]);
     }
     if (m_normalized_units && m_ncollisions > 0) {
         AMREX_ALWAYS_ASSERT_WITH_MESSAGE(m_background_density_SI!=0,
@@ -303,6 +314,7 @@ Hipace::InitData ()
     m_multi_buffer.initialize(m_3D_geom[0].Domain().length(2), m_multi_beam, m_multi_laser, m_helmholtz);
 
     amrex::ParmParse pph("hipace");
+    queryWithParser(pph, "initial_time", m_initial_time);
     bool do_output_input = false;
     queryWithParser(pph, "output_input", do_output_input);
     if (do_output_input && amrex::ParallelDescriptor::IOProcessor()) {
@@ -317,12 +329,15 @@ Hipace::InitData ()
 void
 Hipace::MakeGeometry ()
 {
+    using namespace amrex::literals;
+
     m_3D_geom.resize(m_N_level);
     m_3D_dm.resize(m_N_level);
     m_3D_ba.resize(m_N_level);
     m_slice_geom.resize(m_N_level);
     m_slice_dm.resize(m_N_level);
     m_slice_ba.resize(m_N_level);
+    m_plasma_fine_patch.resize(m_N_level);
 
     // make 3D Geometry, BoxArray, DistributionMapping on level 0
     amrex::ParmParse pp_amr("amr");
@@ -355,6 +370,48 @@ Hipace::MakeGeometry ()
         getWithParser(pp_mrlev, "patch_lo", patch_lo_lev);
         getWithParser(pp_mrlev, "patch_hi", patch_hi_lev);
 
+        std::array<amrex::Real, 2> ref_ratio {0, 0}; // relative to level 0
+        const bool rr_specified = queryWithParser(pp_mrlev, "ref_ratio", ref_ratio);
+
+        m_plasma_fine_patch[lev] = {0, 0}; // relative to level lev patch length
+        queryWithParser(pp_mrlev, "plasma_fine_patch", m_plasma_fine_patch[lev]);
+
+        if (rr_specified) {
+            std::array<amrex::Real, 2> patch_center_lev {
+                0.5_rt * (patch_hi_lev[0] + patch_lo_lev[0]),
+                0.5_rt * (patch_hi_lev[1] + patch_lo_lev[1])
+            };
+
+            std::array<amrex::Real, 2> patch_len_lev {
+                n_cells_lev[0] * m_3D_geom[0].CellSize(0) / ref_ratio[0],
+                n_cells_lev[1] * m_3D_geom[0].CellSize(1) / ref_ratio[1],
+            };
+
+            std::array<amrex::Real, 2> old_patch_len {
+                patch_hi_lev[0] - patch_lo_lev[0],
+                patch_hi_lev[1] - patch_lo_lev[1]
+            };
+
+            AMREX_ALWAYS_ASSERT_WITH_MESSAGE(
+                old_patch_len[0] > 0._rt && old_patch_len[1] > 0._rt &&
+                (std::abs((patch_len_lev[0] - old_patch_len[0]) / old_patch_len[0]) <= 0.05_rt) &&
+                (std::abs((patch_len_lev[1] - old_patch_len[1]) / old_patch_len[1]) <= 0.05_rt),
+                "The refined patch would need to be changed by more than 5% "
+                "to fit the requested refinement ratio! "
+                "The patch length from patch_lo and patch_hi is " +
+                amrex::ToString(old_patch_len) +
+                " but the ref ratio and number of cells would give " +
+                amrex::ToString(patch_len_lev) +
+                "!"
+            );
+
+            patch_lo_lev[0] = patch_center_lev[0] - patch_len_lev[0] * 0.5_rt;
+            patch_lo_lev[1] = patch_center_lev[1] - patch_len_lev[1] * 0.5_rt;
+
+            patch_hi_lev[0] = patch_center_lev[0] + patch_len_lev[0] * 0.5_rt;
+            patch_hi_lev[1] = patch_center_lev[1] + patch_len_lev[1] * 0.5_rt;
+        }
+
         const amrex::Real pos_offset_z = GetPosOffset(2, m_3D_geom[0], m_3D_geom[0].Domain());
 
         const int zeta_lo = std::max( m_3D_geom[lev-1].Domain().smallEnd(2),
@@ -365,8 +422,8 @@ Hipace::MakeGeometry ()
             int(amrex::Math::round((patch_hi_lev[2] - pos_offset_z) * m_3D_geom[0].InvCellSize(2)))
         );
 
-        patch_lo_lev[2] = (zeta_lo-0.5)*m_3D_geom[0].CellSize(2) + pos_offset_z;
-        patch_hi_lev[2] = (zeta_hi+0.5)*m_3D_geom[0].CellSize(2) + pos_offset_z;
+        patch_lo_lev[2] = (zeta_lo-0.5_rt)*m_3D_geom[0].CellSize(2) + pos_offset_z;
+        patch_hi_lev[2] = (zeta_hi+0.5_rt)*m_3D_geom[0].CellSize(2) + pos_offset_z;
 
         const amrex::Box domain_3D_lev{amrex::IntVect(0,0,zeta_lo),
             amrex::IntVect(n_cells_lev[0]-1, n_cells_lev[1]-1, zeta_hi)};
@@ -392,6 +449,30 @@ Hipace::MakeGeometry ()
         amrex::Vector<int> procmap_lev{amrex::ParallelDescriptor::MyProc()};
         m_3D_ba[lev].define(bl_lev);
         m_3D_dm[lev].define(procmap_lev);
+    }
+
+    if (m_verbose > 0) {
+        for (int lev=0; lev<m_N_level; ++lev) {
+            amrex::Print()
+                << "Using "
+                << m_3D_geom[lev].Domain().length()
+                << " cells\n    from "
+                << amrex::RealVect{m_3D_geom[lev].ProbLoArray()}
+                << "\n    to "
+                << amrex::RealVect{m_3D_geom[lev].ProbHiArray()};
+            if (lev > 0) {
+                amrex::Print()
+                    << "\n    on MR level "
+                    << lev
+                    << " with refinement ratio "
+                    << amrex::RealVect{
+                        m_3D_geom[0].CellSize(0) / m_3D_geom[lev].CellSize(0),
+                        m_3D_geom[0].CellSize(1) / m_3D_geom[lev].CellSize(1),
+                        m_3D_geom[0].CellSize(2) / m_3D_geom[lev].CellSize(2)
+                    };
+            }
+            amrex::Print() << "\n";
+        }
     }
 
     // make slice Geometry, BoxArray, DistributionMapping every level

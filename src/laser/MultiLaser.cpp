@@ -109,7 +109,8 @@ MultiLaser::MakeLaserGeometry (const amrex::Geometry& field_geom_3D)
     m_nlasers = m_names.size();
 
     for (int i = 0; i < m_nlasers; ++i) {
-        m_all_lasers.emplace_back(Laser(m_names[i], m_laser_geom_3D));
+        m_all_lasers.emplace_back(Laser(m_names[i]));
+        m_all_lasers.back().ReadParameters(m_laser_geom_3D);
         amrex::Print()<<"Laser "+ m_names[i] + " loaded" << "\n";
     }
 
@@ -849,8 +850,11 @@ MultiLaser::InitLaserSlice (const int islice, const int comp)
                     arr(i, j, k, comp + 1 ) += arr_ff(i, j, islice, 1 );
                 }
                 );
-                AMREX_ASSERT_WITH_MESSAGE(laser.m_lambda0_from_file == m_lambda0 && m_lambda0 != 0,
-                "The central wavelength of laser from openPMD file and other lasers must be identical");
+                AMREX_ALWAYS_ASSERT_WITH_MESSAGE(
+                    laser.m_lambda0_from_file == m_lambda0 && m_lambda0 != 0,
+                    "The central wavelength of laser from openPMD file and "
+                    "other lasers must be identical"
+                );
             }
             if (laser.m_laser_init_type == "parser") {
                 auto profile_real = laser.m_profile_real;

@@ -15,7 +15,8 @@
 #include "utils/IOUtil.H"
 #include "Hipace.H"
 
-MultiPlasma::MultiPlasma ()
+void
+MultiPlasma::ReadParameters ()
 {
     amrex::ParmParse pp("plasmas");
     queryWithParser(pp, "names", m_names);
@@ -32,6 +33,7 @@ MultiPlasma::MultiPlasma ()
     for (int i = 0; i < m_nplasmas; ++i) {
         AMREX_ALWAYS_ASSERT_WITH_MESSAGE(m_names[i]!="beam", "Cannot have plasma with name 'beam'");
         m_all_plasmas.emplace_back(PlasmaParticleContainer(m_names[i]));
+        m_all_plasmas.back().ReadParameters();
     }
 
 }
@@ -44,7 +46,7 @@ MultiPlasma::InitData (amrex::Vector<amrex::BoxArray> slice_ba,
     for (auto& plasma : m_all_plasmas) {
         // make it think there is only level 0
         plasma.SetParGDB(slice_gm[0], slice_dm[0], slice_ba[0]);
-        plasma.InitData(gm[0]);
+        plasma.InitData(gm);
 
         if(plasma.m_can_ionize) {
             for (int i=0; i<m_names.size(); ++i) {
