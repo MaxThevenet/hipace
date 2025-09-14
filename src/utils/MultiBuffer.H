@@ -123,6 +123,7 @@ private:
     int m_max_trailing_slices = std::numeric_limits<int>::max();
     std::size_t m_current_buffer_size = 0;
     std::size_t m_max_buffer_size = std::numeric_limits<std::size_t>::max();
+    int m_max_open_requests = std::numeric_limits<int>::max();
 
     // parameters to send physical time
     amrex::Real m_time_send_buffer = 0.;
@@ -132,6 +133,14 @@ private:
     // slice index of where to continue making async progress
     std::array<int, comm_progress::nprogress> m_async_metadata_slice {};
     std::array<int, comm_progress::nprogress> m_async_data_slice {};
+
+    // calculate distance of a and b in the periodic range [0,m_nslices) with
+    // a barrier at current_slice
+    int periodic_distance (int current_slice, int a, int b) const;
+
+    // calculate min of a and b in the periodic range [0,m_nslices) with
+    // a barrier at current_slice
+    int periodic_min (int current_slice, int a, int b) const;
 
     // send some dummy messages so MPI can pre-register the memory
     void pre_register_memory ();
@@ -145,7 +154,10 @@ private:
     void free_buffer (int slice);
 
     // function containing main progress loop to deal with asynchronous MPI requests
-    void make_progress (int slice, bool is_blocking, int current_slice);
+    void make_progress (int slice, bool is_blocking_recv, int current_slice);
+
+    // call make_progress until the current slice is received
+    void progress_loop (int slice, bool is_blocking_recv);
 
     // write MultiBeam sizes into the metadata array
     void write_metadata (int slice, MultiBeam& beams, MultiLaser& laser, int beam_slice);
