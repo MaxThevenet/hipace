@@ -403,13 +403,11 @@ void MultiBuffer::make_progress (int slice, bool is_blocking_recv,
         if (is_blocking_recv) {
             MPI_Wait(&(m_datanodes[slice].m_metadata_request), MPI_STATUS_IGNORE);
             m_datanodes[slice].m_metadata_progress = comm_progress::received;
-            m_datanodes[slice].m_buffer_size = get_metadata_location(slice)[0];
         } else {
             int is_complete = false;
             MPI_Test(&(m_datanodes[slice].m_metadata_request), &is_complete, MPI_STATUS_IGNORE);
             if (is_complete) {
                 m_datanodes[slice].m_metadata_progress = comm_progress::received;
-                m_datanodes[slice].m_buffer_size = get_metadata_location(slice)[0];
             }
         }
     }
@@ -431,6 +429,10 @@ void MultiBuffer::make_progress (int slice, bool is_blocking_recv,
 
     if (m_datanodes[slice].m_progress == comm_progress::sent &&
         m_datanodes[slice].m_metadata_progress == comm_progress::received) {
+
+        AMREX_ALWAYS_ASSERT(m_datanodes[slice].m_location == memory_location::nowhere);
+
+        m_datanodes[slice].m_buffer_size = get_metadata_location(slice)[0];
 
         // enforce that slices are received in order
         const bool allow_data_recv = is_blocking_recv ||
