@@ -90,6 +90,8 @@ void MultiBuffer::initialize (int nslices, MultiBeam& beams, MultiLaser& laser) 
     queryWithParser(pp, "max_leading_slices", m_max_leading_slices);
     queryWithParser(pp, "max_trailing_slices", m_max_trailing_slices);
     queryWithParser(pp, "max_open_requests", m_max_open_requests);
+    AMREX_ALWAYS_ASSERT_WITH_MESSAGE(m_max_open_requests >= 2,
+        "max_open_requests must be at least 2");
 #ifdef AMREX_USE_GPU
     queryWithParser(pp, "async_memcpy", m_async_memcpy);
     if (m_buffer_on_gpu)
@@ -178,7 +180,7 @@ void MultiBuffer::initialize (int nslices, MultiBeam& beams, MultiLaser& laser) 
     }
 
     // open initial receives
-    progress_loop(m_nslices-1, false);
+    async_progress(m_nslices-1);
 }
 
 void MultiBuffer::pre_register_memory () {
@@ -482,17 +484,14 @@ void MultiBuffer::make_progress (int slice, bool is_blocking_recv,
 #endif
 }
 
-void MultiBuffer::progress_loop (int slice, bool is_blocking_recv) {
+void MultiBuffer::async_progress (int slice) {
 
-    make_progress(slice, is_blocking_recv, slice);
+    make_progress(slice, false, slice);
 
-    if (is_blocking_recv) {
-        return;
-    }
-
-    // make asynchronous progress for metadata
+    // make asynchronous progress for data and metadata
     // only check slices that have a chance of making progress
     // first progress type starts at slice-1 or where it last stopped
+
     m_async_metadata_slice[comm_progress::async_progress_end] =
         slice == 0 ? m_nslices - 1 : slice - 1;
     for (int p=comm_progress::async_progress_end-1; p>comm_progress::async_progress_begin; --p) {
@@ -511,16 +510,12 @@ void MultiBuffer::progress_loop (int slice, bool is_blocking_recv) {
         }
     }
 
-    // make asynchronous progress for data
-    // only check slices that have a chance of making progress
-    // first progress type starts at slice-1 or where it last stopped
     m_async_data_slice[comm_progress::async_progress_end] =
         slice == 0 ? m_nslices - 1 : slice - 1;
     for (int p=comm_progress::async_progress_end-1; p>comm_progress::async_progress_begin; --p) {
         m_async_data_slice[p] =
             periodic_min(slice, m_async_data_slice[p], m_async_data_slice[p+1]);
 
-        // start at slice-1 (next slice), iterate backwards, loop around, stop at slice+1
         for (int i = m_async_data_slice[p]; i!=slice; (i==0) ? i=m_nslices-1 : --i) {
             m_async_data_slice[p] = i;
             if (m_datanodes[i].m_progress < p) {
@@ -625,7 +620,7 @@ void MultiBuffer::put_data (int slice, MultiBeam& beams, MultiLaser& laser, int 
         }
     }
 
-    progress_loop(slice, false);
+    async_progress(slice);
 }
 
 amrex::Real MultiBuffer::get_time () {

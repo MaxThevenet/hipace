@@ -156,8 +156,8 @@ private:
     // function containing main progress loop to deal with asynchronous MPI requests
     void make_progress (int slice, bool is_blocking_recv, int current_slice);
 
-    // call make_progress until the current slice is received
-    void progress_loop (int slice, bool is_blocking_recv);
+    // call make_progress asynchronously on strategic slices
+    void async_progress (int slice);
 
     // write MultiBeam sizes into the metadata array
     void write_metadata (int slice, MultiBeam& beams, MultiLaser& laser, int beam_slice);
