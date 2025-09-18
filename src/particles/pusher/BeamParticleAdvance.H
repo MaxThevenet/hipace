@@ -20,7 +20,6 @@
  * \param[in] slice longitudinal slice
  * \param[in] current_N_level number of MR levels active on the current slice
  * \param[in] helmholtz the helmholtz grid
- * \param[in] mag magnetic undulator object
  * \param[in] chicBs array of 4 elements for the magnetic field values in a chicane
  * \param[in] chicLs array of 4 elements for the magnet lengths in a chicane
  * \param[in] chicZs array of 4 elements for the position of beginning of magnets in a chicane
