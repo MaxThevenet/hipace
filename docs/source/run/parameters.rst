@@ -104,6 +104,13 @@ General parameters
     laser slice to avoid a deadlock, i.e.
     ``comms_buffer.max_size_GiB * nranks > beam_size + laser_size``.
 
+* ``comms_buffer.max_open_requests`` (`int`) optional (default `1000`)
+    How many MPI requests may be open at the same time. Note that this is counted separately
+    for each of the four different kinds of requests used. Must be set to at least two.
+    Limiting the number of open requests is useful for simulations with many zeta slices
+    (`>10000`) to reduce work for the MPI implementation.
+    Note that setting the limit too low may result in a deadlock.
+
 * ``comms_buffer.max_leading_slices`` (`int`) optional (default `inf`)
     How many slices of beam particles can be received and stored in advance.
 

@@ -10,6 +10,19 @@
 #include "HipaceProfilerWrapper.H"
 #include "Parser.H"
 
+int MultiBuffer::periodic_distance (int current_slice, int a, int b) const {
+    if (a <= current_slice) {
+        a += m_nslices;
+    }
+    if (b <= current_slice) {
+        b += m_nslices;
+    }
+    return b - a;
+}
+
+int MultiBuffer::periodic_min (int current_slice, int a, int b) const {
+    return periodic_distance(current_slice, a, b) < 0 ? b : a;
+}
 
 std::size_t MultiBuffer::get_metadata_size () {
     // 0: buffer size
@@ -77,6 +90,9 @@ void MultiBuffer::initialize (int nslices, MultiBeam& beams, MultiLaser& laser,
     queryWithParser(pp, "on_gpu", m_buffer_on_gpu);
     queryWithParser(pp, "max_leading_slices", m_max_leading_slices);
     queryWithParser(pp, "max_trailing_slices", m_max_trailing_slices);
+    queryWithParser(pp, "max_open_requests", m_max_open_requests);
+    AMREX_ALWAYS_ASSERT_WITH_MESSAGE(m_max_open_requests >= 2,
+        "max_open_requests must be at least 2");
 #ifdef AMREX_USE_GPU
     queryWithParser(pp, "async_memcpy", m_async_memcpy);
     if (m_buffer_on_gpu)
@@ -172,9 +188,7 @@ void MultiBuffer::initialize (int nslices, MultiBeam& beams, MultiLaser& laser,
     }
 
     // open initial receives
-    for (int i = m_nslices-1; i >= 0; --i) {
-        make_progress(i, false, m_nslices-1);
-    }
+    async_progress(m_nslices-1);
 }
 
 void MultiBuffer::pre_register_memory () {
@@ -293,23 +307,16 @@ MultiBuffer::~MultiBuffer () {
 #endif
 }
 
-void MultiBuffer::make_progress (int slice, bool is_blocking, int current_slice) {
-    const bool is_first_slice_with_recv_data =
-        m_async_data_slice[comm_progress::receive_started] == slice;
-    const bool is_last_slice_with_send_data =
-        m_async_data_slice[comm_progress::sent] == slice;
-    const bool is_blocking_send = is_blocking ||
-        ((m_nslices + slice - current_slice) % m_nslices > m_max_trailing_slices) ||
-        (is_last_slice_with_send_data && (m_current_buffer_size > m_max_buffer_size));
-    const bool is_blocking_recv = is_blocking;
-    const bool skip_recv = !is_blocking_recv && (slice == current_slice ||
-        (m_nslices - slice + current_slice) % m_nslices > m_max_leading_slices);
+void MultiBuffer::make_progress (int slice, bool is_blocking_recv,
+                                 [[maybe_unused]] int current_slice) {
 
     if (m_is_serial) {
-        if (is_blocking) {
+        if (is_blocking_recv) {
             // send buffer to myself
-            AMREX_ALWAYS_ASSERT(m_datanodes[slice].m_metadata_progress == comm_progress::ready_to_send);
-            AMREX_ALWAYS_ASSERT(m_datanodes[slice].m_progress == comm_progress::ready_to_send);
+            AMREX_ALWAYS_ASSERT(m_datanodes[slice].m_metadata_progress ==
+                                comm_progress::ready_to_send);
+            AMREX_ALWAYS_ASSERT(m_datanodes[slice].m_progress ==
+                                comm_progress::ready_to_send);
             m_datanodes[slice].m_metadata_progress = comm_progress::received;
             m_datanodes[slice].m_progress = comm_progress::received;
         }
@@ -318,23 +325,45 @@ void MultiBuffer::make_progress (int slice, bool is_blocking, int current_slice)
 
 #ifdef AMREX_USE_MPI
 
+    const bool is_within_max_leading_slices = slice != current_slice &&
+        (m_nslices - slice + current_slice) % m_nslices <= m_max_leading_slices;
+    const bool is_within_max_trailing_slices =
+        (m_nslices + slice - current_slice) % m_nslices <= m_max_trailing_slices;
+
+    const bool is_blocking_send = is_blocking_recv ||
+        !is_within_max_trailing_slices ||
+        (m_async_data_slice[comm_progress::sent] == slice &&
+            m_current_buffer_size > m_max_buffer_size);
+
     if (m_datanodes[slice].m_metadata_progress == comm_progress::ready_to_send) {
-        MPI_Isend(
-            get_metadata_location(slice),
-            get_metadata_size(),
-            amrex::ParallelDescriptor::Mpi_typemap<std::size_t>::type(),
-            m_rank_send_to,
-            m_tag_metadata_start + slice,
-            m_comm,
-            &(m_datanodes[slice].m_metadata_request));
-        m_datanodes[slice].m_metadata_progress = comm_progress::send_started;
+
+        const bool allow_metadata_send = is_blocking_send ||
+            (periodic_distance(current_slice, slice,
+                m_async_metadata_slice[comm_progress::sent]) < m_max_open_requests);
+
+        if (allow_metadata_send) {
+            MPI_Isend(
+                get_metadata_location(slice),
+                get_metadata_size(),
+                amrex::ParallelDescriptor::Mpi_typemap<std::size_t>::type(),
+                m_rank_send_to,
+                m_tag_metadata_start + slice,
+                m_comm,
+                &(m_datanodes[slice].m_metadata_request));
+            m_datanodes[slice].m_metadata_progress = comm_progress::send_started;
+        }
     }
 
     if (m_datanodes[slice].m_progress == comm_progress::ready_to_send) {
+
+        const bool allow_data_send = is_blocking_send ||
+            (periodic_distance(current_slice, slice,
+                m_async_data_slice[comm_progress::sent]) < m_max_open_requests);
+
         if (m_datanodes[slice].m_buffer_size == 0) {
             // don't send empty buffer
             m_datanodes[slice].m_progress = comm_progress::sent;
-        } else {
+        } else if (allow_data_send) {
             MPI_Isend(
                 m_datanodes[slice].m_buffer,
                 m_datanodes[slice].m_buffer_size,
@@ -360,16 +389,24 @@ void MultiBuffer::make_progress (int slice, bool is_blocking, int current_slice)
         }
     }
 
-    if (m_datanodes[slice].m_metadata_progress == comm_progress::sent && !skip_recv) {
-        MPI_Irecv(
-            get_metadata_location(slice),
-            get_metadata_size(),
-            amrex::ParallelDescriptor::Mpi_typemap<std::size_t>::type(),
-            m_rank_receive_from,
-            m_tag_metadata_start + slice,
-            m_comm,
-            &(m_datanodes[slice].m_metadata_request));
-        m_datanodes[slice].m_metadata_progress = comm_progress::receive_started;
+    if (m_datanodes[slice].m_metadata_progress == comm_progress::sent) {
+
+        const bool allow_metadata_recv = is_blocking_recv ||
+            (is_within_max_leading_slices &&
+            (periodic_distance(current_slice, slice,
+                m_async_metadata_slice[comm_progress::received]) < m_max_open_requests));
+
+        if (allow_metadata_recv) {
+            MPI_Irecv(
+                get_metadata_location(slice),
+                get_metadata_size(),
+                amrex::ParallelDescriptor::Mpi_typemap<std::size_t>::type(),
+                m_rank_receive_from,
+                m_tag_metadata_start + slice,
+                m_comm,
+                &(m_datanodes[slice].m_metadata_request));
+            m_datanodes[slice].m_metadata_progress = comm_progress::receive_started;
+        }
     }
 
     if (m_datanodes[slice].m_metadata_progress == comm_progress::receive_started) {
@@ -407,25 +444,30 @@ void MultiBuffer::make_progress (int slice, bool is_blocking, int current_slice)
 
         m_datanodes[slice].m_buffer_size = get_metadata_location(slice)[0];
 
+        // enforce that slices are received in order
+        const bool allow_data_recv = is_blocking_recv ||
+            (m_async_data_slice[comm_progress::receive_started] == slice &&
+            is_within_max_leading_slices &&
+            (m_current_buffer_size + m_datanodes[slice].m_buffer_size * sizeof(storage_type)
+                <= m_max_buffer_size) &&
+            (periodic_distance(current_slice, slice,
+                m_async_data_slice[comm_progress::received]) < m_max_open_requests));
+
         if (m_datanodes[slice].m_buffer_size == 0) {
             // don't receive empty buffer
             m_datanodes[slice].m_progress = comm_progress::received;
-        } else {
-            // enforce that slices are received in order
-            if (is_blocking_recv || (is_first_slice_with_recv_data &&
-                (m_current_buffer_size + m_datanodes[slice].m_buffer_size * sizeof(storage_type)
-                <= m_max_buffer_size))) {
-                allocate_buffer(slice);
-                MPI_Irecv(
-                    m_datanodes[slice].m_buffer,
-                    m_datanodes[slice].m_buffer_size,
-                    amrex::ParallelDescriptor::Mpi_typemap<storage_type>::type(),
-                    m_rank_receive_from,
-                    m_tag_buffer_start + slice,
-                    m_comm,
-                    &(m_datanodes[slice].m_request));
-                m_datanodes[slice].m_progress = comm_progress::receive_started;
-            }
+        } else if (allow_data_recv) {
+            AMREX_ALWAYS_ASSERT(m_datanodes[slice].m_location == memory_location::nowhere);
+            allocate_buffer(slice);
+            MPI_Irecv(
+                m_datanodes[slice].m_buffer,
+                m_datanodes[slice].m_buffer_size,
+                amrex::ParallelDescriptor::Mpi_typemap<storage_type>::type(),
+                m_rank_receive_from,
+                m_tag_buffer_start + slice,
+                m_comm,
+                &(m_datanodes[slice].m_request));
+            m_datanodes[slice].m_progress = comm_progress::receive_started;
         }
     }
 
@@ -448,6 +490,50 @@ void MultiBuffer::make_progress (int slice, bool is_blocking, int current_slice)
     }
 
 #endif
+}
+
+void MultiBuffer::async_progress (int slice) {
+
+    make_progress(slice, false, slice);
+
+    // make asynchronous progress for data and metadata
+    // only check slices that have a chance of making progress
+    // first progress type starts at slice-1 or where it last stopped
+
+    m_async_metadata_slice[comm_progress::async_progress_end] =
+        slice == 0 ? m_nslices - 1 : slice - 1;
+    for (int p=comm_progress::async_progress_end-1; p>comm_progress::async_progress_begin; --p) {
+        m_async_metadata_slice[p] =
+            periodic_min(slice, m_async_metadata_slice[p], m_async_metadata_slice[p+1]);
+
+        // start at slice-1 (next slice), iterate backwards, loop around, stop at slice+1
+        for (int i = m_async_metadata_slice[p]; i!=slice; (i==0) ? i=m_nslices-1 : --i) {
+            m_async_metadata_slice[p] = i;
+            if (m_datanodes[i].m_metadata_progress < p) {
+                make_progress(i, false, slice);
+            }
+            if (m_datanodes[i].m_metadata_progress < p) {
+                break;
+            }
+        }
+    }
+
+    m_async_data_slice[comm_progress::async_progress_end] =
+        slice == 0 ? m_nslices - 1 : slice - 1;
+    for (int p=comm_progress::async_progress_end-1; p>comm_progress::async_progress_begin; --p) {
+        m_async_data_slice[p] =
+            periodic_min(slice, m_async_data_slice[p], m_async_data_slice[p+1]);
+
+        for (int i = m_async_data_slice[p]; i!=slice; (i==0) ? i=m_nslices-1 : --i) {
+            m_async_data_slice[p] = i;
+            if (m_datanodes[i].m_progress < p) {
+                make_progress(i, false, slice);
+            }
+            if (m_datanodes[i].m_progress < p) {
+                break;
+            }
+        }
+    }
 }
 
 void MultiBuffer::get_data (int slice, MultiBeam& beams, MultiLaser& laser, Helmholtz& helmholtz,
@@ -552,79 +638,7 @@ void MultiBuffer::put_data (int slice, MultiBeam& beams, MultiLaser& laser, Helm
         }
     }
 
-    make_progress(slice, false, slice);
-
-    // make asynchronous progress for metadata
-    // only check slices that have a chance of making progress
-    for (int p=comm_progress::async_progress_end-1; p>comm_progress::async_progress_begin; --p) {
-        if (p == comm_progress::async_progress_end-1) {
-            // first progress type starts at slice-1 or where it last stopped
-            if (m_async_metadata_slice[p] == slice) {
-                if (slice == 0) {
-                    m_async_metadata_slice[p] = m_nslices - 1;
-                } else {
-                    --m_async_metadata_slice[p];
-                }
-            }
-        } else {
-            // all other progress types start at the minimum of where they or
-            // the previous progress type last stopped
-            if ((m_async_metadata_slice[p+1] < slice) == (m_async_metadata_slice[p] <= slice)) {
-                if (m_async_metadata_slice[p+1] < m_async_metadata_slice[p]) {
-                    m_async_metadata_slice[p] = m_async_metadata_slice[p+1];
-                }
-            } else if (m_async_metadata_slice[p+1] > slice && m_async_metadata_slice[p] <= slice) {
-                m_async_metadata_slice[p] = m_async_metadata_slice[p+1];
-            }
-        }
-
-        // start at slice-1 (next slice), iterate backwards, loop around, stop at slice+1
-        for (int i = m_async_metadata_slice[p]; i!=slice; (i==0) ? i=m_nslices-1 : --i) {
-            m_async_metadata_slice[p] = i;
-            if (m_datanodes[i].m_metadata_progress < p) {
-                make_progress(i, false, slice);
-            }
-            if (m_datanodes[i].m_metadata_progress < p) {
-                break;
-            }
-        }
-    }
-
-    // make asynchronous progress for data
-    // only check slices that have a chance of making progress
-    for (int p=comm_progress::async_progress_end-1; p>comm_progress::async_progress_begin; --p) {
-        if (p == comm_progress::async_progress_end-1) {
-            // first progress type starts at slice-1 or where it last stopped
-            if (m_async_data_slice[p] == slice) {
-                if (slice == 0) {
-                    m_async_data_slice[p] = m_nslices - 1;
-                } else {
-                    --m_async_data_slice[p];
-                }
-            }
-        } else {
-            // all other progress types start at the minimum of where they or
-            // the previous progress type last stopped
-            if ((m_async_data_slice[p+1] < slice) == (m_async_data_slice[p] <= slice)) {
-                if (m_async_data_slice[p+1] < m_async_data_slice[p]) {
-                    m_async_data_slice[p] = m_async_data_slice[p+1];
-                }
-            } else if (m_async_data_slice[p+1] > slice && m_async_data_slice[p] <= slice) {
-                m_async_data_slice[p] = m_async_data_slice[p+1];
-            }
-        }
-
-        // start at slice-1 (next slice), iterate backwards, loop around, stop at slice+1
-        for (int i = m_async_data_slice[p]; i!=slice; (i==0) ? i=m_nslices-1 : --i) {
-            m_async_data_slice[p] = i;
-            if (m_datanodes[i].m_progress < p) {
-                make_progress(i, false, slice);
-            }
-            if (m_datanodes[i].m_progress < p) {
-                break;
-            }
-        }
-    }
+    async_progress(slice);
 }
 
 amrex::Real MultiBuffer::get_time () {
@@ -678,7 +692,7 @@ void MultiBuffer::write_metadata (int slice, MultiBeam& beams, MultiLaser& laser
         // write number of beam particles (per beam)
         get_metadata_location(slice)[b + 1] = beams.getBeam(b).getNumParticles(beam_slice);
     }
-    std::size_t offset = get_buffer_offset(slice, offset_type::total, beams, laser, helmholtz, 0, 0);
+    std::size_t offset = get_buffer_offset(slice, beams, laser, helmholtz).m_total;
     // write total buffer size
     get_metadata_location(slice)[0] = (offset+sizeof(storage_type)-1) / sizeof(storage_type);
     m_datanodes[slice].m_buffer_size = get_metadata_location(slice)[0];
@@ -687,12 +701,17 @@ void MultiBuffer::write_metadata (int slice, MultiBeam& beams, MultiLaser& laser
     AMREX_ALWAYS_ASSERT(get_metadata_location(slice)[0] < std::numeric_limits<int>::max());
 }
 
-std::size_t MultiBuffer::get_buffer_offset (int slice, offset_type type, MultiBeam& beams,
-                                            MultiLaser& laser, Helmholtz& helmholtz, int ibeam,
-                                            int comp) {
+MultiBuffer::BufferOffset MultiBuffer::get_buffer_offset (int slice, MultiBeam& beams,
+                                                          MultiLaser& laser, Helmholtz& helmholtz) {
     // calculate offset for each chunk of data in one place
     // to ensure consistency between packing and unpacking
+    BufferOffset buffer_offset;
+
     std::size_t offset = 0;
+
+    buffer_offset.m_beam_idcpu.resize(m_nbeams);
+    buffer_offset.m_beam_real.resize(m_nbeams);
+    buffer_offset.m_beam_int.resize(m_nbeams);
 
     for (int b = 0; b < m_nbeams; ++b) {
         auto& beam = beams.getBeam(b);
@@ -702,18 +721,14 @@ std::size_t MultiBuffer::get_buffer_offset (int slice, offset_type type, MultiBe
 
         // add offset for idcpu, if used
         if (beam.communicateIdCpuComponent()) {
-            if (type == offset_type::beam_idcpu && ibeam == b) {
-                return offset;
-            }
+            buffer_offset.m_beam_idcpu[b] = offset;
             offset += num_particles_round_up * sizeof(std::uint64_t);
         }
 
         // add offset for real components, if used
         for (int rcomp = 0; rcomp < beam.numRealComponents(); ++rcomp) {
             if (beam.communicateRealComponent(rcomp)) {
-                if (type == offset_type::beam_real && ibeam == b && rcomp == comp) {
-                    return offset;
-                }
+                buffer_offset.m_beam_real[b][rcomp] = offset;
                 offset += num_particles_round_up * sizeof(amrex::Real);
             }
         }
@@ -721,9 +736,7 @@ std::size_t MultiBuffer::get_buffer_offset (int slice, offset_type type, MultiBe
         // add offset for int components, if used
         for (int icomp = 0; icomp < beam.numIntComponents(); ++icomp) {
             if (beam.communicateIntComponent(icomp)) {
-                if (type == offset_type::beam_int && ibeam == b && icomp == comp) {
-                    return offset;
-                }
+                buffer_offset.m_beam_int[b][icomp] = offset;
                 offset += num_particles_round_up * sizeof(int);
             }
         }
@@ -732,30 +745,22 @@ std::size_t MultiBuffer::get_buffer_offset (int slice, offset_type type, MultiBe
     // add offset for laser, if used
     if (laser.UseLaser(slice)) {
         for (int lcomp = 0; lcomp < m_laser_ncomp; ++lcomp) {
-            if (type == offset_type::laser && lcomp == comp) {
-                return offset;
-            }
+            buffer_offset.m_laser[lcomp] = offset;
             offset += laser.getSlices()[0].box().numPts() * sizeof(amrex::Real);
         }
     }
 
     // add offset for helmoltz, if used
     if (helmholtz.UseHelmholtz(slice)) {
-        for (int lcomp = 0; lcomp < m_helmholtz_ncomp; ++lcomp) {
-            if (type == offset_type::helmholtz && lcomp == comp) {
-                return offset;
-            }
+        for (int hcomp = 0; hcomp < m_helmholtz_ncomp; ++hcomp) {
+            buffer_offset.m_helmholtz[hcomp] = offset;
             offset += helmholtz.getSlices()[0].box().numPts() * sizeof(amrex::Real);
         }
     }
 
-    if (type == offset_type::total) {
-        return offset;
-    }
+    buffer_offset.m_total = offset;
 
-    // requested component is not supposed to be communicated, abort
-    amrex::Abort("MultiBuffer::get_buffer_offset invalid argument");
-    return 0;
+    return buffer_offset;
 }
 
 void MultiBuffer::memcpy_to_buffer (int slice, std::size_t buffer_offset,
@@ -836,6 +841,9 @@ void MultiBuffer::async_memcpy_from_buffer_finish () {
 
 void MultiBuffer::pack_data (int slice, MultiBeam& beams, MultiLaser& laser, Helmholtz& helmholtz,
                              int beam_slice) {
+
+    const BufferOffset bo = get_buffer_offset(slice, beams, laser, helmholtz);
+
     for (int b = 0; b < m_nbeams; ++b) {
         auto& beam = beams.getBeam(b);
         const int num_particles = beam.getNumParticles(beam_slice);
@@ -843,8 +851,7 @@ void MultiBuffer::pack_data (int slice, MultiBeam& beams, MultiLaser& laser, Hel
 
         if (beam.communicateIdCpuComponent()) {
             // only pack idcpu component if it should be communicated
-            memcpy_to_buffer(slice, get_buffer_offset(slice, offset_type::beam_idcpu,
-                                                      beams, laser, helmholtz, b, 0),
+            memcpy_to_buffer(slice, bo.m_beam_idcpu[b].value(),
                              soa.GetIdCPUData().dataPtr(),
                              num_particles * sizeof(std::uint64_t));
         }
@@ -852,8 +859,7 @@ void MultiBuffer::pack_data (int slice, MultiBeam& beams, MultiLaser& laser, Hel
         for (int rcomp = 0; rcomp < beam.numRealComponents(); ++rcomp) {
             // only pack real component if it should be communicated
             if (beam.communicateRealComponent(rcomp)) {
-                memcpy_to_buffer(slice, get_buffer_offset(slice, offset_type::beam_real,
-                                                          beams, laser, helmholtz, b, rcomp),
+                memcpy_to_buffer(slice, bo.m_beam_real[b].at(rcomp),
                                  soa.GetRealData(rcomp).dataPtr(),
                                  num_particles * sizeof(amrex::Real));
             }
@@ -862,8 +868,7 @@ void MultiBuffer::pack_data (int slice, MultiBeam& beams, MultiLaser& laser, Hel
         for (int icomp = 0; icomp < beam.numIntComponents(); ++icomp) {
             // only pack int component if it should be communicated
             if (beam.communicateIntComponent(icomp)) {
-                memcpy_to_buffer(slice, get_buffer_offset(slice, offset_type::beam_int,
-                                                          beams, laser, helmholtz, b, icomp),
+                memcpy_to_buffer(slice, bo.m_beam_int[b].at(icomp),
                                  soa.GetIntData(icomp).dataPtr(),
                                  num_particles * sizeof(int));
             }
@@ -874,12 +879,10 @@ void MultiBuffer::pack_data (int slice, MultiBeam& beams, MultiLaser& laser, Hel
         const int laser_comp_0_1 = (beam_slice == WhichBeamSlice::Next) ? np1jp2_r : np1j00_r;
         const int laser_comp_2_3 = (beam_slice == WhichBeamSlice::Next) ? n00jp2_r : n00j00_r;
         // copy real and imag components in one operation
-        memcpy_to_buffer(slice, get_buffer_offset(slice, offset_type::laser, beams, laser,
-                                                  helmholtz, 0, 0),
+        memcpy_to_buffer(slice, bo.m_laser.at(0),
                          laser.getSlices()[0].dataPtr(laser_comp_0_1),
                          2 * laser.getSlices()[0].box().numPts() * sizeof(amrex::Real));
-        memcpy_to_buffer(slice, get_buffer_offset(slice, offset_type::laser, beams, laser,
-                                                  helmholtz, 0, 2),
+        memcpy_to_buffer(slice, bo.m_laser.at(2),
                          laser.getSlices()[0].dataPtr(laser_comp_2_3),
                          2 * laser.getSlices()[0].box().numPts() * sizeof(amrex::Real));
     }
@@ -893,12 +896,10 @@ void MultiBuffer::pack_data (int slice, MultiBeam& beams, MultiLaser& laser, Hel
             (beam_slice == WhichBeamSlice::Next) ? Ex_np1jp2 : Ex_np1j00;
         const int helmholtz_comp_1 =
             (beam_slice == WhichBeamSlice::Next) ? Ex_n00jm1 : Ex_n00j00;
-        memcpy_to_buffer(slice, get_buffer_offset(slice, offset_type::helmholtz, beams, laser,
-                                                  helmholtz, 0, 0),
+        memcpy_to_buffer(slice, bo.m_helmholtz.at(0),
                          helmholtz.getSlices()[0].dataPtr(helmholtz_comp_0),
                          helmholtz.getSlices()[0].box().numPts() * sizeof(amrex::Real));
-        memcpy_to_buffer(slice, get_buffer_offset(slice, offset_type::helmholtz, beams, laser,
-                                                  helmholtz, 0, 1),
+        memcpy_to_buffer(slice, bo.m_helmholtz.at(1),
                          helmholtz.getSlices()[0].dataPtr(helmholtz_comp_1),
                          helmholtz.getSlices()[0].box().numPts() * sizeof(amrex::Real));
         // copy imag
@@ -907,12 +908,10 @@ void MultiBuffer::pack_data (int slice, MultiBeam& beams, MultiLaser& laser, Hel
                 (beam_slice == WhichBeamSlice::Next) ? Ei_np1jp2 : Ei_np1j00;
             const int helmholtz_comp_3 =
                 (beam_slice == WhichBeamSlice::Next) ? Ei_n00jm1 : Ei_n00j00;
-            memcpy_to_buffer(slice, get_buffer_offset(slice, offset_type::helmholtz, beams, laser,
-                                                      helmholtz, 0, 2),
+            memcpy_to_buffer(slice, bo.m_helmholtz.at(2),
                              helmholtz.getSlices()[0].dataPtr(helmholtz_comp_2),
                              helmholtz.getSlices()[0].box().numPts() * sizeof(amrex::Real));
-            memcpy_to_buffer(slice, get_buffer_offset(slice, offset_type::helmholtz, beams, laser,
-                                                      helmholtz, 0, 3),
+            memcpy_to_buffer(slice, bo.m_helmholtz.at(3),
                              helmholtz.getSlices()[0].dataPtr(helmholtz_comp_3),
                              helmholtz.getSlices()[0].box().numPts() * sizeof(amrex::Real));
         }
@@ -926,6 +925,9 @@ void MultiBuffer::pack_data (int slice, MultiBeam& beams, MultiLaser& laser, Hel
 
 void MultiBuffer::unpack_data (int slice, MultiBeam& beams, MultiLaser& laser, Helmholtz& helmholtz,
                                int beam_slice) {
+
+    const BufferOffset bo = get_buffer_offset(slice, beams, laser, helmholtz);
+
     for (int b = 0; b < m_nbeams; ++b) {
         auto& beam = beams.getBeam(b);
         const int num_particles = get_metadata_location(slice)[b + 1];
@@ -934,8 +936,7 @@ void MultiBuffer::unpack_data (int slice, MultiBeam& beams, MultiLaser& laser, H
 
         if (beam.communicateIdCpuComponent()) {
             // only undpack idcpu component if it should be communicated
-            memcpy_from_buffer(slice, get_buffer_offset(slice, offset_type::beam_idcpu,
-                                                        beams, laser, helmholtz, b, 0),
+            memcpy_from_buffer(slice, bo.m_beam_idcpu[b].value(),
                                soa.GetIdCPUData().dataPtr(),
                                num_particles * sizeof(std::uint64_t));
         } else {
@@ -950,8 +951,7 @@ void MultiBuffer::unpack_data (int slice, MultiBeam& beams, MultiLaser& laser, H
         for (int rcomp = 0; rcomp < beam.numRealComponents(); ++rcomp) {
             if (beam.communicateRealComponent(rcomp)) {
                 // only unpack real component if it should be communicated
-                memcpy_from_buffer(slice, get_buffer_offset(slice, offset_type::beam_real,
-                                                            beams, laser, helmholtz, b, rcomp),
+                memcpy_from_buffer(slice, bo.m_beam_real[b].at(rcomp),
                                    soa.GetRealData(rcomp).dataPtr(),
                                    num_particles * sizeof(amrex::Real));
             } else {
@@ -966,8 +966,7 @@ void MultiBuffer::unpack_data (int slice, MultiBeam& beams, MultiLaser& laser, H
         for (int icomp = 0; icomp < beam.numIntComponents(); ++icomp) {
             if (beam.communicateIntComponent(icomp)) {
                 // only unpack int component if it should be communicated
-                memcpy_from_buffer(slice, get_buffer_offset(slice, offset_type::beam_int,
-                                                            beams, laser, helmholtz, b, icomp),
+                memcpy_from_buffer(slice, bo.m_beam_int[b].at(icomp),
                                    soa.GetIntData(icomp).dataPtr(),
                                    num_particles * sizeof(int));
             } else {
@@ -984,12 +983,10 @@ void MultiBuffer::unpack_data (int slice, MultiBeam& beams, MultiLaser& laser, H
         const int laser_comp_0_1 = (beam_slice == WhichBeamSlice::Next) ? n00jp2_r : n00j00_r;
         const int laser_comp_2_3 = (beam_slice == WhichBeamSlice::Next) ? nm1jp2_r : nm1j00_r;
         // copy real and imag components in one operation
-        memcpy_from_buffer(slice, get_buffer_offset(slice, offset_type::laser, beams, laser,
-                                                    helmholtz, 0, 0),
+        memcpy_from_buffer(slice, bo.m_laser.at(0),
                            laser.getSlices()[0].dataPtr(laser_comp_0_1),
                            2 * laser.getSlices()[0].box().numPts() * sizeof(amrex::Real));
-        memcpy_from_buffer(slice, get_buffer_offset(slice, offset_type::laser, beams, laser,
-                                                    helmholtz, 0, 2),
+        memcpy_from_buffer(slice, bo.m_laser.at(2),
                            laser.getSlices()[0].dataPtr(laser_comp_2_3),
                            2 * laser.getSlices()[0].box().numPts() * sizeof(amrex::Real));
     }
@@ -1001,12 +998,10 @@ void MultiBuffer::unpack_data (int slice, MultiBeam& beams, MultiLaser& laser, H
             (beam_slice == WhichBeamSlice::Next) ? Ex_n00jm1 : Ex_n00j00;
         const int helmholtz_comp_1 =
             (beam_slice == WhichBeamSlice::Next) ? Ex_nm1jm1 : Ex_nm1j00;
-        memcpy_from_buffer(slice, get_buffer_offset(slice, offset_type::helmholtz, beams, laser,
-                                                    helmholtz, 0, 0),
+        memcpy_from_buffer(slice, bo.m_helmholtz.at(0),
                            helmholtz.getSlices()[0].dataPtr(helmholtz_comp_0),
                            helmholtz.getSlices()[0].box().numPts() * sizeof(amrex::Real));
-        memcpy_from_buffer(slice, get_buffer_offset(slice, offset_type::helmholtz, beams, laser,
-                                                    helmholtz, 0, 1),
+        memcpy_from_buffer(slice, bo.m_helmholtz.at(1),
                            helmholtz.getSlices()[0].dataPtr(helmholtz_comp_1),
                            helmholtz.getSlices()[0].box().numPts() * sizeof(amrex::Real));
         // copy imag
@@ -1015,12 +1010,10 @@ void MultiBuffer::unpack_data (int slice, MultiBeam& beams, MultiLaser& laser, H
                 (beam_slice == WhichBeamSlice::Next) ? Ei_n00jm1 : Ei_n00j00;
             const int helmholtz_comp_3 =
                 (beam_slice == WhichBeamSlice::Next) ? Ei_nm1jm1 : Ei_nm1j00;
-            memcpy_from_buffer(slice, get_buffer_offset(slice, offset_type::helmholtz, beams, laser,
-                                                        helmholtz, 0, 2),
+            memcpy_from_buffer(slice, bo.m_helmholtz.at(2),
                                helmholtz.getSlices()[0].dataPtr(helmholtz_comp_2),
                                helmholtz.getSlices()[0].box().numPts() * sizeof(amrex::Real));
-            memcpy_from_buffer(slice, get_buffer_offset(slice, offset_type::helmholtz, beams, laser,
-                                                        helmholtz, 0, 3),
+            memcpy_from_buffer(slice, bo.m_helmholtz.at(3),
                                helmholtz.getSlices()[0].dataPtr(helmholtz_comp_3),
                                helmholtz.getSlices()[0].box().numPts() * sizeof(amrex::Real));
         }
