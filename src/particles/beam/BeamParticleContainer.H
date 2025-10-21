@@ -153,6 +153,9 @@ public:
                                   const bool species_specified);
 #endif
 
+    /** Initialize a beam from a list in the input script */
+    void InitBeamFromList3D ();
+
     /** Compute reduced beam diagnostics of current slice, store in member variable
      * \param[in] islice current slice, on which diags are computed.
      */
@@ -351,6 +354,10 @@ private:
     std::string m_species_name; /**< the name of the particle species in the beam file */
     Mag m_mag;
 
+    // from list
+
+    amrex::Long m_num_particles_list; /**< Number of particles in input list */
+
     // insitu:
 
     int m_nslices; /**< number of z slices of the domain */
@@ -367,7 +374,7 @@ private:
     /** Sum of all per-slice int beam properties */
     amrex::Vector<int> m_insitu_sum_idata;
     /** Prefix/path for the output files */
-    std::string m_insitu_file_prefix = "diags/insitu";
+    std::string m_insitu_file_prefix = "";
 
     // spin insitu:
 
