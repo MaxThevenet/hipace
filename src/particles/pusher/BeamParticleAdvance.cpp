@@ -360,10 +360,11 @@ AdvanceBeamParticlesSlice (
                         doHelmholtzGatherShapeN<depos_order.value>(
                             xp, yp, Frp, a_arr, dx_inv, dy_inv,
                             x_pos_offset, y_pos_offset, helm_comps);
-                        ux_next += dt * charge_mass_ratio * inv_clight * (1._rt-betaz) * Frp;
-                        uz_next += dt * charge_mass_ratio * inv_clight
+                        Frp *= inv_clight;
+                        ux_next += dt * charge_mass_ratio * (1._rt-betaz) * Frp;
+                        uz_next += dt * charge_mass_ratio
                             * ( Ezp + ( ux * Byp - uy * Bxp ) * gammap_inv );
-                        uz_next += dt * charge_mass_ratio * inv_clight * (   betax   ) * Frp;
+                        uz_next += dt * charge_mass_ratio * (   betax   ) * Frp;
                     }
                 }
 
