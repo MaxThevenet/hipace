@@ -347,7 +347,7 @@ AdvanceBeamParticlesSlice (
                         amrex::Real gammadot =
                             -omega * fcK * gammap_inv * ((Frp+I*Fip)*amrex::exp(I*theta)).real() / std::sqrt(2._rt)
                             + 0._rt; // 0 is for longitudinal contribution
-                        amrex::Real uzdot = ( clight/gammap_inv * gammadot - clight * ux * uxdot ) / uz;
+                        amrex::Real uzdot = ( 1._rt / gammap_inv * gammadot - ux * uxdot ) / uz;
                         ux_next += dt * uxdot;
                         uz_next += dt * uzdot;
                         if (do_z_push) {
