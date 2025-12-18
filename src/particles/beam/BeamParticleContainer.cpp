@@ -123,6 +123,18 @@ BeamParticleContainer::InitData (const amrex::Geometry& geom)
     amrex::ParmParse pp(m_name);
     amrex::ParmParse pp_alt("beams");
     amrex::Real ptime {0.};
+
+    amrex::Real mag_period{0.}, mag_phase{0.}, mag_B0{0.}, mag_fc{0.};
+    bool use_mag = false;
+    queryWithParser(pp, "use_mag", use_mag);
+    if (use_mag) {
+        getWithParser(pp, "mag_period", mag_period);
+        getWithParser(pp, "mag_phase", mag_phase);
+        getWithParser(pp, "mag_B0", mag_B0);
+        queryWithParser(pp, "mag_fc", mag_fc);
+    }
+    m_mag = Mag(use_mag, mag_period, mag_phase, mag_B0, mag_fc);
+
     if (m_injection_type == "fixed_ppc") {
 
         queryWithParser(pp, "ppc", m_ppc);
@@ -505,7 +517,6 @@ BeamParticleContainer::InSituComputeDiags (int islice)
 
     const amrex::Real insitu_radius_sq = m_insitu_radius * m_insitu_radius;
     const PhysConst phys_const = get_phys_const();
-    const amrex::Real clight_inv = 1.0_rt/phys_const.c;
     const auto ptd = getBeamSlice(WhichBeamSlice::This).getParticleTileData();
 
     amrex::TypeMultiplier<amrex::ReduceOps, amrex::ReduceOpSum[m_insitu_nrp + m_insitu_nip]> reduce_op;
@@ -518,9 +529,9 @@ BeamParticleContainer::InSituComputeDiags (int islice)
             const amrex::Real x = ptd.pos(0, ip);
             const amrex::Real y = ptd.pos(1, ip);
             const amrex::Real z = ptd.pos(2, ip);
-            const amrex::Real ux = ptd.rdata(BeamIdx::ux)[ip] * clight_inv; // proper velocity to u
-            const amrex::Real uy = ptd.rdata(BeamIdx::uy)[ip] * clight_inv;
-            const amrex::Real uz = ptd.rdata(BeamIdx::uz)[ip] * clight_inv;
+            const amrex::Real ux = ptd.rdata(BeamIdx::ux)[ip];
+            const amrex::Real uy = ptd.rdata(BeamIdx::uy)[ip];
+            const amrex::Real uz = ptd.rdata(BeamIdx::uz)[ip];
             const amrex::Real w = ptd.rdata(BeamIdx::w)[ip];
 
             const amrex::Real uz_inv = uz == 0._rt ? 0._rt : 1._rt / uz;

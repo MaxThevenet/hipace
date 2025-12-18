@@ -18,7 +18,7 @@
 #include <vector>
 
 void
-Diagnostic::ReadParameters (int nlev, bool use_laser)
+Diagnostic::ReadParameters (int nlev, bool use_laser, bool use_helmholtz)
 {
     amrex::ParmParse ppd("diagnostic");
     amrex::ParmParse pph("hipace");
@@ -31,6 +31,11 @@ Diagnostic::ReadParameters (int nlev, bool use_laser)
     }
     if (use_laser) {
         std::string diag_name = "laser_diag";
+        field_diag_names.emplace_back(diag_name);
+    }
+
+    if (use_helmholtz) {
+        std::string diag_name = "helmholtz_diag";
         field_diag_names.emplace_back(diag_name);
     }
 
@@ -141,7 +146,7 @@ Diagnostic::needsTempIndividual () const {
 }
 
 void
-Diagnostic::Initialize (int nlev, bool use_laser) {
+Diagnostic::Initialize (int nlev, bool use_laser, bool use_helmholtz) {
     amrex::ParmParse ppd("diagnostic");
 
     // for each diagnostic object, choose a geometry and assign field_data
@@ -182,6 +187,14 @@ Diagnostic::Initialize (int nlev, bool use_laser) {
         // add derived diagnostics for |a^2|
         geometry_name_to_output_comps_map[geom_name]["|a^2|"] = -1;
     }
+    if (use_helmholtz) {
+        std::string diag_name = "helmholtz_diag";
+        std::string geom_name = "helmholtz";
+        diag_name_to_default_geometry.emplace(diag_name, geom_name);
+        geometry_name_to_geom_type.emplace(geom_name, FieldDiagnosticData::geom_type::helmholtz);
+        geometry_name_to_level.emplace(geom_name, 0);
+        geometry_name_to_output_comps_map[geom_name] = HelmholtzComps;
+    }
 
     for (const auto& [geom_name, comp_map] : geometry_name_to_output_comps_map) {
         all_comps_error_str << "Available components in base_geometry '" << geom_name << "':\n    ";
@@ -191,6 +204,7 @@ Diagnostic::Initialize (int nlev, bool use_laser) {
         }
         all_comps_error_str << "\n";
     }
+
     all_comps_error_str << "Additionally, 'all' and 'none' are supported as field_data\n"
                         << "Components can be removed after 'all' by using 'remove_<comp name>'.\n";
 
@@ -331,7 +345,7 @@ Diagnostic::Initialize (int nlev, bool use_laser) {
 
 void
 Diagnostic::ResizeFDiagFAB (amrex::Vector<amrex::Geometry>& field_geom,
-                            amrex::Geometry const& laser_geom, int output_step, int max_step,
+                            amrex::Geometry const& laser_geom, amrex::Geometry const& helmholtz_geom, int output_step, int max_step,
                             amrex::Real output_time, amrex::Real max_time)
 {
     AMREX_ALWAYS_ASSERT(m_initialized);
@@ -348,6 +362,9 @@ Diagnostic::ResizeFDiagFAB (amrex::Vector<amrex::Geometry>& field_geom,
             case FieldDiagnosticData::geom_type::laser:
                 geom = laser_geom;
                 break;
+            case FieldDiagnosticData::geom_type::helmholtz:
+                geom = helmholtz_geom;
+                break;
         }
 
         amrex::Box domain = geom.Domain();
@@ -359,6 +376,9 @@ Diagnostic::ResizeFDiagFAB (amrex::Vector<amrex::Geometry>& field_geom,
                     break;
                 case FieldDiagnosticData::geom_type::laser:
                     domain.grow(Hipace::GetInstance().m_multi_laser.getSlices().nGrowVect());
+                    break;
+                case FieldDiagnosticData::geom_type::helmholtz:
+                    domain.grow(Hipace::GetInstance().m_helmholtz.getSlices().nGrowVect());
                     break;
             }
         }
@@ -415,6 +435,10 @@ Diagnostic::ResizeFDiagFAB (amrex::Vector<amrex::Geometry>& field_geom,
                 case FieldDiagnosticData::geom_type::laser:
                     fd.m_F_laser.resize(domain, fd.m_nfields, amrex::The_Pinned_Arena());
                     fd.m_F_laser.setVal<amrex::RunOn::Host>({0,0});
+                    break;
+                case FieldDiagnosticData::geom_type::helmholtz:
+                    fd.m_F.resize(domain, fd.m_nfields, amrex::The_Pinned_Arena());
+                    fd.m_F.setVal<amrex::RunOn::Host>(0);
                     break;
             }
         }

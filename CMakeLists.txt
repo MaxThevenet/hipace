@@ -246,6 +246,18 @@ if(BUILD_TESTING)
 
         # These tests run on CPU and on GPU
 
+        add_test(NAME helmholtz.1.2Rank
+            COMMAND bash ${HiPACE_SOURCE_DIR}/tests/helmholtz.1.2Rank.sh
+                    $<TARGET_FILE:HiPACE> ${HiPACE_SOURCE_DIR} ${HiPACE_COMPUTE}
+            WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
+        )
+
+        add_test(NAME helmholtz.2.2Rank
+            COMMAND bash ${HiPACE_SOURCE_DIR}/tests/helmholtz.2.2Rank.sh
+                    $<TARGET_FILE:HiPACE> ${HiPACE_SOURCE_DIR} ${HiPACE_COMPUTE}
+            WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
+        )
+
         add_test(NAME blowout_wake.2Rank
                 COMMAND bash ${HiPACE_SOURCE_DIR}/tests/blowout_wake.2Rank.sh
                         $<TARGET_FILE:HiPACE> ${HiPACE_SOURCE_DIR}

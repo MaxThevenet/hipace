@@ -116,6 +116,22 @@ Fields::AllocData (
                 Comps[isl].multi_emplace(N_Comps, "rhomjz_beam");
             }
 
+            if (Hipace::m_use_helmholtz) {
+                HelmholtzComps.multi_emplace(
+                    N_HelmholtzComps,
+                    "Ex_nm1j00",  "Ex_nm1jp1",  "Ex_nm1jp2",  "Ex_nm1jm1",
+                    "Ex_n00j00",  "Ex_n00jp1",  "Ex_n00jp2",  "Ex_n00jm1",
+                    "Ex_np1j00",  "Ei_np1j00",
+                    "Ex_np1jp1",  "Ei_np1jp1",
+                    "Ex_np1jp2",  "Ei_np1jp2",
+                    "jx_n00jm1",  "jx_n00j00",  "jx_n00jp1",  "jx_n00jp2",
+                    "jz_n00jm1",  "jz_n00j00",  "jz_n00jp1",
+                    "rho_n00jm1", "rho_n00j00", "rho_n00jp1",
+                    "Ei_nm1j00",  "Ei_nm1jp1",  "Ei_nm1jp2",  "Ei_nm1jm1",
+                    "Ei_n00j00",  "Ei_n00jp1",  "Ei_n00jp2",  "Ei_n00jm1"
+                    );
+            }
+
             isl = WhichSlice::Previous;
             Comps[isl].multi_emplace(N_Comps, "jx_beam", "jy_beam");
             if (Hipace::m_depos_order_z == 2) {
@@ -442,7 +458,8 @@ Multiply (amrex::MultiFab dst, const amrex::Real factor, const FV& src)
 
 void
 Fields::Copy (const int current_N_level, const int i_slice, FieldDiagnosticData& fd,
-              const amrex::Vector<amrex::Geometry>& field_geom, MultiLaser& multi_laser)
+              const amrex::Vector<amrex::Geometry>& field_geom, MultiLaser& multi_laser,
+              Helmholtz& helmholtz)
 {
     HIPACE_PROFILE("Fields::Copy()");
     constexpr int depos_order_xy = 1;
@@ -512,6 +529,9 @@ Fields::Copy (const int current_N_level, const int i_slice, FieldDiagnosticData&
     auto& laser_mf = multi_laser.getSlices();
     auto laser_func = interpolated_field_xy<depos_order_xy,
         guarded_field_xy>{{laser_mf}, multi_laser.GetLaserGeom()};
+    auto& helmholtz_mf = helmholtz.getSlices();
+    auto helmholtz_func = interpolated_field_xy<depos_order_xy,
+        guarded_field_xy>{{helmholtz_mf}, helmholtz.GetHelmholtzGeom()};
 
     m_rel_z_vec.copyToDeviceAsync();
 
@@ -569,6 +589,19 @@ Fields::Copy (const int current_N_level, const int i_slice, FieldDiagnosticData&
                             rel_z_data[k-k_min] * laser_array(x,y,m+1)
                         };
                     }
+                });
+        } else if (fd.m_base_geom_type == FieldDiagnosticData::geom_type::helmholtz &&
+                   helmholtz.UseHelmholtz(i_slice)) {
+            auto helmholtz_array = helmholtz_func.array(mfi);
+            amrex::Array4<amrex::Real> diag_array = fd.m_F.array();
+
+            amrex::ParallelFor(diag_box, fd.m_nfields,
+                               [=] AMREX_GPU_DEVICE(int i, int j, int k, int n) noexcept
+                {
+                    const amrex::Real x = i * dx + poff_diag_x;
+                    const amrex::Real y = j * dy + poff_diag_y;
+                    const int m = n[diag_comps];
+                    diag_array(i,j,k,n) += rel_z_data[k-k_min] * helmholtz_array(x, y, m);
                 });
         }
     }
