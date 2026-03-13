@@ -19,7 +19,8 @@ PlasmaParticleContainer::
 InitParticles (const amrex::RealVect& a_u_std,
                const amrex::RealVect& a_u_mean,
                const amrex::Real a_radius,
-               const amrex::Real a_hollow_core_radius)
+               const amrex::Real a_hollow_core_radius,
+               const amrex::Real a_temperature_width)
 {
     HIPACE_PROFILE("PlasmaParticleContainer::InitParticles()");
     using namespace amrex::literals;
@@ -296,6 +297,9 @@ InitParticles (const amrex::RealVect& a_u_std,
 
                 amrex::Real u[3] = {0.,0.,0.};
                 ParticleUtil::get_gaussian_random_momentum(u, a_u_mean, a_u_std, engine);
+                u[0] *= std::exp(-(x*x+y*y)/a_temperature_width*a_temperature_width);
+                u[1] *= std::exp(-(x*x+y*y)/a_temperature_width*a_temperature_width);
+                u[2] *= std::exp(-(x*x+y*y)/a_temperature_width*a_temperature_width);
 
                 ptd.id(pidx) = 1; // plasma id is only used to distinguish between valid/invalid
                 ptd.cpu(pidx) = 0; // level 0
