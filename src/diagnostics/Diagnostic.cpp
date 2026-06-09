@@ -232,7 +232,8 @@ Diagnostic::Initialize (int nlev, bool use_laser, bool use_helmholtz) {
 
         switch (fd.m_base_diag_type) {
             case DiagnosticData::diag_type::field:
-            case DiagnosticData::diag_type::laser: {
+            case DiagnosticData::diag_type::laser:
+            case DiagnosticData::diag_type::helmholtz: {
                 std::string str_type;
                 getWithParserAlt(pp, "diag_type", str_type, ppd);
                 if (str_type == "xyz"){
@@ -478,6 +479,7 @@ Diagnostic::ResizeFDiagFAB (amrex::Vector<amrex::Geometry>& field_geom,
                     break;
                 case DiagnosticData::diag_type::helmholtz:
                     domain.grow(Hipace::GetInstance().m_helmholtz.getSlices().nGrowVect());
+		    break;
                 case DiagnosticData::diag_type::histogram:
                     domain.grow(Hipace::GetInstance().m_fields.getSlices(0).nGrowVect());
                     break;
@@ -571,6 +573,8 @@ Diagnostic::ResizeFDiagFAB (amrex::Vector<amrex::Geometry>& field_geom,
                     fd.m_F_complex.setVal<amrex::RunOn::Host>({0,0});
                     break;
                 case DiagnosticData::diag_type::helmholtz:
+                    // real data
+                    fd.m_geom_io = fd.m_realspace_geom;
                     fd.m_F_real.resize(domain, fd.m_nfields, amrex::The_Pinned_Arena());
                     fd.m_F_real.setVal<amrex::RunOn::Host>(0);
                     break;
@@ -656,6 +660,7 @@ Diagnostic::FillDiagnostics (int islice, int current_N_level,
         switch (fd.m_base_diag_type) {
             case DiagnosticData::diag_type::field:
             case DiagnosticData::diag_type::laser:
+            case DiagnosticData::diag_type::helmholtz:
 	      fields.Copy(current_N_level, islice, fd, field_geom, lasers, helmholtz);
                 break;
             case DiagnosticData::diag_type::histogram: {
