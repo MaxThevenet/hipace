@@ -40,7 +40,7 @@ namespace
      */
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
     void AddOneBeamParticle (
-        const BeamTileInit::ParticleTileDataType& ptd,
+        const BeamTile::ParticleTileDataType& ptd,
         const amrex::Real& x, const amrex::Real& y, const amrex::Real& z,
         const amrex::Real& ux, const amrex::Real& uy, const amrex::Real& uz,
         const amrex::Real& sx, const amrex::Real& sy, const amrex::Real& sz,
@@ -60,9 +60,9 @@ namespace
         ptd.rdata(BeamIdx::uy)[ip] = uyp;
         ptd.rdata(BeamIdx::uz)[ip] = uz;
         if (do_spin) {
-            ptd.m_runtime_rdata[0][ip] = sx;
-            ptd.m_runtime_rdata[1][ip] = sy;
-            ptd.m_runtime_rdata[2][ip] = sz;
+            ptd.rdata(BeamIdx::sx)[ip] = sx;
+            ptd.rdata(BeamIdx::sy)[ip] = sy;
+            ptd.rdata(BeamIdx::sz)[ip] = sz;
         }
         ptd.rdata(BeamIdx::w  )[ip] = std::abs(weight);
 
@@ -149,12 +149,9 @@ InitBeamFixedPPC3D ()
     amrex::ReduceOps<amrex::ReduceOpSum> reduce_op;
     amrex::ReduceData<uint64_t> reduce_data(reduce_op);
     using ReduceTuple = typename decltype(reduce_data)::Type;
-    reduce_op.eval(
-        domain_box.numPts(), reduce_data,
-        [=] AMREX_GPU_DEVICE (amrex::Long idx) -> ReduceTuple
+    reduce_op.eval(domain_box, reduce_data,
+        [=] AMREX_GPU_DEVICE (int i, int j, int k) -> ReduceTuple
         {
-            auto [i, j, k] = domain_box.atOffset3d(idx).arr;
-
             uint64_t count = 0;
 
             for (int i_part=0; i_part<num_ppc;i_part++)

@@ -102,11 +102,19 @@ std::size_t AnyFFT::Initialize (FFTType type, int nx, int ny) {
             n[1] = nx;
             batch = 1;
             break;
-        case FFTType::R2R_2D:
+        case FFTType::R2R_2D_DST1:
+        case FFTType::R2R_2D_DST2:
+        case FFTType::R2R_2D_DST3:
             amrex::Abort("R2R FFT not supported by cufft");
             return 0;
         case FFTType::C2R_1D_batched:
             transform_type = use_float ? CUFFT_C2R : CUFFT_Z2D;
+            rank = 1;
+            n[0] = nx;
+            batch = ny;
+            break;
+        case FFTType::R2C_1D_batched:
+            transform_type = use_float ? CUFFT_R2C : CUFFT_D2Z;
             rank = 1;
             n[0] = nx;
             batch = ny;
@@ -183,7 +191,9 @@ void AnyFFT::Execute () {
                     reinterpret_cast<cufftComplex*>(m_plan->m_out));
                 assert_cufft_status("cufftExecR2C", result);
                 break;
-            case FFTType::R2R_2D:
+            case FFTType::R2R_2D_DST1:
+            case FFTType::R2R_2D_DST2:
+            case FFTType::R2R_2D_DST3:
                 amrex::Abort("R2R FFT not supported by cufft");
                 break;
             case FFTType::C2R_1D_batched:
@@ -191,6 +201,12 @@ void AnyFFT::Execute () {
                     reinterpret_cast<cufftComplex*>(m_plan->m_in),
                     reinterpret_cast<cufftReal*>(m_plan->m_out));
                 assert_cufft_status("cufftExecC2R", result);
+                break;
+            case FFTType::R2C_1D_batched:
+                result = cufftExecR2C(m_plan->m_cufftplan,
+                    reinterpret_cast<cufftReal*>(m_plan->m_in),
+                    reinterpret_cast<cufftComplex*>(m_plan->m_out));
+                assert_cufft_status("cufftExecR2C", result);
                 break;
         }
     } else {
@@ -221,7 +237,9 @@ void AnyFFT::Execute () {
                     reinterpret_cast<cufftDoubleComplex*>(m_plan->m_out));
                 assert_cufft_status("cufftExecD2Z", result);
                 break;
-            case FFTType::R2R_2D:
+            case FFTType::R2R_2D_DST1:
+            case FFTType::R2R_2D_DST2:
+            case FFTType::R2R_2D_DST3:
                 amrex::Abort("R2R FFT not supported by cufft");
                 break;
             case FFTType::C2R_1D_batched:
@@ -229,6 +247,12 @@ void AnyFFT::Execute () {
                     reinterpret_cast<cufftDoubleComplex*>(m_plan->m_in),
                     reinterpret_cast<cufftDoubleReal*>(m_plan->m_out));
                 assert_cufft_status("cufftExecZ2D", result);
+                break;
+            case FFTType::R2C_1D_batched:
+                result = cufftExecD2Z(m_plan->m_cufftplan,
+                    reinterpret_cast<cufftDoubleReal*>(m_plan->m_in),
+                    reinterpret_cast<cufftDoubleComplex*>(m_plan->m_out));
+                assert_cufft_status("cufftExecD2Z", result);
                 break;
         }
     }

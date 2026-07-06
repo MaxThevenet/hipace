@@ -63,7 +63,7 @@ class InSituReader:
             elif comp in ["n_slices", "charge", "mass", "z_lo", "z_hi",
                           "normalized_density_factor", "is_normalized_units"]:
                 self.__dict__[comp] = self._all_data[comp][0]
-            elif comp in ["average", "total", "integral"]:
+            elif comp in ["average", "total", "integrated"]:
                 for acomp in self._all_data[comp].dtype.names:
                     self._avg_comps[acomp] = lambda c=comp, a=acomp: self._all_data[c][a]
             else:
@@ -158,11 +158,11 @@ class InSituReader:
 
         """
         assert type in [None, "avg", "slice", "meta"]
-        if type is "avg":
+        if type == "avg":
             return list(self._avg_comps.keys())
-        elif type is "slice":
+        elif type == "slice":
             return list(self._slice_comps.keys())
-        elif type is "meta":
+        elif type == "meta":
             return [l for l in self.__dict__.keys() if not l.startswith("_")]
         else:
             print("Available average quantities:")

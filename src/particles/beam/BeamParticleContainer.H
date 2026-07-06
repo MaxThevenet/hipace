@@ -12,6 +12,7 @@
 #include "particles/profiles/GetInitialDensity.H"
 #include "particles/profiles/GetInitialMomentum.H"
 #include "utils/Parser.H"
+#include "utils/IOUtil.H"
 #include "particles/sorting/BoxSort.H"
 #include <AMReX_AmrParticles.H>
 #include <AMReX_Particles.H>
@@ -27,7 +28,8 @@ struct BeamIdx
         w,          // weight
         ux, uy, uz, // momentum
         real_nattribs_in_buffer,
-        real_nattribs=real_nattribs_in_buffer
+        real_nattribs=real_nattribs_in_buffer,
+        sx=real_nattribs, sy, sz
     };
     enum {
         // no extra components stored in MultiBuffer, besides 64bit idcpu
@@ -44,25 +46,7 @@ struct WhichBeamSlice {
     enum beam_slice : int { Next=0, This, N };
 };
 
-using BeamTile = amrex::ParticleTile<
-        amrex::SoAParticle<
-            BeamIdx::real_nattribs,
-            BeamIdx::int_nattribs
-        >,
-        BeamIdx::real_nattribs,
-        BeamIdx::int_nattribs
-    >;
-
-using BeamTileInit = amrex::ParticleTile<
-        amrex::SoAParticle<
-            BeamIdx::real_nattribs_in_buffer,
-            BeamIdx::int_nattribs_in_buffer
-        >,
-        BeamIdx::real_nattribs_in_buffer,
-        BeamIdx::int_nattribs_in_buffer,
-        // use PolymorphicArenaAllocator to either use Pinned or Device memory at runtime
-        amrex::PolymorphicArenaAllocator
-    >;
+using BeamTile = amrex::ParticleTileRT<amrex::Real, int>;
 
 /** \brief Container for a magnetic undulator. */
 struct Mag
@@ -214,7 +198,7 @@ public:
 
     void resize (int which_slice, int num_particles, int num_slipped_particles);
 
-    BeamTileInit& getBeamInitSlice () {
+    BeamTile& getBeamInitSlice () {
         return m_init_slice;
     }
 
@@ -245,7 +229,7 @@ private:
     std::array<BeamTile, WhichBeamSlice::N> m_slices {};
     std::array<int, WhichBeamSlice::N> m_num_particles_without_slipped {};
     std::array<int, WhichBeamSlice::N> m_num_particles_with_slipped {};
-    BeamTileInit m_init_slice {};
+    BeamTile m_init_slice {};
     BoxSorter m_init_sorter;
     uint64_t m_total_num_particles = 0;
 public:
@@ -260,7 +244,7 @@ public:
     bool m_initialize_on_cpu {false};
     /** How often the insitu beam diagnostics should be computed and written
      * Default is 0, meaning no output */
-    int m_insitu_period {0};
+    utils::DiagPeriod m_insitu_period {"0"};
     /** Whether external fields should be used for this beam */
     bool m_use_external_fields = false;
     /** External field functions for Ex Ey Ez Bx By Bz */

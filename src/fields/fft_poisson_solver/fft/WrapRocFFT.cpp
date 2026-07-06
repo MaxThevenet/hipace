@@ -107,11 +107,19 @@ std::size_t AnyFFT::Initialize (FFTType type, int nx, int ny) {
             lengths[1] = ny;
             number_of_transforms = 1;
             break;
-        case FFTType::R2R_2D:
+        case FFTType::R2R_2D_DST1:
+        case FFTType::R2R_2D_DST2:
+        case FFTType::R2R_2D_DST3:
             amrex::Abort("R2R FFT not supported by rocfft");
             return 0;
         case FFTType::C2R_1D_batched:
             transform_type = rocfft_transform_type_real_inverse;
+            dimensions = 1;
+            lengths[0] = nx;
+            number_of_transforms = ny;
+            break;
+        case FFTType::R2C_1D_batched:
+            transform_type = rocfft_transform_type_real_forward;
             dimensions = 1;
             lengths[0] = nx;
             number_of_transforms = ny;

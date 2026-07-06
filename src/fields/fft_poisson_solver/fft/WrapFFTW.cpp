@@ -74,11 +74,23 @@ void AnyFFT::SetBuffers (void* in, void* out, [[maybe_unused]] void* work_area) 
                     reinterpret_cast<float*>(in), reinterpret_cast<fftwf_complex*>(out),
                     FFTW_MEASURE);
                 break;
-            case FFTType::R2R_2D:
+            case FFTType::R2R_2D_DST1:
                 m_plan->m_fftwf_plan = fftwf_plan_r2r_2d(
                     m_plan->m_ny, m_plan->m_nx,
                     reinterpret_cast<float*>(in), reinterpret_cast<float*>(out),
                     FFTW_RODFT00, FFTW_RODFT00, FFTW_MEASURE);
+                break;
+            case FFTType::R2R_2D_DST2:
+                m_plan->m_fftwf_plan = fftwf_plan_r2r_2d(
+                    m_plan->m_ny, m_plan->m_nx,
+                    reinterpret_cast<float*>(in), reinterpret_cast<float*>(out),
+                    FFTW_RODFT10, FFTW_RODFT10, FFTW_MEASURE);
+                break;
+            case FFTType::R2R_2D_DST3:
+                m_plan->m_fftwf_plan = fftwf_plan_r2r_2d(
+                    m_plan->m_ny, m_plan->m_nx,
+                    reinterpret_cast<float*>(in), reinterpret_cast<float*>(out),
+                    FFTW_RODFT01, FFTW_RODFT01, FFTW_MEASURE);
                 break;
             case FFTType::C2R_1D_batched:
                 {
@@ -87,6 +99,16 @@ void AnyFFT::SetBuffers (void* in, void* out, [[maybe_unused]] void* work_area) 
                         1, n, m_plan->m_ny,
                         reinterpret_cast<fftwf_complex*>(in), nullptr, 1, m_plan->m_nx/2+1,
                         reinterpret_cast<float*>(out), nullptr, 1, m_plan->m_nx,
+                        FFTW_MEASURE);
+                }
+                break;
+            case FFTType::R2C_1D_batched:
+                {
+                    int n[1] = {m_plan->m_nx};
+                    m_plan->m_fftwf_plan = fftwf_plan_many_dft_r2c(
+                        1, n, m_plan->m_ny,
+                        reinterpret_cast<float*>(in), nullptr, 1, m_plan->m_nx,
+                        reinterpret_cast<fftwf_complex*>(out), nullptr, 1, m_plan->m_nx/2+1,
                         FFTW_MEASURE);
                 }
                 break;
@@ -117,11 +139,23 @@ void AnyFFT::SetBuffers (void* in, void* out, [[maybe_unused]] void* work_area) 
                     reinterpret_cast<double*>(in), reinterpret_cast<fftw_complex*>(out),
                     FFTW_MEASURE);
                 break;
-            case FFTType::R2R_2D:
+            case FFTType::R2R_2D_DST1:
                 m_plan->m_fftw_plan = fftw_plan_r2r_2d(
                     m_plan->m_ny, m_plan->m_nx,
                     reinterpret_cast<double*>(in), reinterpret_cast<double*>(out),
                     FFTW_RODFT00, FFTW_RODFT00, FFTW_MEASURE);
+                break;
+            case FFTType::R2R_2D_DST2:
+                m_plan->m_fftw_plan = fftw_plan_r2r_2d(
+                    m_plan->m_ny, m_plan->m_nx,
+                    reinterpret_cast<double*>(in), reinterpret_cast<double*>(out),
+                    FFTW_RODFT10, FFTW_RODFT10, FFTW_MEASURE);
+                break;
+            case FFTType::R2R_2D_DST3:
+                m_plan->m_fftw_plan = fftw_plan_r2r_2d(
+                    m_plan->m_ny, m_plan->m_nx,
+                    reinterpret_cast<double*>(in), reinterpret_cast<double*>(out),
+                    FFTW_RODFT01, FFTW_RODFT01, FFTW_MEASURE);
                 break;
             case FFTType::C2R_1D_batched:
                 {
@@ -130,6 +164,16 @@ void AnyFFT::SetBuffers (void* in, void* out, [[maybe_unused]] void* work_area) 
                         1, n, m_plan->m_ny,
                         reinterpret_cast<fftw_complex*>(in), nullptr, 1, m_plan->m_nx/2+1,
                         reinterpret_cast<double*>(out), nullptr, 1, m_plan->m_nx,
+                        FFTW_MEASURE);
+                }
+                break;
+            case FFTType::R2C_1D_batched:
+                {
+                    int n[1] = {m_plan->m_nx};
+                    m_plan->m_fftw_plan = fftw_plan_many_dft_r2c(
+                        1, n, m_plan->m_ny,
+                        reinterpret_cast<double*>(in), nullptr, 1, m_plan->m_nx,
+                        reinterpret_cast<fftw_complex*>(out), nullptr, 1, m_plan->m_nx/2+1,
                         FFTW_MEASURE);
                 }
                 break;
