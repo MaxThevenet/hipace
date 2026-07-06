@@ -53,8 +53,6 @@ HelmholtzDeposition (BeamParticleContainer& beam, Helmholtz& helmholtz,
         invvol = lev0_geom.CellSize(0) * lev0_geom.CellSize(1) * dxi * dyi;
     }
 
-    // const amrex::Real clightinv = 1.0_rt/(phys_const.c);
-    const amrex::Real clightsq = 1.0_rt/(phys_const.c*phys_const.c);
     const amrex::Real q = beam.m_charge;
 
     int jx_slice {-1};
@@ -129,9 +127,7 @@ HelmholtzDeposition (BeamParticleContainer& beam, Helmholtz& helmholtz,
             const amrex::Real uy = ptd.rdata(BeamIdx::uy)[ip];
             const amrex::Real uz = ptd.rdata(BeamIdx::uz)[ip];
 
-            const amrex::Real gaminv = 1.0_rt/std::sqrt(1.0_rt + ux*ux*clightsq
-                                                         + uy*uy*clightsq
-                                                         + uz*uz*clightsq);
+            const amrex::Real gaminv = 1.0_rt/std::sqrt(1.0_rt + ux*ux + uy*uy + uz*uz);
             const amrex::Real wq = q*ptd.rdata(BeamIdx::w)[ip]*invvol;
             const amrex::Real theta = (kr+ku)*ptd.pos(2, ip) + ku*phys_const.c*time;
             const amrex::Real wqg = wq * gaminv * q * PhysConstSI::mu0 / PhysConstSI::m_e;
