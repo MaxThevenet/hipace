@@ -283,6 +283,8 @@ void doHelmholtzGatherShapeN (const amrex::Real xp,
                               const amrex::Real y_pos_offset,
                               const amrex::GpuArray<int, 3> helm_comps)
 {
+    using namespace amrex::literals;
+
     // x,y direction
     const amrex::Real x = (xp-x_pos_offset)*dx_inv;
     const amrex::Real y = (yp-y_pos_offset)*dy_inv;
@@ -294,9 +296,9 @@ void doHelmholtzGatherShapeN (const amrex::Real xp,
             auto [shape_y, j] = shape_factor<depos_order_xy>(y, iy);
             auto [shape_x, i] = shape_factor<depos_order_xy>(x, ix);
 
-            val += .25 * shape_x * shape_y * a_arr(i, j, helm_comps[0])
-                 + .50 * shape_x * shape_y * a_arr(i, j, helm_comps[1] )
-                 + .25 * shape_x * shape_y * a_arr(i, j, helm_comps[2]);
+            val += 0.25_rt * shape_x * shape_y * a_arr(i, j, helm_comps[0])
+                 + 0.50_rt * shape_x * shape_y * a_arr(i, j, helm_comps[1] )
+                 + 0.25_rt * shape_x * shape_y * a_arr(i, j, helm_comps[2]);
         }
     }
 }

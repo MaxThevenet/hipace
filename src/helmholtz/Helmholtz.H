@@ -14,6 +14,7 @@
 #include "fields/fft_poisson_solver/fft/AnyFFT.H"
 #include "utils/Parser.H"
 #include "utils/IOUtil.H"
+#include "fields/Fields.H"
 
 #include <AMReX_MultiFab.H>
 #include <AMReX_Vector.H>
@@ -44,9 +45,8 @@ namespace WhichHelmholtzSlice {
     };
 }
 
-class Fields;
-
-class MultiPlasma;
+inline assert_map HelmholtzComps{};
+inline int N_HelmholtzComps {0};
 
 class Helmholtz
 {

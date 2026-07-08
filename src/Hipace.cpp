@@ -732,6 +732,10 @@ Hipace::SolveOneSlice (int islice, int step, bool is_first_step, bool is_last_st
 
     // deposit current
     for (int lev=0; lev<current_N_level; ++lev) {
+
+        // do nothing if Helmholtz on
+        if (m_use_helmholtz) { break; }
+
         if (m_explicit) {
             // deposit jx, jy, chi and rhomjz for all plasmas
             m_multi_plasma.DepositCurrent(m_fields, WhichSlice::This, true, false,
@@ -739,10 +743,8 @@ Hipace::SolveOneSlice (int islice, int step, bool is_first_step, bool is_last_st
                 true, true, m_deposit_n || m_deposit_n_ion_levels, m_3D_geom, lev);
 
             // deposit jz_beam and maybe rhomjz of the beam on This slice
-            if (!m_use_helmholtz) {
-                m_multi_beam.DepositCurrentSlice(m_fields, m_3D_geom, lev, is_first_step,
-                    false, true, m_do_beam_jz_minus_rho, WhichSlice::This, WhichBeamSlice::This);
-            }
+            m_multi_beam.DepositCurrentSlice(m_fields, m_3D_geom, lev, is_first_step,
+                false, true, m_do_beam_jz_minus_rho, WhichSlice::This, WhichBeamSlice::This);
         } else {
             // deposit jx jy jz (maybe chi) and rhomjz
             m_multi_plasma.DepositCurrent(m_fields, WhichSlice::This, true, true,
@@ -765,6 +767,7 @@ Hipace::SolveOneSlice (int islice, int step, bool is_first_step, bool is_last_st
         m_multi_beam.HelmholtzDeposition(m_helmholtz, WhichBeamSlice::This, m_physical_time);
         m_helmholtz.AdvanceSlice(islice, m_dt, step);
     }
+
     if (!m_use_helmholtz) {
         // Psi ExmBy EypBx Ez Bz solve
         m_fields.SolvePoissonPsiExmByEypBxEzBz(m_3D_geom, current_N_level);

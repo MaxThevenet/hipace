@@ -9,7 +9,6 @@
 #define DIAGNOSTIC_H_
 
 #include "utils/IOUtil.H"
-#include "helmholtz/Helmholtz.H"
 
 #include <AMReX_MultiFab.H>
 #include <AMReX_Vector.H>
@@ -20,6 +19,7 @@ class Fields;
 class MultiBeam;
 class MultiLaser;
 class MultiPlasma;
+class Helmholtz;
 
 
 /** \brief This struct holds data for one field diagnostic on one MR level */

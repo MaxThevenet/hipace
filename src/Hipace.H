@@ -282,7 +282,7 @@ public:
     /** Whether the simulation uses a laser pulse */
     inline static bool m_use_laser = false;
     /** Whether the simulation uses Helmholtz */
-     inline static bool m_use_helmholtz = false;
+    inline static bool m_use_helmholtz = false;
     /** Background plasma density in SI, used to compute collisions, ionization,
      * or radiation reaction in normalized units */
     inline static amrex::Real m_background_density_SI = 0.;

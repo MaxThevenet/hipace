@@ -52,7 +52,7 @@ using BeamTile = amrex::ParticleTileRT<amrex::Real, int>;
 struct Mag
 {
     /** Constructor */
-    Mag () : m_period(0.), m_phase(0.), m_B0(0.), m_kx(0.), m_ky(0.), m_fc(0.) {}
+    Mag () = default;
 
     Mag (bool use_mag, amrex::Real period, amrex::Real phase, amrex::Real B0, amrex::Real fc) :
         m_use_mag(use_mag),

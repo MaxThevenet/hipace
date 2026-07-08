@@ -275,26 +275,28 @@ AdvanceBeamParticlesSlice (
                 EypBxp *= inv_clight;
                 Ezp *= inv_clight;
 
-                amrex::Real zprop = clight*time + zp/clight*0._rt;
-                if (use_mag && !helm_mode_is_envelope) {
-                    amrex::Real Bx = 0._rt;
-                    amrex::Real By = mag_B0*std::cos( ku*zprop + mag_phase );
-                    amrex::Real Bz = 0._rt;
-                    // Correction for magnetic fields in undulator
-                    Bx += mag_B0 * std::cos( ku*zprop + mag_phase ) * mag_kx*mag_kx*xp*yp;
-                    By *= (1._rt + mag_kx*mag_kx*xp*xp/2._rt + mag_ky*mag_ky*yp*yp/2._rt);
-                    Bz -= mag_B0 * std::sin( ku*zprop + mag_phase ) * ku*yp;
-                    Bxp += Bx;
-                    Byp += By;
-                    Bzp += Bz;
-                    ExmByp -= By;
-                    EypBxp += Bx;
-                }
-                if (use_chic) {
-                    for (int im=0; im<4; ++im) {
-                        if ((zprop >= Zs[im]) && (zprop < (Zs[im] + Ls[im]))) {
-                            Byp += Bs[im];
-                            ExmByp -= Bs[im];
+                if (c_use_helmholtz.value) {
+                    const amrex::Real zprop = clight*time + zp/clight*0._rt;
+                    if (use_mag && !helm_mode_is_envelope) {
+                        amrex::Real Bx = 0._rt;
+                        amrex::Real By = mag_B0*std::cos( ku*zprop + mag_phase );
+                        amrex::Real Bz = 0._rt;
+                        // Correction for magnetic fields in undulator
+                        Bx += mag_B0 * std::cos( ku*zprop + mag_phase ) * mag_kx*mag_kx*xp*yp;
+                        By *= (1._rt + mag_kx*mag_kx*xp*xp/2._rt + mag_ky*mag_ky*yp*yp/2._rt);
+                        Bz -= mag_B0 * std::sin( ku*zprop + mag_phase ) * ku*yp;
+                        Bxp += Bx;
+                        Byp += By;
+                        Bzp += Bz;
+                        ExmByp -= By;
+                        EypBxp += Bx;
+                    }
+                    if (use_chic) {
+                        for (int im=0; im<4; ++im) {
+                            if ((zprop >= Zs[im]) && (zprop < (Zs[im] + Ls[im]))) {
+                                Byp += Bs[im];
+                                ExmByp -= Bs[im];
+                            }
                         }
                     }
                 }
