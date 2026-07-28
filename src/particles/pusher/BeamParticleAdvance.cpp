@@ -287,7 +287,7 @@ AdvanceBeamParticlesSlice (
                 xp += dt * clight * 0.5_rt * gammap_inv * ux;
                 yp += dt * clight * 0.5_rt * gammap_inv * uy;
 
-                if (enforceBC(ptd, ip, xp, yp, ux, uy, BeamIdx::w)) return;
+                if (enforceBC(ptd, ip, xp, yp, ux, uy)) return;
 
                 // Load field data from highest available MR level
                 MRLevelData level_data = level0data; // level 0
@@ -384,8 +384,7 @@ AdvanceBeamParticlesSlice (
                 uz = uz_next;
 
             } // end for loop over n_subcycles
-
-            if (enforceBC(ptd, ip, xp, yp, ux, uy, BeamIdx::w)) return;
+            if (enforceBC(ptd, ip, xp, yp, ux, uy)) return;
 
             // Store particle data
             ptd.pos(0, ip) = xp;
