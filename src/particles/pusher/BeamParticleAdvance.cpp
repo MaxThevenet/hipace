@@ -232,7 +232,7 @@ AdvanceBeamParticlesSlice (
     const amrex::Real ku = 2.*MathConst::pi/mag_period;
     const amrex::Real k = helmholtz.getk0();
     const amrex::Real K = phys_const.q_e * mag_B0 * mag_period / (2*MathConst::pi*phys_const.m_e*phys_const.c);
-    const amrex::Real fcK = mag.m_fc * K / std::sqrt(2);
+    const amrex::Real fcK = mag.m_fc * K;
 
     const MRLevelData level0data {
         slice_fab_lev0.const_array(),
@@ -441,11 +441,11 @@ AdvanceBeamParticlesSlice (
                             - omega * betarsq / 2._rt
                             - omega * (Frp*Frp+Fip*Fip) / 4._rt * gammap_inv * gammap_inv
                             + omega * fcK * gammap_inv * gammap_inv *
-                            ((Frp+I*Fip)*amrex::exp(I*theta)).imag() / std::sqrt(2._rt);
+                            ((Frp+I*Fip)*amrex::exp(I*theta)).imag() / 2._rt;
                         // u = p/(mc) = gamma*beta normalized momentum
                         amrex::Real uxdot = - clight * K*K/2._rt * mag_kx*mag_kx * gammap_inv * xp;
                         amrex::Real gammadot =
-                            -omega * fcK * gammap_inv * ((Frp+I*Fip)*amrex::exp(I*theta)).real() / std::sqrt(2._rt)
+                            -omega * fcK * gammap_inv * ((Frp+I*Fip)*amrex::exp(I*theta)).real() / 2._rt
                             + 0._rt; // 0 is for longitudinal contribution
                         amrex::Real uzdot = ( 1._rt / gammap_inv * gammadot - ux * uxdot ) / uz;
                         ux_next += dt * uxdot;
