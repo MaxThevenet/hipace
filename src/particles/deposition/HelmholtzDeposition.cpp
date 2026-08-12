@@ -128,9 +128,9 @@ HelmholtzDeposition (BeamParticleContainer& beam, Helmholtz& helmholtz,
             const amrex::Real wqg = wq * gaminv * q * PhysConstSI::mu0 / PhysConstSI::m_e;
 
             // wqx, wqy wqz are particle current in each direction
-            const amrex::Real wqx = wq*ux*gaminv;
+            const amrex::Real wqx = wq*ux*gaminv*phys_const.c;
             // const amrex::Real wqy = wq*uy*gaminv;
-            const amrex::Real wqz = wq*uz*gaminv;
+            const amrex::Real wqz = wq*uz*gaminv*phys_const.c;
             const amrex::Real wqrho = wq;
 
             const amrex::Real xmid = (ptd.pos(0, ip) - x_pos_offset)*dxi;
