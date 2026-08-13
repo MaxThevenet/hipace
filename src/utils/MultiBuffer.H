@@ -131,8 +131,10 @@ private:
 
     // parameters to send physical time
     amrex::Real m_time_send_buffer = 0.;
+#ifdef AMREX_USE_MPI
     MPI_Request m_time_send_request = MPI_REQUEST_NULL;
     bool m_time_send_started = false;
+#endif
 
     // slice index of where to continue making async progress
     std::array<int, comm_progress::nprogress> m_async_metadata_slice {};

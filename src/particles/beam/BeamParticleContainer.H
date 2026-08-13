@@ -60,7 +60,7 @@ struct Mag
         m_phase(phase),
         m_B0(B0),
         m_kx(0.),
-        m_ky(2.*MathConst::pi/period),
+        m_ky(m_use_mag>0 ? 2.*MathConst::pi/period : 0.),
         m_fc(fc) {}
 
     /** Whether to use the magnetic undulator */

@@ -136,7 +136,7 @@ BeamParticleContainer::InitData (const amrex::Geometry& geom)
     amrex::ParmParse pp_alt("beams");
     amrex::Real ptime {0.};
 
-    amrex::Real mag_period{0.}, mag_phase{0.}, mag_B0{0.}, mag_fc{0.};
+    amrex::Real mag_period{1.}, mag_phase{0.}, mag_B0{0.}, mag_fc{0.};
     bool use_mag = false;
     queryWithParser(pp, "use_mag", use_mag);
     if (use_mag) {
@@ -145,6 +145,7 @@ BeamParticleContainer::InitData (const amrex::Geometry& geom)
         getWithParser(pp, "mag_B0", mag_B0);
         queryWithParser(pp, "mag_fc", mag_fc);
     }
+
     m_mag = Mag(use_mag, mag_period, mag_phase, mag_B0, mag_fc);
 
     if (m_injection_type == "fixed_ppc") {
