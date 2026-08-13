@@ -529,6 +529,25 @@ AdvanceBeamParticlesSlice (
             } // end for loop over n_subcycles
             if (enforceBC(ptd, ip, xp, yp, ux, uy)) return;
 
+            int nquad = 1;
+            const amrex::GpuArray<amrex::Real, 1> zquad = {.4};
+            const amrex::GpuArray<amrex::Real, 1> Kquad = {-2*1000/zquad[0]};
+            
+            for (int iq=0; iq<nquad; iq++) {
+                const amrex::Real fulldt = Hipace::GetInstance().m_dt;
+                if (clight*time <= zquad[iq] && clight*(time+fulldt) > zquad[iq] ) {
+                    const amrex::Real uxi = ptd.rdata(BeamIdx::ux)[ip];
+                    const amrex::Real uyi = ptd.rdata(BeamIdx::uy)[ip];
+                    const amrex::Real uzi = ptd.rdata(BeamIdx::uz)[ip];
+                    const amrex::Real xq = ptd.pos(0, ip) + (zquad[iq]-clight*time) * uxi/uzi;
+                    const amrex::Real yq = ptd.pos(1, ip) + (zquad[iq]-clight*time) * uyi/uzi;
+                    xp -= Kquad[iq]*xq/uzi * (clight*time+clight*fulldt-zquad[iq]);
+                    ux -= Kquad[iq] * xq;
+                    yp += Kquad[iq]*yq/uzi * (clight*time+clight*fulldt-zquad[iq]);
+                    uy += Kquad[iq] * yq;
+                }
+            }
+
             // Store particle data
             ptd.pos(0, ip) = xp;
             ptd.pos(1, ip) = yp;
