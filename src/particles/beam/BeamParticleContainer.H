@@ -261,8 +261,11 @@ public:
     int m_output_ratio = 1;
 
     int m_nquad {0};
-    amrex::Gpu::Buffer<amrex::Real> m_Kquad;
-    amrex::Gpu::Buffer<amrex::Real> m_zquad;
+    amrex::Gpu::Buffer<amrex::Real> m_quad_K;
+    amrex::Gpu::Buffer<amrex::Real> m_quad_z;
+    int m_nphaseshifter {0};
+    amrex::Gpu::Buffer<amrex::Real> m_phaseshifter_dz;
+    amrex::Gpu::Buffer<amrex::Real> m_phaseshifter_z;
     Mag m_mag;
 
 private:

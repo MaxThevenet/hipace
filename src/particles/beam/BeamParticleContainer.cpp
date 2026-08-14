@@ -60,14 +60,23 @@ BeamParticleContainer::ReadParameters ()
     queryWithParserAlt(pp, "do_push", m_do_push, pp_alt);
     queryWithParserAlt(pp, "do_radiation_reaction", m_do_radiation_reaction, pp_alt);
 
-    amrex::Vector<amrex::Real> read_quad;
-    queryWithParser(pp, "Kquad", read_quad);
-    m_nquad = read_quad.size();
-    m_Kquad.resize(m_nquad);
-    for (int i=0; i<m_nquad; ++i) m_Kquad[i] = read_quad[i];
-    queryWithParser(pp, "zquad", read_quad);
-    m_zquad.resize(m_nquad);
-    for (int i=0; i<m_nquad; ++i) m_zquad[i] = read_quad[i];
+    amrex::Vector<amrex::Real> read_optics;
+    queryWithParser(pp, "quad_K", read_optics);
+    m_nquad = read_optics.size();
+    m_quad_K.resize(m_nquad);
+    for (int i=0; i<m_nquad; ++i) m_quad_K[i] = read_optics[i];
+    queryWithParser(pp, "quad_z", read_optics);
+    m_quad_z.resize(m_nquad);
+    for (int i=0; i<m_nquad; ++i) m_quad_z[i] = read_optics[i];
+
+    read_optics = {};
+    queryWithParser(pp, "phaseshifter_dz", read_optics);
+    m_nphaseshifter = read_optics.size();
+    m_phaseshifter_dz.resize(m_nphaseshifter);
+    for (int i=0; i<m_nphaseshifter; ++i) m_phaseshifter_dz[i] = read_optics[i];
+    queryWithParser(pp, "phaseshifter_z", read_optics);
+    m_phaseshifter_z.resize(m_nphaseshifter);
+    for (int i=0; i<m_nphaseshifter; ++i) m_phaseshifter_z[i] = read_optics[i];
 
     queryWithParserAlt(pp, "insitu_period", m_insitu_period.m_func_str, pp_alt);
     m_insitu_period.compile();
@@ -157,8 +166,10 @@ BeamParticleContainer::InitData (const amrex::Geometry& geom)
     }
 
     m_mag = Mag(use_mag, mag_period, mag_phase, mag_B0, mag_fc);
-    m_zquad.copyToDeviceAsync();
-    m_Kquad.copyToDeviceAsync();
+    m_quad_z.copyToDeviceAsync();
+    m_quad_K.copyToDeviceAsync();
+    m_phaseshifter_z.copyToDeviceAsync();
+    m_phaseshifter_dz.copyToDeviceAsync();
 
     if (m_injection_type == "fixed_ppc") {
 

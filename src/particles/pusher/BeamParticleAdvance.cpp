@@ -180,9 +180,12 @@ AdvanceBeamParticlesSlice (
     const amrex::GpuArray<amrex::Real, 4> Ls = {chicLs[0], chicLs[1], chicLs[2], chicLs[3]};
     const amrex::GpuArray<amrex::Real, 4> Zs = {chicZs[0], chicZs[1], chicZs[2], chicZs[3]};
     const bool use_chic = *std::max_element(Bs.begin(), Bs.end());
-    amrex::Real* AMREX_RESTRICT zquad = beam.m_zquad.data();
-    amrex::Real* AMREX_RESTRICT Kquad = beam.m_Kquad.data();
+    amrex::Real* AMREX_RESTRICT quad_z = beam.m_quad_z.data();
+    amrex::Real* AMREX_RESTRICT quad_K = beam.m_quad_K.data();
     int nquad = beam.m_nquad;
+    amrex::Real* AMREX_RESTRICT phaseshifter_z = beam.m_phaseshifter_z.data();
+    amrex::Real* AMREX_RESTRICT phaseshifter_dz = beam.m_phaseshifter_dz.data();
+    int nphaseshifter = beam.m_nphaseshifter;
 
     const int psi_comp = Comps[WhichSlice::This]["Psi"];
     const int ez_comp = Comps[WhichSlice::This]["Ez"];
@@ -532,20 +535,28 @@ AdvanceBeamParticlesSlice (
             } // end for loop over n_subcycles
             if (enforceBC(ptd, ip, xp, yp, ux, uy)) return;
 
+            // Apply thin optics: quadrupoles
             for (int iq=0; iq<nquad; iq++) {
                 const amrex::Real fulldt = Hipace::GetInstance().m_dt;
-                if (clight*time <= zquad[iq] && clight*(time+fulldt) > zquad[iq] ) {
+                if (clight*time <= quad_z[iq] && clight*(time+fulldt) > quad_z[iq] ) {
                     const amrex::Real uxi = ptd.rdata(BeamIdx::ux)[ip];
                     const amrex::Real uyi = ptd.rdata(BeamIdx::uy)[ip];
                     const amrex::Real uzi = ptd.rdata(BeamIdx::uz)[ip];
-                    const amrex::Real xq = ptd.pos(0, ip) + (zquad[iq]-clight*time) * uxi/uzi;
-                    const amrex::Real yq = ptd.pos(1, ip) + (zquad[iq]-clight*time) * uyi/uzi;
-                    xp -= Kquad[iq]*xq/uzi * (clight*time+clight*fulldt-zquad[iq]);
-                    ux -= Kquad[iq] * xq;
-                    yp += Kquad[iq]*yq/uzi * (clight*time+clight*fulldt-zquad[iq]);
-                    uy += Kquad[iq] * yq;
+                    const amrex::Real xq = ptd.pos(0, ip) + (quad_z[iq]-clight*time) * uxi/uzi;
+                    const amrex::Real yq = ptd.pos(1, ip) + (quad_z[iq]-clight*time) * uyi/uzi;
+                    xp -= quad_K[iq]*xq/uzi * (clight*time+clight*fulldt-quad_z[iq]);
+                    ux -= quad_K[iq] * xq;
+                    yp += quad_K[iq]*yq/uzi * (clight*time+clight*fulldt-quad_z[iq]);
+                    uy += quad_K[iq] * yq;
                 }
             }
+            // Apply thin optics: phase shifters
+            for (int iz=0; iz<nphaseshifter; iz++) {
+                const amrex::Real fulldt = Hipace::GetInstance().m_dt;
+                if (clight*time <= phaseshifter_z[iz] && clight*(time+fulldt) > phaseshifter_z[iz]){
+                    zp -= phaseshifter_dz[iz];
+                }
+           }
 
             // Store particle data
             ptd.pos(0, ip) = xp;
