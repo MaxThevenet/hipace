@@ -259,6 +259,12 @@ public:
     amrex::Real m_spin_anom = 0.00115965218128;
     /** ratio of beam particles that are written to the openPMD output */
     int m_output_ratio = 1;
+
+    int m_nquad {0};
+    amrex::Gpu::Buffer<amrex::Real> m_Kquad;
+    amrex::Gpu::Buffer<amrex::Real> m_zquad;
+    Mag m_mag;
+
 private:
     std::string m_name; /**< name of the species */
     /** injection type, fixed_width or fixed_ppc */
@@ -336,7 +342,6 @@ private:
     amrex::Array<std::string, AMREX_SPACEDIM> m_file_coordinates_xyz;
     int m_num_iteration {0}; /**< the iteration of the openPMD beam */
     std::string m_species_name; /**< the name of the particle species in the beam file */
-    Mag m_mag;
     amrex::RealVect m_position_offset {0, 0, 0}; /**< add an offset to the position of the beam */
 
     // from list

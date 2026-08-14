@@ -180,6 +180,9 @@ AdvanceBeamParticlesSlice (
     const amrex::GpuArray<amrex::Real, 4> Ls = {chicLs[0], chicLs[1], chicLs[2], chicLs[3]};
     const amrex::GpuArray<amrex::Real, 4> Zs = {chicZs[0], chicZs[1], chicZs[2], chicZs[3]};
     const bool use_chic = *std::max_element(Bs.begin(), Bs.end());
+    amrex::Real* AMREX_RESTRICT zquad = beam.m_zquad.data();
+    amrex::Real* AMREX_RESTRICT Kquad = beam.m_Kquad.data();
+    int nquad = beam.m_nquad;
 
     const int psi_comp = Comps[WhichSlice::This]["Psi"];
     const int ez_comp = Comps[WhichSlice::This]["Ez"];
@@ -529,10 +532,6 @@ AdvanceBeamParticlesSlice (
             } // end for loop over n_subcycles
             if (enforceBC(ptd, ip, xp, yp, ux, uy)) return;
 
-            int nquad = 1;
-            const amrex::GpuArray<amrex::Real, 1> zquad = {.4};
-            const amrex::GpuArray<amrex::Real, 1> Kquad = {-2*1000/zquad[0]};
-            
             for (int iq=0; iq<nquad; iq++) {
                 const amrex::Real fulldt = Hipace::GetInstance().m_dt;
                 if (clight*time <= zquad[iq] && clight*(time+fulldt) > zquad[iq] ) {

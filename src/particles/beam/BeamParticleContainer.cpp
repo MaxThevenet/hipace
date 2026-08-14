@@ -59,6 +59,16 @@ BeamParticleContainer::ReadParameters ()
     queryWithParser(pp, "do_z_push", m_do_z_push);
     queryWithParserAlt(pp, "do_push", m_do_push, pp_alt);
     queryWithParserAlt(pp, "do_radiation_reaction", m_do_radiation_reaction, pp_alt);
+
+    amrex::Vector<amrex::Real> read_quad;
+    queryWithParser(pp, "Kquad", read_quad);
+    m_nquad = read_quad.size();
+    m_Kquad.resize(m_nquad);
+    for (int i=0; i<m_nquad; ++i) m_Kquad[i] = read_quad[i];
+    queryWithParser(pp, "zquad", read_quad);
+    m_zquad.resize(m_nquad);
+    for (int i=0; i<m_nquad; ++i) m_zquad[i] = read_quad[i];
+
     queryWithParserAlt(pp, "insitu_period", m_insitu_period.m_func_str, pp_alt);
     m_insitu_period.compile();
     m_insitu_file_prefix = Hipace::m_output_folder + "/insitu";
@@ -147,6 +157,8 @@ BeamParticleContainer::InitData (const amrex::Geometry& geom)
     }
 
     m_mag = Mag(use_mag, mag_period, mag_phase, mag_B0, mag_fc);
+    m_zquad.copyToDeviceAsync();
+    m_Kquad.copyToDeviceAsync();
 
     if (m_injection_type == "fixed_ppc") {
 
