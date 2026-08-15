@@ -82,6 +82,33 @@ BeamParticleContainer::ReadParameters ()
     for (int i=0; i<m_nthickquad; ++i) m_thickquad_l[i] = read_optics[i];
 
     read_optics = {};
+    queryWithParser(pp, "undulator_B0", read_optics);
+    m_nundulator = read_optics.size();
+    m_undulator_B0.resize(m_nundulator);
+    for (int i=0; i<m_nundulator; ++i) m_undulator_B0[i] = read_optics[i];
+    queryWithParser(pp, "undulator_zstart", read_optics);
+    m_undulator_z.resize(m_nundulator);
+    for (int i=0; i<m_nundulator; ++i) m_undulator_z[i] = read_optics[i];
+    queryWithParser(pp, "undulator_period", read_optics);
+    m_undulator_period.resize(m_nundulator);
+    for (int i=0; i<m_nundulator; ++i) m_undulator_period[i] = read_optics[i];
+    queryWithParser(pp, "undulator_phase", read_optics);
+    m_undulator_phase.resize(m_nundulator);
+    for (int i=0; i<m_nundulator; ++i) m_undulator_phase[i] = read_optics[i];
+    queryWithParser(pp, "undulator_fc", read_optics);
+    m_undulator_fc.resize(m_nundulator);
+    for (int i=0; i<m_nundulator; ++i) m_undulator_fc[i] = read_optics[i];
+    queryWithParser(pp, "undulator_nperiod", read_optics);
+    m_undulator_nperiod.resize(m_nundulator);
+    for (int i=0; i<m_nundulator; ++i) m_undulator_nperiod[i] = read_optics[i];
+    queryWithParser(pp, "undulator_kx", read_optics);
+    m_undulator_kx.resize(m_nundulator);
+    for (int i=0; i<m_nundulator; ++i) m_undulator_kx[i] = read_optics[i];
+    queryWithParser(pp, "undulator_ky", read_optics);
+    m_undulator_ky.resize(m_nundulator);
+    for (int i=0; i<m_nundulator; ++i) m_undulator_ky[i] = read_optics[i];
+
+    read_optics = {};
     queryWithParser(pp, "phaseshifter_dz", read_optics);
     m_nphaseshifter = read_optics.size();
     m_phaseshifter_dz.resize(m_nphaseshifter);

@@ -180,6 +180,15 @@ AdvanceBeamParticlesSlice (
     const amrex::GpuArray<amrex::Real, 4> Ls = {chicLs[0], chicLs[1], chicLs[2], chicLs[3]};
     const amrex::GpuArray<amrex::Real, 4> Zs = {chicZs[0], chicZs[1], chicZs[2], chicZs[3]};
     const bool use_chic = *std::max_element(Bs.begin(), Bs.end());
+    amrex::Real* AMREX_RESTRICT undulator_B0 = beam.m_undulator_B0.data();
+    amrex::Real* AMREX_RESTRICT undulator_period = beam.m_undulator_period.data();
+    amrex::Real* AMREX_RESTRICT undulator_phase = beam.m_undulator_phase.data();
+    amrex::Real* AMREX_RESTRICT undulator_fc = beam.m_undulator_fc.data();
+    amrex::Real* AMREX_RESTRICT undulator_nperiod = beam.m_undulator_nperiod.data();
+    amrex::Real* AMREX_RESTRICT undulator_kx = beam.m_undulator_kx.data();
+    amrex::Real* AMREX_RESTRICT undulator_ky = beam.m_undulator_ky.data();
+    amrex::Real* AMREX_RESTRICT undulator_z = beam.m_undulator_z.data();
+    int nundulator = beam.m_nundulator;
     amrex::Real* AMREX_RESTRICT thinquad_z = beam.m_thinquad_z.data();
     amrex::Real* AMREX_RESTRICT thinquad_K = beam.m_thinquad_K.data();
     int nthinquad = beam.m_nthinquad;
@@ -239,10 +248,7 @@ AdvanceBeamParticlesSlice (
     Array3<const amrex::Real> const& a_arr = use_helmholtz ?
         a_mf[0].const_array() : amrex::Array4<const amrex::Real>();
     const bool helm_mode_is_envelope = helmholtz.ModeIsEnvelope();
-    const amrex::Real ku = 2.*MathConst::pi/mag_period;
     const amrex::Real k = helmholtz.getk0();
-    const amrex::Real K = phys_const.q_e * mag_B0 * mag_period / (2*MathConst::pi*phys_const.m_e*phys_const.c);
-    const amrex::Real fcK = mag.m_fc * K;
 
     const MRLevelData level0data {
         slice_fab_lev0.const_array(),
@@ -391,19 +397,30 @@ AdvanceBeamParticlesSlice (
 
                 if (c_use_helmholtz.value) {
                     const amrex::Real zprop = clight*time + zp/clight*0._rt;
-                    if (use_mag && !helm_mode_is_envelope) {
-                        amrex::Real Bx = 0._rt;
-                        amrex::Real By = mag_B0*std::cos( ku*zprop + mag_phase );
-                        amrex::Real Bz = 0._rt;
-                        // Correction for magnetic fields in undulator
-                        Bx += mag_B0 * std::cos( ku*zprop + mag_phase ) * mag_kx*mag_kx*xp*yp;
-                        By *= (1._rt + mag_kx*mag_kx*xp*xp/2._rt + mag_ky*mag_ky*yp*yp/2._rt);
-                        Bz -= mag_B0 * std::sin( ku*zprop + mag_phase ) * ku*yp;
-                        Bxp += Bx;
-                        Byp += By;
-                        Bzp += Bz;
-                        ExmByp -= By;
-                        EypBxp += Bx;
+                    for (int iu=0; iu<nundulator; iu++) {
+                        if (clight*(time+i*dt) <= undulator_z[iu] &&
+                            clight*(time+i*dt+dt) > undulator_z[iu]
+                            +undulator_nperiod[iu]*undulator_period[iu] &&
+                            !helm_mode_is_envelope)
+                        {
+                            const amrex::Real ku = 2.*MathConst::pi/undulator_period[iu];
+                            amrex::Real mag_B0 = undulator_B0[iu];
+                            amrex::Real mag_phase = undulator_phase[iu];
+                            amrex::Real mag_kx = undulator_kx[iu];
+                            amrex::Real mag_ky = undulator_ky[iu];
+                            amrex::Real Bx = 0._rt;
+                            amrex::Real By = mag_B0*std::cos( ku*zprop + mag_phase );
+                            amrex::Real Bz = 0._rt;
+                            // Correction for magnetic fields in undulator
+                            Bx += mag_B0 * std::cos( ku*zprop + mag_phase ) * mag_kx*mag_kx*xp*yp;
+                            By *= (1._rt + mag_kx*mag_kx*xp*xp/2._rt + mag_ky*mag_ky*yp*yp/2._rt);
+                            Bz -= mag_B0 * std::sin( ku*zprop + mag_phase ) * ku*yp;
+                            Bxp += Bx;
+                            Byp += By;
+                            Bzp += Bz;
+                            ExmByp -= By;
+                            EypBxp += Bx;
+                        }
                     }
                     if (use_chic) {
                         for (int im=0; im<4; ++im) {
@@ -440,6 +457,24 @@ AdvanceBeamParticlesSlice (
                     amrex::Real betax = ux * gammap_inv;
                     amrex::Real betay = uy * gammap_inv;
                     if (helm_mode_is_envelope) {
+                        amrex::Real K = 0._rt;
+                        amrex::Real fcK = 0._rt;
+                        amrex::Real mag_kx = 0._rt;
+                        amrex::Real ku = 
+                        for (int iu=0; iu<nundulator; iu++) {
+                            if (clight*(time+i*dt) <= undulator_z[iu] &&
+                                clight*(time+i*dt+dt) > undulator_z[iu]
+                                +undulator_nperiod[iu]*undulator_period[iu] &&
+                                !helm_mode_is_envelope)
+                            {
+                                amrex::Real mag_B0 = undulator_B0[iu];
+                                amrex::Real mag_period = undulator_period[iu];
+                                mag_kx = undulator_kx[iu];
+                                K = phys_const.q_e * mag_B0 * mag_period /
+                                    (2*MathConst::pi*phys_const.m_e*phys_const.c);
+                                fcK = undulator_fc[iu] * K;
+                            }
+                        }
                         constexpr amrex::GpuComplex<amrex::Real> I(0.,1.);
                         amrex::Real Frp = 0._rt;
                         doHelmholtzGatherShapeN<depos_order.value>(

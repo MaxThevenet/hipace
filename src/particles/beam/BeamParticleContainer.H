@@ -260,6 +260,15 @@ public:
     /** ratio of beam particles that are written to the openPMD output */
     int m_output_ratio = 1;
 
+    int m_nundulator {0};
+    amrex::Gpu::Buffer<amrex::Real> m_undulator_z;
+    amrex::Gpu::Buffer<amrex::Real> m_undulator_B0;
+    amrex::Gpu::Buffer<amrex::Real> m_undulator_period;
+    amrex::Gpu::Buffer<amrex::Real> m_undulator_phase;
+    amrex::Gpu::Buffer<amrex::Real> m_undulator_fc;
+    amrex::Gpu::Buffer<amrex::Real> m_undulator_nperiod;
+    amrex::Gpu::Buffer<amrex::Real> m_undulator_kx;
+    amrex::Gpu::Buffer<amrex::Real> m_undulator_ky;
     int m_nthinquad {0};
     amrex::Gpu::Buffer<amrex::Real> m_thinquad_K;
     amrex::Gpu::Buffer<amrex::Real> m_thinquad_z;
