@@ -61,13 +61,25 @@ BeamParticleContainer::ReadParameters ()
     queryWithParserAlt(pp, "do_radiation_reaction", m_do_radiation_reaction, pp_alt);
 
     amrex::Vector<amrex::Real> read_optics;
-    queryWithParser(pp, "quad_K", read_optics);
-    m_nquad = read_optics.size();
-    m_quad_K.resize(m_nquad);
-    for (int i=0; i<m_nquad; ++i) m_quad_K[i] = read_optics[i];
-    queryWithParser(pp, "quad_z", read_optics);
-    m_quad_z.resize(m_nquad);
-    for (int i=0; i<m_nquad; ++i) m_quad_z[i] = read_optics[i];
+    queryWithParser(pp, "thinquad_K", read_optics);
+    m_nthinquad = read_optics.size();
+    m_thinquad_K.resize(m_nthinquad);
+    for (int i=0; i<m_nthinquad; ++i) m_thinquad_K[i] = read_optics[i];
+    queryWithParser(pp, "thinquad_z", read_optics);
+    m_thinquad_z.resize(m_nthinquad);
+    for (int i=0; i<m_nthinquad; ++i) m_thinquad_z[i] = read_optics[i];
+
+    read_optics = {};
+    queryWithParser(pp, "thickquad_k1ga", read_optics);
+    m_nthickquad = read_optics.size();
+    m_thickquad_k1ga.resize(m_nthickquad);
+    for (int i=0; i<m_nthickquad; ++i) m_thickquad_k1ga[i] = read_optics[i];
+    queryWithParser(pp, "thickquad_z", read_optics);
+    m_thickquad_z.resize(m_nthickquad);
+    for (int i=0; i<m_nthickquad; ++i) m_thickquad_z[i] = read_optics[i];
+    queryWithParser(pp, "thickquad_l", read_optics);
+    m_thickquad_l.resize(m_nthickquad);
+    for (int i=0; i<m_nthickquad; ++i) m_thickquad_l[i] = read_optics[i];
 
     read_optics = {};
     queryWithParser(pp, "phaseshifter_dz", read_optics);
@@ -166,8 +178,8 @@ BeamParticleContainer::InitData (const amrex::Geometry& geom)
     }
 
     m_mag = Mag(use_mag, mag_period, mag_phase, mag_B0, mag_fc);
-    m_quad_z.copyToDeviceAsync();
-    m_quad_K.copyToDeviceAsync();
+    m_thinquad_z.copyToDeviceAsync();
+    m_thinquad_K.copyToDeviceAsync();
     m_phaseshifter_z.copyToDeviceAsync();
     m_phaseshifter_dz.copyToDeviceAsync();
 

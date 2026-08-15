@@ -180,9 +180,13 @@ AdvanceBeamParticlesSlice (
     const amrex::GpuArray<amrex::Real, 4> Ls = {chicLs[0], chicLs[1], chicLs[2], chicLs[3]};
     const amrex::GpuArray<amrex::Real, 4> Zs = {chicZs[0], chicZs[1], chicZs[2], chicZs[3]};
     const bool use_chic = *std::max_element(Bs.begin(), Bs.end());
-    amrex::Real* AMREX_RESTRICT quad_z = beam.m_quad_z.data();
-    amrex::Real* AMREX_RESTRICT quad_K = beam.m_quad_K.data();
-    int nquad = beam.m_nquad;
+    amrex::Real* AMREX_RESTRICT thinquad_z = beam.m_thinquad_z.data();
+    amrex::Real* AMREX_RESTRICT thinquad_K = beam.m_thinquad_K.data();
+    int nthinquad = beam.m_nthinquad;
+    amrex::Real* AMREX_RESTRICT thickquad_z = beam.m_thickquad_z.data();
+    amrex::Real* AMREX_RESTRICT thickquad_l = beam.m_thickquad_l.data();
+    amrex::Real* AMREX_RESTRICT thickquad_k1ga = beam.m_thickquad_k1ga.data();
+    int nthickquad = beam.m_nthickquad;
     amrex::Real* AMREX_RESTRICT phaseshifter_z = beam.m_phaseshifter_z.data();
     amrex::Real* AMREX_RESTRICT phaseshifter_dz = beam.m_phaseshifter_dz.data();
     int nphaseshifter = beam.m_nphaseshifter;
@@ -419,6 +423,19 @@ AdvanceBeamParticlesSlice (
                     * ( EypBxp - ( 1._rt - uz * gammap_inv ) * Bxp - ux * gammap_inv * Bzp);
                 amrex::Real uz_next = uz;
 
+                // Apply kick from thick quadrupole
+                for (int iq=0; iq<nthickquad; iq++) {
+                    amrex::Real zi = clight*(time+i*dt);
+                    amrex::Real zf = clight*(time+i*dt+dt);
+                    if (zi <= thickquad_z[iq]+thickquad_l[iq] && zf > thickquad_z[iq] ) {
+                        amrex::Real zmax = std::min(thickquad_z[iq]+thickquad_l[iq], zf);
+                        amrex::Real zmin = std::max(thickquad_z[iq], zi);
+                        amrex::Real dz = clight*dt;
+                        ux_next -= thickquad_k1ga[iq] * (zmax-zmin) * xp;
+                        uy_next += thickquad_k1ga[iq] * (zmax-zmin) * yp;
+                    }
+                }
+
                 if (c_use_helmholtz.value) {
                     amrex::Real betax = ux * gammap_inv;
                     amrex::Real betay = uy * gammap_inv;
@@ -531,23 +548,23 @@ AdvanceBeamParticlesSlice (
                 }
 
                 // Apply thin optics: quadrupoles
-                for (int iq=0; iq<nquad; iq++) {
-                    if (clight*(time+i*dt) <= quad_z[iq] && clight*(time+i*dt+dt) > quad_z[iq] ) {
+                for (int iq=0; iq<nthinquad; iq++) {
+                    if (clight*(time+i*dt) <= thinquad_z[iq] && clight*(time+i*dt+dt) > thinquad_z[iq] ) {
                         amrex::Real zi = clight*(time+i*dt);
                         amrex::Real zf = clight*(time+i*dt+dt);
                         amrex::Real dz = clight*dt;
-                        const amrex::Real xq = (quad_z[iq]-zi)/dz * xp + (zf-quad_z[iq])/dz * xpi;
-                        const amrex::Real yq = (quad_z[iq]-zi)/dz * yp + (zf-quad_z[iq])/dz * ypi;
-                        ux_next -= quad_K[iq] * xq;
-                        uy_next += quad_K[iq] * yq;
-                        xp -= (zf-quad_z[iq]) * quad_K[iq] * xq  * gamma_next_inv;
-                        yp += (zf-quad_z[iq]) * quad_K[iq] * yq  * gamma_next_inv;
+                        const amrex::Real xq = (thinquad_z[iq]-zi)/dz * xp + (zf-thinquad_z[iq])/dz * xpi;
+                        const amrex::Real yq = (thinquad_z[iq]-zi)/dz * yp + (zf-thinquad_z[iq])/dz * ypi;
+                        ux_next -= thinquad_K[iq] * xq;
+                        uy_next += thinquad_K[iq] * yq;
+                        xp -= (zf-thinquad_z[iq]) * thinquad_K[iq] * xq  * gamma_next_inv;
+                        yp += (zf-thinquad_z[iq]) * thinquad_K[iq] * yq  * gamma_next_inv;
                     }
                 }
 
                 // Apply thin optics: phase shifters
                 for (int iz=0; iz<nphaseshifter; iz++) {
-                    if (clight*(time+i*dt) <= quad_z[iq] && clight*(time+i*dt+dt) > quad_z[iq] ) {
+                    if (clight*(time+i*dt) <= phaseshifter_z[iz] && clight*(time+i*dt+dt) > phaseshifter_z[iz] ) {
                         zp -= phaseshifter_dz[iz];
                     }
                 }

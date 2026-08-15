@@ -260,9 +260,13 @@ public:
     /** ratio of beam particles that are written to the openPMD output */
     int m_output_ratio = 1;
 
-    int m_nquad {0};
-    amrex::Gpu::Buffer<amrex::Real> m_quad_K;
-    amrex::Gpu::Buffer<amrex::Real> m_quad_z;
+    int m_nthinquad {0};
+    amrex::Gpu::Buffer<amrex::Real> m_thinquad_K;
+    amrex::Gpu::Buffer<amrex::Real> m_thinquad_z;
+    int m_nthickquad {0};
+    amrex::Gpu::Buffer<amrex::Real> m_thickquad_z;
+    amrex::Gpu::Buffer<amrex::Real> m_thickquad_l;
+    amrex::Gpu::Buffer<amrex::Real> m_thickquad_k1ga;
     int m_nphaseshifter {0};
     amrex::Gpu::Buffer<amrex::Real> m_phaseshifter_dz;
     amrex::Gpu::Buffer<amrex::Real> m_phaseshifter_z;
