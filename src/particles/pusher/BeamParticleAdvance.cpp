@@ -447,15 +447,6 @@ AdvanceBeamParticlesSlice (
                     }
                 }
 
-
-
-
-
-
-
-
-
-
                 if (c_use_helmholtz.value) {
                     // If Helmholtz envelope model, push from undulator + Helmholtz field
                     // If Helmholtz unaveraged model, push from Helmholtz
@@ -465,14 +456,13 @@ AdvanceBeamParticlesSlice (
                         amrex::Real K = 0._rt;
                         amrex::Real fcK = 0._rt;
                         amrex::Real mag_kx = 0._rt;
-                        amrex::Real ku = 0._rt;
+                        amrex::Real ku = 2.*MathConst::pi/undulator_period[0];
                         for (int iu=0; iu<nundulator; iu++) {
                             const amrex::Real zprop = clight*time + zp/clight*0._rt - undulator_z[iu]; // +i*dt? my_time?
                             // Note the index 0 below. Envelope model: the period
                             // is the same for all undulators, the first element in the array.
                             // Likewise for B0 for now. Later, we could let both adjust provided
                             // lr stays constant.
-                            ku = 2.*MathConst::pi/undulator_period[0];
                             const amrex::Real undulator_l = undulator_nperiod[iu]*undulator_period[0];
                             if (zprop + clight*i*dt >= 0 && zprop + clight*(i+1)*dt < undulator_l)
                             {

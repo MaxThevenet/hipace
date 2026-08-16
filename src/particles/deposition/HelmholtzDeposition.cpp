@@ -40,7 +40,7 @@ HelmholtzDeposition (BeamParticleContainer& beam, Helmholtz& helmholtz,
         bool in_undulator = false;
         for (int iu=0; iu<beam.m_nundulator; iu++) {
             const amrex::Real zprop = phys_const.c*time - beam.m_undulator_z[iu];
-            const amrex::Real undulator_l = beam.m_undulator_nperiod[iu]*beam.m_undulator_period[iu];
+            const amrex::Real undulator_l = beam.m_undulator_nperiod[iu]*beam.m_undulator_period[0];
             if ((zprop >= 0 && zprop < undulator_l))
             {
                 in_undulator = true;
