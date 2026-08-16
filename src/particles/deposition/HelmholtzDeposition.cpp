@@ -51,7 +51,8 @@ HelmholtzDeposition (BeamParticleContainer& beam, Helmholtz& helmholtz,
 
     const amrex::Real ku = 2.*MathConst::pi/beam.m_undulator_period[0];
     const amrex::Real kr = helmholtz.getk0();
-    const amrex::Real K = phys_const.q_e * beam.m_undulator_B0[0] * beam.m_undulator_period[0] / (2*MathConst::pi*phys_const.m_e*phys_const.c);
+    const amrex::Real K = phys_const.q_e * beam.m_undulator_B0[0] * beam.m_undulator_period[0]
+        / (2*MathConst::pi*phys_const.m_e*phys_const.c);
     const amrex::Real fcK = beam.m_undulator_fc[0] * K;
 
     // Extract box properties

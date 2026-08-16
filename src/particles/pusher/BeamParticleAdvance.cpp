@@ -393,7 +393,7 @@ AdvanceBeamParticlesSlice (
                     for (int iu=0; iu<nundulator; iu++) {
                         const amrex::Real zprop = clight*time + zp/clight*0._rt - undulator_z[iu]; // +i*dt?
                         const amrex::Real undulator_l = undulator_nperiod[iu]*undulator_period[iu];
-                        if (zprop + clight*i*dt >= 0 && zprop + clight*(i+1)*dt < undulator_l &&
+                        if (zprop + clight*i*dt >= 0 && zprop + clight*i*dt < undulator_l &&
                             !helm_mode_is_envelope)
                         {
                             const amrex::Real ku = 2.*MathConst::pi/undulator_period[iu];
@@ -464,7 +464,7 @@ AdvanceBeamParticlesSlice (
                             // Likewise for B0 for now. Later, we could let both adjust provided
                             // lr stays constant.
                             const amrex::Real undulator_l = undulator_nperiod[iu]*undulator_period[0];
-                            if (zprop + clight*i*dt >= 0 && zprop + clight*(i+1)*dt < undulator_l)
+                            if (zprop + clight*i*dt >= 0 && zprop + clight*i*dt < undulator_l)
                             {
                                 amrex::Real mag_B0 = undulator_B0[0];
                                 amrex::Real mag_period = undulator_period[0];
