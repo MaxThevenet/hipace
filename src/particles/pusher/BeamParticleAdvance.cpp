@@ -396,11 +396,11 @@ AdvanceBeamParticlesSlice (
                 Ezp *= inv_clight;
 
                 if (c_use_helmholtz.value) {
-                    const amrex::Real zprop = clight*time + zp/clight*0._rt;
+                    // If Helmholtz unaveraged model, add magnetic force from undulator
                     for (int iu=0; iu<nundulator; iu++) {
-                        if (clight*(time+i*dt) <= undulator_z[iu] &&
-                            clight*(time+i*dt+dt) > undulator_z[iu]
-                            +undulator_nperiod[iu]*undulator_period[iu] &&
+                        const amrex::Real zprop = clight*time + zp/clight*0._rt - undulator_z[iu]; // +i*dt?
+                        const amrex::Real undulator_l = undulator_nperiod[iu]*undulator_period[iu];
+                        if (zprop + clight*i*dt >= 0 && zprop + clight*(i+1)*dt < undulator_l &&
                             !helm_mode_is_envelope)
                         {
                             const amrex::Real ku = 2.*MathConst::pi/undulator_period[iu];
@@ -423,6 +423,7 @@ AdvanceBeamParticlesSlice (
                         }
                     }
                     if (use_chic) {
+                        const amrex::Real zprop = clight*time + zp/clight*0._rt; // +i*dt?
                         for (int im=0; im<4; ++im) {
                             if ((zprop >= Zs[im]) && (zprop < (Zs[im] + Ls[im]))) {
                                 Byp += Bs[im];
@@ -453,22 +454,37 @@ AdvanceBeamParticlesSlice (
                     }
                 }
 
+
+
+
+
+
+
+
+
+
                 if (c_use_helmholtz.value) {
+                    // If Helmholtz envelope model, push from undulator + Helmholtz field
+                    // If Helmholtz unaveraged model, push from Helmholtz
                     amrex::Real betax = ux * gammap_inv;
                     amrex::Real betay = uy * gammap_inv;
                     if (helm_mode_is_envelope) {
                         amrex::Real K = 0._rt;
                         amrex::Real fcK = 0._rt;
                         amrex::Real mag_kx = 0._rt;
-                        amrex::Real ku = 
+                        amrex::Real ku = 0._rt;
                         for (int iu=0; iu<nundulator; iu++) {
-                            if (clight*(time+i*dt) <= undulator_z[iu] &&
-                                clight*(time+i*dt+dt) > undulator_z[iu]
-                                +undulator_nperiod[iu]*undulator_period[iu] &&
-                                !helm_mode_is_envelope)
+                            const amrex::Real zprop = clight*time + zp/clight*0._rt - undulator_z[iu]; // +i*dt? my_time?
+                            // Note the index 0 below. Envelope model: the period
+                            // is the same for all undulators, the first element in the array.
+                            // Likewise for B0 for now. Later, we could let both adjust provided
+                            // lr stays constant.
+                            ku = 2.*MathConst::pi/undulator_period[0];
+                            const amrex::Real undulator_l = undulator_nperiod[iu]*undulator_period[0];
+                            if (zprop + clight*i*dt >= 0 && zprop + clight*(i+1)*dt < undulator_l)
                             {
-                                amrex::Real mag_B0 = undulator_B0[iu];
-                                amrex::Real mag_period = undulator_period[iu];
+                                amrex::Real mag_B0 = undulator_B0[0];
+                                amrex::Real mag_period = undulator_period[0];
                                 mag_kx = undulator_kx[iu];
                                 K = phys_const.q_e * mag_B0 * mag_period /
                                     (2*MathConst::pi*phys_const.m_e*phys_const.c);
@@ -492,6 +508,7 @@ AdvanceBeamParticlesSlice (
                         amrex::Real omegap = clight * std::sqrt(nep);
                         amrex::Real omega = std::sqrt( k*k*clight*clight + omegap*omegap );
                         amrex::Real betarsq = betax*betax + betay*betay;
+                        // does this impose nsubcycle=1?
                         amrex::Real theta = (k+ku)*zp + ku*clight*my_time;
                         my_time += dt;//  ??
                         // Here we assume gamma_j = gamma from Eq. (2.59) of Reiche's PhD thesis
