@@ -161,7 +161,6 @@ AdvanceBeamParticlesSlice (
     const bool use_helmholtz = helmholtz.UseHelmholtz();
 
     const PhysConst phys_const = get_phys_const();
-    const Mag mag = beam.getMag();
 
     const bool do_z_push = beam.m_do_z_push;
     const int n_subcycles = beam.m_n_subcycles;
@@ -170,12 +169,6 @@ AdvanceBeamParticlesSlice (
     const amrex::Real dt = Hipace::GetInstance().m_dt / n_subcycles;
     const bool spin_tracking = beam.m_do_spin_tracking;
     const amrex::Real spin_anom = beam.m_spin_anom;
-    const amrex::Real mag_period = mag.m_period;
-    const amrex::Real mag_phase = mag.m_phase;
-    const amrex::Real mag_B0 = mag.m_B0;
-    const amrex::Real mag_kx = mag.m_kx;
-    const amrex::Real mag_ky = mag.m_ky;
-    const bool use_mag = mag.m_use_mag;
     const amrex::GpuArray<amrex::Real, 4> Bs = {chicBs[0], chicBs[1], chicBs[2], chicBs[3]};
     const amrex::GpuArray<amrex::Real, 4> Ls = {chicLs[0], chicLs[1], chicLs[2], chicLs[3]};
     const amrex::GpuArray<amrex::Real, 4> Zs = {chicZs[0], chicZs[1], chicZs[2], chicZs[3]};
@@ -485,10 +478,10 @@ AdvanceBeamParticlesSlice (
                             {
                                 amrex::Real mag_B0 = undulator_B0[0];
                                 amrex::Real mag_period = undulator_period[0];
-                                mag_kx = undulator_kx[iu];
+                                mag_kx = undulator_kx[0];
                                 K = phys_const.q_e * mag_B0 * mag_period /
                                     (2*MathConst::pi*phys_const.m_e*phys_const.c);
-                                fcK = undulator_fc[iu] * K;
+                                fcK = undulator_fc[0] * K;
                             }
                         }
                         constexpr amrex::GpuComplex<amrex::Real> I(0.,1.);

@@ -86,7 +86,7 @@ BeamParticleContainer::ReadParameters ()
     m_nundulator = read_optics.size();
     m_undulator_B0.resize(m_nundulator);
     for (int i=0; i<m_nundulator; ++i) m_undulator_B0[i] = read_optics[i];
-    queryWithParser(pp, "undulator_zstart", read_optics);
+    queryWithParser(pp, "undulator_z", read_optics);
     m_undulator_z.resize(m_nundulator);
     for (int i=0; i<m_nundulator; ++i) m_undulator_z[i] = read_optics[i];
     queryWithParser(pp, "undulator_period", read_optics);
@@ -101,12 +101,12 @@ BeamParticleContainer::ReadParameters ()
     queryWithParser(pp, "undulator_nperiod", read_optics);
     m_undulator_nperiod.resize(m_nundulator);
     for (int i=0; i<m_nundulator; ++i) m_undulator_nperiod[i] = read_optics[i];
-    queryWithParser(pp, "undulator_kx", read_optics);
     m_undulator_kx.resize(m_nundulator);
-    for (int i=0; i<m_nundulator; ++i) m_undulator_kx[i] = read_optics[i];
-    queryWithParser(pp, "undulator_ky", read_optics);
     m_undulator_ky.resize(m_nundulator);
-    for (int i=0; i<m_nundulator; ++i) m_undulator_ky[i] = read_optics[i];
+    for (int i=0; i<m_nundulator; ++i) {
+        m_undulator_kx[i] = 0;
+        m_undulator_ky[i] = 2*MathConst::pi/m_undulator_period[i];
+    }
 
     read_optics = {};
     queryWithParser(pp, "phaseshifter_dz", read_optics);
@@ -194,17 +194,6 @@ BeamParticleContainer::InitData (const amrex::Geometry& geom)
     amrex::ParmParse pp_alt("beams");
     amrex::Real ptime {0.};
 
-    amrex::Real mag_period{1.}, mag_phase{0.}, mag_B0{0.}, mag_fc{0.};
-    bool use_mag = false;
-    queryWithParser(pp, "use_mag", use_mag);
-    if (use_mag) {
-        getWithParser(pp, "mag_period", mag_period);
-        getWithParser(pp, "mag_phase", mag_phase);
-        getWithParser(pp, "mag_B0", mag_B0);
-        queryWithParser(pp, "mag_fc", mag_fc);
-    }
-
-    m_mag = Mag(use_mag, mag_period, mag_phase, mag_B0, mag_fc);
     m_thinquad_z.copyToDeviceAsync();
     m_thinquad_K.copyToDeviceAsync();
     m_phaseshifter_z.copyToDeviceAsync();

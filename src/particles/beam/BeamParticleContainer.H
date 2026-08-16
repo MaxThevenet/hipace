@@ -48,37 +48,6 @@ struct WhichBeamSlice {
 
 using BeamTile = amrex::ParticleTileRT<amrex::Real, int>;
 
-/** \brief Container for a magnetic undulator. */
-struct Mag
-{
-    /** Constructor */
-    Mag () = default;
-
-    Mag (bool use_mag, amrex::Real period, amrex::Real phase, amrex::Real B0, amrex::Real fc) :
-        m_use_mag(use_mag),
-        m_period(period),
-        m_phase(phase),
-        m_B0(B0),
-        m_kx(0.),
-        m_ky(m_use_mag>0 ? 2.*MathConst::pi/period : 0.),
-        m_fc(fc) {}
-
-    /** Whether to use the magnetic undulator */
-    bool m_use_mag = false;
-    /** Undulator period (SI) */
-    amrex::Real m_period {0};
-    /** Undulator phase: By = B0 * cos(ku*z + phase) */
-    amrex::Real m_phase {0};
-    /** Undulator magnetic field */
-    amrex::Real m_B0 {0};
-    /** Rolloff parameter in x, normalized by ku. */
-    amrex::Real m_kx {0};
-    /** Rolloff parameter in y, normalized by ku. */
-    amrex::Real m_ky {0};
-    /** Fc factor for envelope mode. */
-    amrex::Real m_fc {0};
-};
-
 /** \brief Container for particles of 1 beam species. */
 class BeamParticleContainer
 {
@@ -222,7 +191,6 @@ public:
         // don't communicate nsubcycles or mr_level
         return icomp < BeamIdx::int_nattribs_in_buffer;
     }
-    const Mag& getMag () const { return m_mag; }
 
 private:
     int m_slice_permutation = 0;
@@ -279,7 +247,6 @@ public:
     int m_nphaseshifter {0};
     amrex::Gpu::Buffer<amrex::Real> m_phaseshifter_dz;
     amrex::Gpu::Buffer<amrex::Real> m_phaseshifter_z;
-    Mag m_mag;
 
 private:
     std::string m_name; /**< name of the species */
