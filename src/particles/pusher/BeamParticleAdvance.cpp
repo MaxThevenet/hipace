@@ -441,7 +441,6 @@ AdvanceBeamParticlesSlice (
                     if (zi <= thickquad_z[iq]+thickquad_l[iq] && zf > thickquad_z[iq] ) {
                         amrex::Real zmax = std::min(thickquad_z[iq]+thickquad_l[iq], zf);
                         amrex::Real zmin = std::max(thickquad_z[iq], zi);
-                        amrex::Real dz = clight*dt;
                         ux_next -= thickquad_k1ga[iq] * (zmax-zmin) * xp;
                         uy_next += thickquad_k1ga[iq] * (zmax-zmin) * yp;
                     }

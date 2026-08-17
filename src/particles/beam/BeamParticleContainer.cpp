@@ -198,6 +198,14 @@ BeamParticleContainer::InitData (const amrex::Geometry& geom)
     m_thinquad_K.copyToDeviceAsync();
     m_phaseshifter_z.copyToDeviceAsync();
     m_phaseshifter_dz.copyToDeviceAsync();
+    m_undulator_z.copyToDeviceAsync();
+    m_undulator_B0.copyToDeviceAsync();
+    m_undulator_period.copyToDeviceAsync();
+    m_undulator_phase.copyToDeviceAsync();
+    m_undulator_fc.copyToDeviceAsync();
+    m_undulator_nperiod.copyToDeviceAsync();
+    m_undulator_kx.copyToDeviceAsync();
+    m_undulator_ky.copyToDeviceAsync();
 
     if (m_injection_type == "fixed_ppc") {
 
