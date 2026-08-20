@@ -56,7 +56,12 @@ Helmholtz::ReadParameters ()
     m_profile_real = makeFunctionWithParser<3>( profile_real_str, m_parser_lr, {"x", "y", "z"});
     m_profile_imag = makeFunctionWithParser<3>( profile_imag_str, m_parser_li, {"x", "y", "z"});
 
-    queryWithParser(pp, "insitu_file_prefix", m_insitu_file_prefix);
+    m_insitu_file_prefix = Hipace::m_output_folder + "/insitu";
+    const bool set_file_prefix =  queryWithParser(pp, "insitu_file_prefix", m_insitu_file_prefix);
+    if (set_file_prefix) {
+        amrex::Print() <<
+            "It is recommended to use hipace.output_folder instead of lasers.insitu_file_prefix\n";
+    }
 }
 
 void
