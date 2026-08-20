@@ -151,10 +151,7 @@ struct MRLevelData {
 void
 AdvanceBeamParticlesSlice (
     BeamParticleContainer& beam, const Fields& fields, amrex::Vector<amrex::Geometry> const& gm,
-    const int slice, int const current_N_level, const Helmholtz& helmholtz,
-    const std::array<amrex::Real, 4> chicBs,
-    const std::array<amrex::Real, 4> chicLs,
-    const std::array<amrex::Real, 4> chicZs)
+    const int slice, int const current_N_level, const Helmholtz& helmholtz)
 {
     HIPACE_PROFILE("AdvanceBeamParticlesSlice()");
     using namespace amrex::literals;
@@ -169,10 +166,6 @@ AdvanceBeamParticlesSlice (
     const amrex::Real dt = Hipace::GetInstance().m_dt / n_subcycles;
     const bool spin_tracking = beam.m_do_spin_tracking;
     const amrex::Real spin_anom = beam.m_spin_anom;
-    const amrex::GpuArray<amrex::Real, 4> Bs = {chicBs[0], chicBs[1], chicBs[2], chicBs[3]};
-    const amrex::GpuArray<amrex::Real, 4> Ls = {chicLs[0], chicLs[1], chicLs[2], chicLs[3]};
-    const amrex::GpuArray<amrex::Real, 4> Zs = {chicZs[0], chicZs[1], chicZs[2], chicZs[3]};
-    const bool use_chic = *std::max_element(Bs.begin(), Bs.end());
     amrex::Real* AMREX_RESTRICT undulator_B0 = beam.m_undulator_B0.data();
     amrex::Real* AMREX_RESTRICT undulator_period = beam.m_undulator_period.data();
     amrex::Real* AMREX_RESTRICT undulator_phase = beam.m_undulator_phase.data();
@@ -415,15 +408,6 @@ AdvanceBeamParticlesSlice (
                             Bzp += Bz;
                             ExmByp -= By;
                             EypBxp += Bx;
-                        }
-                    }
-                    if (use_chic) {
-                        const amrex::Real zprop = clight*time + zp/clight*0._rt; // +i*dt?
-                        for (int im=0; im<4; ++im) {
-                            if ((zprop >= Zs[im]) && (zprop < (Zs[im] + Ls[im]))) {
-                                Byp += Bs[im];
-                                ExmByp -= Bs[im];
-                            }
                         }
                     }
                 }

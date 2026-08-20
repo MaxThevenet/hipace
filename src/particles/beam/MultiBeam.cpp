@@ -21,9 +21,6 @@ MultiBeam::ReadParameters ()
     queryWithParser(pp, "names", m_names);
     if (m_names[0] == "no_beam") return;
 
-    queryWithParser(pp, "chicBs", m_chicBs);
-    queryWithParser(pp, "chicLs", m_chicLs);
-    queryWithParser(pp, "chicZs", m_chicZs);
     queryWithParser(pp, "tstart_push", m_tstart_push);
 
     DeprecatedInput("beams", "insitu_freq", "insitu_period");
@@ -92,8 +89,8 @@ MultiBeam::AdvanceBeamParticlesSlice (
     if (Hipace::GetInstance().m_physical_time < m_tstart_push) return;
     for (int i=0; i<m_nbeams; i++) {
         if (m_all_beams[i].m_do_push){
-            ::AdvanceBeamParticlesSlice(m_all_beams[i], fields, gm, slice, current_N_level,
-                                        helmholtz, m_chicBs, m_chicLs, m_chicZs);
+            ::AdvanceBeamParticlesSlice(
+                m_all_beams[i], fields, gm, slice, current_N_level, helmholtz);
         }
     }
 }
