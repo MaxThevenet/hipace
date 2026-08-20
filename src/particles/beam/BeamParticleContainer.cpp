@@ -63,29 +63,29 @@ BeamParticleContainer::ReadParameters ()
     if (queryWithParser(pp, "thinquad_K", m_thinquad_K)) {
         m_nthinquad = m_thinquad_K.size();
         getWithParser(pp, "thinquad_z", m_thinquad_z);
-        AMREX_ALWAYS_ASSERT(m_thinquad_z.size() == m_nthinquad);
+        AMREX_ALWAYS_ASSERT(m_thinquad_z.size() == static_cast<std::size_t>(m_nthinquad));
     }
 
     if (queryWithParser(pp, "thickquad_k1ga", m_thickquad_k1ga)) {
         m_nthickquad = m_thickquad_k1ga.size();
         getWithParser(pp, "thickquad_z", m_thickquad_z);
-        AMREX_ALWAYS_ASSERT(m_thickquad_z.size() == m_nthickquad);
+        AMREX_ALWAYS_ASSERT(m_thickquad_z.size() == static_cast<std::size_t>(m_nthickquad));
         getWithParser(pp, "thickquad_l", m_thickquad_l);
-        AMREX_ALWAYS_ASSERT(m_thickquad_l.size() == m_nthickquad);
+        AMREX_ALWAYS_ASSERT(m_thickquad_l.size() == static_cast<std::size_t>(m_nthickquad));
     }
 
     if (queryWithParser(pp, "undulator_z", m_undulator_z)) {
         m_nundulator = m_undulator_z.size();
         getWithParser(pp, "undulator_B0", m_undulator_B0);
-        AMREX_ALWAYS_ASSERT(m_undulator_B0.size() == m_nundulator);
+        AMREX_ALWAYS_ASSERT(m_undulator_B0.size() == static_cast<std::size_t>(m_nundulator));
         getWithParser(pp, "undulator_period", m_undulator_period);
-        AMREX_ALWAYS_ASSERT(m_undulator_period.size() == m_nundulator);
+        AMREX_ALWAYS_ASSERT(m_undulator_period.size() == static_cast<std::size_t>(m_nundulator));
         getWithParser(pp, "undulator_phase", m_undulator_phase);
-        AMREX_ALWAYS_ASSERT(m_undulator_phase.size() == m_nundulator);
+        AMREX_ALWAYS_ASSERT(m_undulator_phase.size() == static_cast<std::size_t>(m_nundulator));
         getWithParser(pp, "undulator_fc", m_undulator_fc);
-        AMREX_ALWAYS_ASSERT(m_undulator_fc.size() == m_nundulator);
+        AMREX_ALWAYS_ASSERT(m_undulator_fc.size() == static_cast<std::size_t>(m_nundulator));
         getWithParser(pp, "undulator_nperiod", m_undulator_nperiod);
-        AMREX_ALWAYS_ASSERT(m_undulator_nperiod.size() == m_nundulator);
+        AMREX_ALWAYS_ASSERT(m_undulator_nperiod.size() == static_cast<std::size_t>(m_nundulator));
         m_undulator_kx.resize(m_nundulator);
         m_undulator_ky.resize(m_nundulator);
         for (int i=0; i<m_nundulator; ++i) {
@@ -99,7 +99,7 @@ BeamParticleContainer::ReadParameters ()
     if (queryWithParser(pp, "phaseshifter_dz", m_phaseshifter_dz)) {
         m_nphaseshifter = m_phaseshifter_dz.size();
         getWithParser(pp, "phaseshifter_z", m_phaseshifter_z);
-        AMREX_ALWAYS_ASSERT(m_phaseshifter_z.size() == m_nphaseshifter);
+        AMREX_ALWAYS_ASSERT(m_phaseshifter_z.size() == static_cast<std::size_t>(m_nphaseshifter));
     }
 
     queryWithParserAlt(pp, "insitu_period", m_insitu_period.m_func_str, pp_alt);
