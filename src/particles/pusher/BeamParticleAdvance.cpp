@@ -161,7 +161,6 @@ AdvanceBeamParticlesSlice (
     const bool use_helmholtz = helmholtz.UseHelmholtz();
 
     const PhysConst phys_const = get_phys_const();
-    const Mag mag = beam.getMag();
 
     const bool do_z_push = beam.m_do_z_push;
     const int n_subcycles = beam.m_n_subcycles;
@@ -170,16 +169,29 @@ AdvanceBeamParticlesSlice (
     const amrex::Real dt = Hipace::GetInstance().m_dt / n_subcycles;
     const bool spin_tracking = beam.m_do_spin_tracking;
     const amrex::Real spin_anom = beam.m_spin_anom;
-    const amrex::Real mag_period = mag.m_period;
-    const amrex::Real mag_phase = mag.m_phase;
-    const amrex::Real mag_B0 = mag.m_B0;
-    const amrex::Real mag_kx = mag.m_kx;
-    const amrex::Real mag_ky = mag.m_ky;
-    const bool use_mag = mag.m_use_mag;
     const amrex::GpuArray<amrex::Real, 4> Bs = {chicBs[0], chicBs[1], chicBs[2], chicBs[3]};
     const amrex::GpuArray<amrex::Real, 4> Ls = {chicLs[0], chicLs[1], chicLs[2], chicLs[3]};
     const amrex::GpuArray<amrex::Real, 4> Zs = {chicZs[0], chicZs[1], chicZs[2], chicZs[3]};
     const bool use_chic = *std::max_element(Bs.begin(), Bs.end());
+    amrex::Real* AMREX_RESTRICT undulator_B0 = beam.m_undulator_B0.data();
+    amrex::Real* AMREX_RESTRICT undulator_period = beam.m_undulator_period.data();
+    amrex::Real* AMREX_RESTRICT undulator_phase = beam.m_undulator_phase.data();
+    amrex::Real* AMREX_RESTRICT undulator_fc = beam.m_undulator_fc.data();
+    amrex::Real* AMREX_RESTRICT undulator_nperiod = beam.m_undulator_nperiod.data();
+    amrex::Real* AMREX_RESTRICT undulator_kx = beam.m_undulator_kx.data();
+    amrex::Real* AMREX_RESTRICT undulator_ky = beam.m_undulator_ky.data();
+    amrex::Real* AMREX_RESTRICT undulator_z = beam.m_undulator_z.data();
+    int nundulator = beam.m_nundulator;
+    amrex::Real* AMREX_RESTRICT thinquad_z = beam.m_thinquad_z.data();
+    amrex::Real* AMREX_RESTRICT thinquad_K = beam.m_thinquad_K.data();
+    int nthinquad = beam.m_nthinquad;
+    amrex::Real* AMREX_RESTRICT thickquad_z = beam.m_thickquad_z.data();
+    amrex::Real* AMREX_RESTRICT thickquad_l = beam.m_thickquad_l.data();
+    amrex::Real* AMREX_RESTRICT thickquad_k1ga = beam.m_thickquad_k1ga.data();
+    int nthickquad = beam.m_nthickquad;
+    amrex::Real* AMREX_RESTRICT phaseshifter_z = beam.m_phaseshifter_z.data();
+    amrex::Real* AMREX_RESTRICT phaseshifter_dz = beam.m_phaseshifter_dz.data();
+    int nphaseshifter = beam.m_nphaseshifter;
 
     const int psi_comp = Comps[WhichSlice::This]["Psi"];
     const int ez_comp = Comps[WhichSlice::This]["Ez"];
@@ -229,10 +241,7 @@ AdvanceBeamParticlesSlice (
     Array3<const amrex::Real> const& a_arr = use_helmholtz ?
         a_mf[0].const_array() : amrex::Array4<const amrex::Real>();
     const bool helm_mode_is_envelope = helmholtz.ModeIsEnvelope();
-    const amrex::Real ku = 2.*MathConst::pi/mag_period;
     const amrex::Real k = helmholtz.getk0();
-    const amrex::Real K = phys_const.q_e * mag_B0 * mag_period / (2*MathConst::pi*phys_const.m_e*phys_const.c);
-    const amrex::Real fcK = mag.m_fc * K / std::sqrt(2);
 
     const MRLevelData level0data {
         slice_fab_lev0.const_array(),
@@ -335,6 +344,8 @@ AdvanceBeamParticlesSlice (
 
                 // first we do half a step in x,y
                 // This is not required in z, which is pushed in one step later
+                amrex::Real xpi = xp;
+                amrex::Real ypi = yp;
                 xp += dt * clight * 0.5_rt * gammap_inv * ux;
                 yp += dt * clight * 0.5_rt * gammap_inv * uy;
 
@@ -378,22 +389,35 @@ AdvanceBeamParticlesSlice (
                 Ezp *= inv_clight;
 
                 if (c_use_helmholtz.value) {
-                    const amrex::Real zprop = clight*time + zp/clight*0._rt;
-                    if (use_mag && !helm_mode_is_envelope) {
-                        amrex::Real Bx = 0._rt;
-                        amrex::Real By = mag_B0*std::cos( ku*zprop + mag_phase );
-                        amrex::Real Bz = 0._rt;
-                        // Correction for magnetic fields in undulator
-                        Bx += mag_B0 * std::cos( ku*zprop + mag_phase ) * mag_kx*mag_kx*xp*yp;
-                        By *= (1._rt + mag_kx*mag_kx*xp*xp/2._rt + mag_ky*mag_ky*yp*yp/2._rt);
-                        Bz -= mag_B0 * std::sin( ku*zprop + mag_phase ) * ku*yp;
-                        Bxp += Bx;
-                        Byp += By;
-                        Bzp += Bz;
-                        ExmByp -= By;
-                        EypBxp += Bx;
+                    // If Helmholtz unaveraged model, add magnetic force from undulator
+                    for (int iu=0; iu<nundulator; iu++) {
+                        const amrex::Real zprop = clight*(time+i*dt) + zp/clight*0._rt - undulator_z[iu];
+                        const amrex::Real undulator_l = undulator_nperiod[iu]*undulator_period[iu];
+                        const amrex::Real ku = 2._rt*MathConst::pi/undulator_period[iu];
+                        amrex::Real mag_dz = 0.5_rt*clight*dt;
+                        amrex::Real dz_err = clight*dt/10; // 10x smaller than sub-cycled dt
+                        // if (zprop + clight*i*dt >= 0 && zprop + clight*i*dt < undulator_l &&
+                        if (zprop >= -dz_err && zprop < undulator_l - mag_dz - dz_err && !helm_mode_is_envelope)
+                        {
+                            amrex::Real mag_B0 = undulator_B0[iu];
+                            amrex::Real mag_kx = undulator_kx[iu];
+                            amrex::Real mag_ky = undulator_ky[iu];
+                            amrex::Real Bx = 0._rt;
+                            amrex::Real By = mag_B0*std::cos( ku*zprop + ku*mag_dz );
+                            amrex::Real Bz = 0._rt;
+                            // Correction for magnetic fields in undulator
+                            Bx += mag_B0 * std::cos( ku*zprop + ku*mag_dz ) * mag_kx*mag_kx*xp*yp;
+                            By *= (1._rt + 0.5_rt*mag_kx*mag_kx*xp*xp + 0.5_rt*mag_ky*mag_ky*yp*yp);
+                            Bz -= mag_B0 * std::sin( ku*zprop + ku*mag_dz ) * ku*yp;
+                            Bxp += Bx;
+                            Byp += By;
+                            Bzp += Bz;
+                            ExmByp -= By;
+                            EypBxp += Bx;
+                        }
                     }
                     if (use_chic) {
+                        const amrex::Real zprop = clight*time + zp/clight*0._rt; // +i*dt?
                         for (int im=0; im<4; ++im) {
                             if ((zprop >= Zs[im]) && (zprop < (Zs[im] + Ls[im]))) {
                                 Byp += Bs[im];
@@ -411,10 +435,45 @@ AdvanceBeamParticlesSlice (
                     * ( EypBxp - ( 1._rt - uz * gammap_inv ) * Bxp - ux * gammap_inv * Bzp);
                 amrex::Real uz_next = uz;
 
+                // Apply kick from thick quadrupole
+                for (int iq=0; iq<nthickquad; iq++) {
+                    amrex::Real zi = clight*(time+i*dt);
+                    amrex::Real zf = clight*(time+i*dt+dt);
+                    if (zi <= thickquad_z[iq]+thickquad_l[iq] && zf > thickquad_z[iq] ) {
+                        amrex::Real zmax = std::min(thickquad_z[iq]+thickquad_l[iq], zf);
+                        amrex::Real zmin = std::max(thickquad_z[iq], zi);
+                        ux_next -= thickquad_k1ga[iq] * (zmax-zmin) * xp;
+                        uy_next += thickquad_k1ga[iq] * (zmax-zmin) * yp;
+                    }
+                }
+
                 if (c_use_helmholtz.value) {
+                    // If Helmholtz envelope model, push from undulator + Helmholtz field
+                    // If Helmholtz unaveraged model, push from Helmholtz
                     amrex::Real betax = ux * gammap_inv;
                     amrex::Real betay = uy * gammap_inv;
                     if (helm_mode_is_envelope) {
+                        amrex::Real K = 0._rt;
+                        amrex::Real fcK = 0._rt;
+                        amrex::Real mag_kx = 0._rt;
+                        amrex::Real ku = 2.*MathConst::pi/undulator_period[0];
+                        for (int iu=0; iu<nundulator; iu++) {
+                            const amrex::Real zprop = clight*time + zp/clight*0._rt - undulator_z[iu]; // +i*dt? my_time?
+                            // Note the index 0 below. Envelope model: the period
+                            // is the same for all undulators, the first element in the array.
+                            // Likewise for B0 for now. Later, we could let both adjust provided
+                            // lr stays constant.
+                            const amrex::Real undulator_l = undulator_nperiod[iu]*undulator_period[0];
+                            if (zprop + clight*i*dt >= 0 && zprop + clight*i*dt < undulator_l)
+                            {
+                                amrex::Real mag_B0 = undulator_B0[0];
+                                amrex::Real mag_period = undulator_period[0];
+                                mag_kx = undulator_kx[0];
+                                K = phys_const.q_e * mag_B0 * mag_period /
+                                    (2*MathConst::pi*phys_const.m_e*phys_const.c);
+                                fcK = undulator_fc[0] * K;
+                            }
+                        }
                         constexpr amrex::GpuComplex<amrex::Real> I(0.,1.);
                         amrex::Real Frp = 0._rt;
                         doHelmholtzGatherShapeN<depos_order.value>(
@@ -432,8 +491,9 @@ AdvanceBeamParticlesSlice (
                         amrex::Real omegap = clight * std::sqrt(nep);
                         amrex::Real omega = std::sqrt( k*k*clight*clight + omegap*omegap );
                         amrex::Real betarsq = betax*betax + betay*betay;
+                        // does this impose nsubcycle=1?
                         amrex::Real theta = (k+ku)*zp + ku*clight*my_time;
-                        my_time += dt;
+                        my_time += dt;//  ??
                         // Here we assume gamma_j = gamma from Eq. (2.59) of Reiche's PhD thesis
                         amrex::Real theta_dot =
                             + clight*ku
@@ -441,11 +501,11 @@ AdvanceBeamParticlesSlice (
                             - omega * betarsq / 2._rt
                             - omega * (Frp*Frp+Fip*Fip) / 4._rt * gammap_inv * gammap_inv
                             + omega * fcK * gammap_inv * gammap_inv *
-                            ((Frp+I*Fip)*amrex::exp(I*theta)).imag() / std::sqrt(2._rt);
+                            ((Frp+I*Fip)*amrex::exp(I*theta)).imag() / 2._rt;
                         // u = p/(mc) = gamma*beta normalized momentum
                         amrex::Real uxdot = - clight * K*K/2._rt * mag_kx*mag_kx * gammap_inv * xp;
                         amrex::Real gammadot =
-                            -omega * fcK * gammap_inv * ((Frp+I*Fip)*amrex::exp(I*theta)).real() / std::sqrt(2._rt)
+                            -omega * fcK * gammap_inv * ((Frp+I*Fip)*amrex::exp(I*theta)).real() / 2._rt
                             + 0._rt; // 0 is for longitudinal contribution
                         amrex::Real uzdot = ( 1._rt / gammap_inv * gammadot - ux * uxdot ) / uz;
                         ux_next += dt * uxdot;
@@ -520,6 +580,28 @@ AdvanceBeamParticlesSlice (
                 yp += dt * clight * 0.5_rt * gamma_next_inv * uy_next;
                 if (do_z_push && !(c_use_helmholtz.value && helm_mode_is_envelope)) {
                     zp += dt * clight * ( uz_next * gamma_next_inv - 1._rt );
+                }
+
+                // Apply thin optics: quadrupoles
+                for (int iq=0; iq<nthinquad; iq++) {
+                    if (clight*(time+i*dt) <= thinquad_z[iq] && clight*(time+i*dt+dt) > thinquad_z[iq] ) {
+                        amrex::Real zi = clight*(time+i*dt);
+                        amrex::Real zf = clight*(time+i*dt+dt);
+                        amrex::Real dz = clight*dt;
+                        const amrex::Real xq = (thinquad_z[iq]-zi)/dz * xp + (zf-thinquad_z[iq])/dz * xpi;
+                        const amrex::Real yq = (thinquad_z[iq]-zi)/dz * yp + (zf-thinquad_z[iq])/dz * ypi;
+                        ux_next -= thinquad_K[iq] * xq;
+                        uy_next += thinquad_K[iq] * yq;
+                        xp -= (zf-thinquad_z[iq]) * thinquad_K[iq] * xq  * gamma_next_inv;
+                        yp += (zf-thinquad_z[iq]) * thinquad_K[iq] * yq  * gamma_next_inv;
+                    }
+                }
+
+                // Apply thin optics: phase shifters
+                for (int iz=0; iz<nphaseshifter; iz++) {
+                    if (clight*(time+i*dt) <= phaseshifter_z[iz] && clight*(time+i*dt+dt) > phaseshifter_z[iz] ) {
+                        zp -= phaseshifter_dz[iz];
+                    }
                 }
 
                 ux = ux_next;

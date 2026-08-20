@@ -36,11 +36,24 @@ HelmholtzDeposition (BeamParticleContainer& beam, Helmholtz& helmholtz,
 
     PhysConst const phys_const = get_phys_const();
 
-    const Mag mag = beam.getMag();
-    const amrex::Real ku = 2.*MathConst::pi/mag.m_period;
+    if (mode_is_envelope) {
+        bool in_undulator = false;
+        for (int iu=0; iu<beam.m_nundulator; iu++) {
+            const amrex::Real zprop = phys_const.c*time - beam.m_undulator_z[iu];
+            const amrex::Real undulator_l = beam.m_undulator_nperiod[iu]*beam.m_undulator_period[0];
+            if ((zprop >= 0 && zprop < undulator_l))
+            {
+                in_undulator = true;
+            }
+        }
+        if (!in_undulator) return;
+    }
+
+    const amrex::Real ku = 2.*MathConst::pi/beam.m_undulator_period[0];
     const amrex::Real kr = helmholtz.getk0();
-    const amrex::Real K = phys_const.q_e * mag.m_B0 * mag.m_period / (2*MathConst::pi*phys_const.m_e*phys_const.c);
-    const amrex::Real fcK = mag.m_fc * K;
+    const amrex::Real K = phys_const.q_e * beam.m_undulator_B0[0] * beam.m_undulator_period[0]
+        / (2*MathConst::pi*phys_const.m_e*phys_const.c);
+    const amrex::Real fcK = beam.m_undulator_fc[0] * K;
 
     // Extract box properties
     const amrex::Real dxi = gm.InvCellSize(0);
@@ -128,9 +141,9 @@ HelmholtzDeposition (BeamParticleContainer& beam, Helmholtz& helmholtz,
             const amrex::Real wqg = wq * gaminv * q * PhysConstSI::mu0 / PhysConstSI::m_e;
 
             // wqx, wqy wqz are particle current in each direction
-            const amrex::Real wqx = wq*ux*gaminv;
+            const amrex::Real wqx = wq*ux*gaminv*phys_const.c;
             // const amrex::Real wqy = wq*uy*gaminv;
-            const amrex::Real wqz = wq*uz*gaminv;
+            const amrex::Real wqz = wq*uz*gaminv*phys_const.c;
             const amrex::Real wqrho = wq;
 
             const amrex::Real xmid = (ptd.pos(0, ip) - x_pos_offset)*dxi;

@@ -59,6 +59,64 @@ BeamParticleContainer::ReadParameters ()
     queryWithParser(pp, "do_z_push", m_do_z_push);
     queryWithParserAlt(pp, "do_push", m_do_push, pp_alt);
     queryWithParserAlt(pp, "do_radiation_reaction", m_do_radiation_reaction, pp_alt);
+
+    amrex::Vector<amrex::Real> read_optics;
+    queryWithParser(pp, "thinquad_K", read_optics);
+    m_nthinquad = read_optics.size();
+    m_thinquad_K.resize(m_nthinquad);
+    for (int i=0; i<m_nthinquad; ++i) m_thinquad_K[i] = read_optics[i];
+    queryWithParser(pp, "thinquad_z", read_optics);
+    m_thinquad_z.resize(m_nthinquad);
+    for (int i=0; i<m_nthinquad; ++i) m_thinquad_z[i] = read_optics[i];
+
+    read_optics = {};
+    queryWithParser(pp, "thickquad_k1ga", read_optics);
+    m_nthickquad = read_optics.size();
+    m_thickquad_k1ga.resize(m_nthickquad);
+    for (int i=0; i<m_nthickquad; ++i) m_thickquad_k1ga[i] = read_optics[i];
+    queryWithParser(pp, "thickquad_z", read_optics);
+    m_thickquad_z.resize(m_nthickquad);
+    for (int i=0; i<m_nthickquad; ++i) m_thickquad_z[i] = read_optics[i];
+    queryWithParser(pp, "thickquad_l", read_optics);
+    m_thickquad_l.resize(m_nthickquad);
+    for (int i=0; i<m_nthickquad; ++i) m_thickquad_l[i] = read_optics[i];
+
+    read_optics = {};
+    queryWithParser(pp, "undulator_z", read_optics);
+    m_nundulator = read_optics.size();
+    m_undulator_z.resize(read_optics.size());
+    for (int i=0; i<m_nundulator; ++i) m_undulator_z[i] = read_optics[i];
+    queryWithParser(pp, "undulator_B0", read_optics);
+    m_undulator_B0.resize(read_optics.size());
+    for (int i=0; i<read_optics.size(); ++i) m_undulator_B0[i] = read_optics[i];
+    queryWithParser(pp, "undulator_period", read_optics);
+    m_undulator_period.resize(read_optics.size());
+    for (int i=0; i<read_optics.size(); ++i) m_undulator_period[i] = read_optics[i];
+    queryWithParser(pp, "undulator_phase", read_optics);
+    m_undulator_phase.resize(read_optics.size());
+    for (int i=0; i<read_optics.size(); ++i) m_undulator_phase[i] = read_optics[i];
+    queryWithParser(pp, "undulator_fc", read_optics);
+    m_undulator_fc.resize(read_optics.size());
+    for (int i=0; i<read_optics.size(); ++i) m_undulator_fc[i] = read_optics[i];
+    queryWithParser(pp, "undulator_nperiod", read_optics);
+    m_undulator_nperiod.resize(read_optics.size());
+    for (int i=0; i<m_nundulator; ++i) m_undulator_nperiod[i] = read_optics[i];
+    m_undulator_kx.resize(m_nundulator);
+    m_undulator_ky.resize(m_nundulator);
+    for (int i=0; i<m_nundulator; ++i) {
+        m_undulator_kx[i] = 0;
+        m_undulator_ky[i] = 2*MathConst::pi/m_undulator_period[i];
+    }
+
+    read_optics = {};
+    queryWithParser(pp, "phaseshifter_dz", read_optics);
+    m_nphaseshifter = read_optics.size();
+    m_phaseshifter_dz.resize(m_nphaseshifter);
+    for (int i=0; i<m_nphaseshifter; ++i) m_phaseshifter_dz[i] = read_optics[i];
+    queryWithParser(pp, "phaseshifter_z", read_optics);
+    m_phaseshifter_z.resize(m_nphaseshifter);
+    for (int i=0; i<m_nphaseshifter; ++i) m_phaseshifter_z[i] = read_optics[i];
+
     queryWithParserAlt(pp, "insitu_period", m_insitu_period.m_func_str, pp_alt);
     m_insitu_period.compile();
     m_insitu_file_prefix = Hipace::m_output_folder + "/insitu";
@@ -136,16 +194,21 @@ BeamParticleContainer::InitData (const amrex::Geometry& geom)
     amrex::ParmParse pp_alt("beams");
     amrex::Real ptime {0.};
 
-    amrex::Real mag_period{0.}, mag_phase{0.}, mag_B0{0.}, mag_fc{0.};
-    bool use_mag = false;
-    queryWithParser(pp, "use_mag", use_mag);
-    if (use_mag) {
-        getWithParser(pp, "mag_period", mag_period);
-        getWithParser(pp, "mag_phase", mag_phase);
-        getWithParser(pp, "mag_B0", mag_B0);
-        queryWithParser(pp, "mag_fc", mag_fc);
-    }
-    m_mag = Mag(use_mag, mag_period, mag_phase, mag_B0, mag_fc);
+    m_thinquad_z.copyToDeviceAsync();
+    m_thinquad_K.copyToDeviceAsync();
+    m_thickquad_z.copyToDeviceAsync();
+    m_thickquad_l.copyToDeviceAsync();
+    m_thickquad_k1ga.copyToDeviceAsync();
+    m_phaseshifter_z.copyToDeviceAsync();
+    m_phaseshifter_dz.copyToDeviceAsync();
+    m_undulator_z.copyToDeviceAsync();
+    m_undulator_B0.copyToDeviceAsync();
+    m_undulator_period.copyToDeviceAsync();
+    m_undulator_phase.copyToDeviceAsync();
+    m_undulator_fc.copyToDeviceAsync();
+    m_undulator_nperiod.copyToDeviceAsync();
+    m_undulator_kx.copyToDeviceAsync();
+    m_undulator_ky.copyToDeviceAsync();
 
     if (m_injection_type == "fixed_ppc") {
 

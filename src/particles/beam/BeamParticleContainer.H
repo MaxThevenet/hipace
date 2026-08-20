@@ -48,37 +48,6 @@ struct WhichBeamSlice {
 
 using BeamTile = amrex::ParticleTileRT<amrex::Real, int>;
 
-/** \brief Container for a magnetic undulator. */
-struct Mag
-{
-    /** Constructor */
-    Mag () = default;
-
-    Mag (bool use_mag, amrex::Real period, amrex::Real phase, amrex::Real B0, amrex::Real fc) :
-        m_use_mag(use_mag),
-        m_period(period),
-        m_phase(phase),
-        m_B0(B0),
-        m_kx(0.),
-        m_ky(2.*MathConst::pi/period),
-        m_fc(fc) {}
-
-    /** Whether to use the magnetic undulator */
-    bool m_use_mag = false;
-    /** Undulator period (SI) */
-    amrex::Real m_period {0};
-    /** Undulator phase: By = B0 * cos(ku*z + phase) */
-    amrex::Real m_phase {0};
-    /** Undulator magnetic field */
-    amrex::Real m_B0 {0};
-    /** Rolloff parameter in x, normalized by ku. */
-    amrex::Real m_kx {0};
-    /** Rolloff parameter in y, normalized by ku. */
-    amrex::Real m_ky {0};
-    /** Fc factor for envelope mode. */
-    amrex::Real m_fc {0};
-};
-
 /** \brief Container for particles of 1 beam species. */
 class BeamParticleContainer
 {
@@ -222,7 +191,6 @@ public:
         // don't communicate nsubcycles or mr_level
         return icomp < BeamIdx::int_nattribs_in_buffer;
     }
-    const Mag& getMag () const { return m_mag; }
 
 private:
     int m_slice_permutation = 0;
@@ -259,6 +227,27 @@ public:
     amrex::Real m_spin_anom = 0.00115965218128;
     /** ratio of beam particles that are written to the openPMD output */
     int m_output_ratio = 1;
+
+    int m_nundulator {0};
+    amrex::Gpu::Buffer<amrex::Real> m_undulator_z;
+    amrex::Gpu::Buffer<amrex::Real> m_undulator_B0;
+    amrex::Gpu::Buffer<amrex::Real> m_undulator_period;
+    amrex::Gpu::Buffer<amrex::Real> m_undulator_phase;
+    amrex::Gpu::Buffer<amrex::Real> m_undulator_fc;
+    amrex::Gpu::Buffer<amrex::Real> m_undulator_nperiod;
+    amrex::Gpu::Buffer<amrex::Real> m_undulator_kx;
+    amrex::Gpu::Buffer<amrex::Real> m_undulator_ky;
+    int m_nthinquad {0};
+    amrex::Gpu::Buffer<amrex::Real> m_thinquad_K;
+    amrex::Gpu::Buffer<amrex::Real> m_thinquad_z;
+    int m_nthickquad {0};
+    amrex::Gpu::Buffer<amrex::Real> m_thickquad_z;
+    amrex::Gpu::Buffer<amrex::Real> m_thickquad_l;
+    amrex::Gpu::Buffer<amrex::Real> m_thickquad_k1ga;
+    int m_nphaseshifter {0};
+    amrex::Gpu::Buffer<amrex::Real> m_phaseshifter_dz;
+    amrex::Gpu::Buffer<amrex::Real> m_phaseshifter_z;
+
 private:
     std::string m_name; /**< name of the species */
     /** injection type, fixed_width or fixed_ppc */
@@ -336,7 +325,6 @@ private:
     amrex::Array<std::string, AMREX_SPACEDIM> m_file_coordinates_xyz;
     int m_num_iteration {0}; /**< the iteration of the openPMD beam */
     std::string m_species_name; /**< the name of the particle species in the beam file */
-    Mag m_mag;
     amrex::RealVect m_position_offset {0, 0, 0}; /**< add an offset to the position of the beam */
 
     // from list
