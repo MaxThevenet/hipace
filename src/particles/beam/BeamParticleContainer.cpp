@@ -60,62 +60,47 @@ BeamParticleContainer::ReadParameters ()
     queryWithParserAlt(pp, "do_push", m_do_push, pp_alt);
     queryWithParserAlt(pp, "do_radiation_reaction", m_do_radiation_reaction, pp_alt);
 
-    amrex::Vector<amrex::Real> read_optics;
-    queryWithParser(pp, "thinquad_K", read_optics);
-    m_nthinquad = read_optics.size();
-    m_thinquad_K.resize(m_nthinquad);
-    for (int i=0; i<m_nthinquad; ++i) m_thinquad_K[i] = read_optics[i];
-    queryWithParser(pp, "thinquad_z", read_optics);
-    m_thinquad_z.resize(m_nthinquad);
-    for (int i=0; i<m_nthinquad; ++i) m_thinquad_z[i] = read_optics[i];
-
-    read_optics = {};
-    queryWithParser(pp, "thickquad_k1ga", read_optics);
-    m_nthickquad = read_optics.size();
-    m_thickquad_k1ga.resize(m_nthickquad);
-    for (int i=0; i<m_nthickquad; ++i) m_thickquad_k1ga[i] = read_optics[i];
-    queryWithParser(pp, "thickquad_z", read_optics);
-    m_thickquad_z.resize(m_nthickquad);
-    for (int i=0; i<m_nthickquad; ++i) m_thickquad_z[i] = read_optics[i];
-    queryWithParser(pp, "thickquad_l", read_optics);
-    m_thickquad_l.resize(m_nthickquad);
-    for (int i=0; i<m_nthickquad; ++i) m_thickquad_l[i] = read_optics[i];
-
-    read_optics = {};
-    queryWithParser(pp, "undulator_z", read_optics);
-    m_nundulator = read_optics.size();
-    m_undulator_z.resize(read_optics.size());
-    for (int i=0; i<m_nundulator; ++i) m_undulator_z[i] = read_optics[i];
-    queryWithParser(pp, "undulator_B0", read_optics);
-    m_undulator_B0.resize(read_optics.size());
-    for (int i=0; i<read_optics.size(); ++i) m_undulator_B0[i] = read_optics[i];
-    queryWithParser(pp, "undulator_period", read_optics);
-    m_undulator_period.resize(read_optics.size());
-    for (int i=0; i<read_optics.size(); ++i) m_undulator_period[i] = read_optics[i];
-    queryWithParser(pp, "undulator_phase", read_optics);
-    m_undulator_phase.resize(read_optics.size());
-    for (int i=0; i<read_optics.size(); ++i) m_undulator_phase[i] = read_optics[i];
-    queryWithParser(pp, "undulator_fc", read_optics);
-    m_undulator_fc.resize(read_optics.size());
-    for (int i=0; i<read_optics.size(); ++i) m_undulator_fc[i] = read_optics[i];
-    queryWithParser(pp, "undulator_nperiod", read_optics);
-    m_undulator_nperiod.resize(read_optics.size());
-    for (int i=0; i<m_nundulator; ++i) m_undulator_nperiod[i] = read_optics[i];
-    m_undulator_kx.resize(m_nundulator);
-    m_undulator_ky.resize(m_nundulator);
-    for (int i=0; i<m_nundulator; ++i) {
-        m_undulator_kx[i] = 0;
-        m_undulator_ky[i] = 2*MathConst::pi/m_undulator_period[i];
+    if (queryWithParser(pp, "thinquad_K", m_thinquad_K)) {
+        m_nthinquad = m_thinquad_K.size();
+        getWithParser(pp, "thinquad_z", m_thinquad_z);
+        AMREX_ALWAYS_ASSERT(m_thinquad_z.size() == m_nthinquad);
     }
 
-    read_optics = {};
-    queryWithParser(pp, "phaseshifter_dz", read_optics);
-    m_nphaseshifter = read_optics.size();
-    m_phaseshifter_dz.resize(m_nphaseshifter);
-    for (int i=0; i<m_nphaseshifter; ++i) m_phaseshifter_dz[i] = read_optics[i];
-    queryWithParser(pp, "phaseshifter_z", read_optics);
-    m_phaseshifter_z.resize(m_nphaseshifter);
-    for (int i=0; i<m_nphaseshifter; ++i) m_phaseshifter_z[i] = read_optics[i];
+    if (queryWithParser(pp, "thickquad_k1ga", m_thickquad_k1ga)) {
+        m_nthickquad = m_thickquad_k1ga.size();
+        getWithParser(pp, "thickquad_z", m_thickquad_z);
+        AMREX_ALWAYS_ASSERT(m_thickquad_z.size() == m_nthickquad);
+        getWithParser(pp, "thickquad_l", m_thickquad_l);
+        AMREX_ALWAYS_ASSERT(m_thickquad_l.size() == m_nthickquad);
+    }
+
+    if (queryWithParser(pp, "undulator_z", m_undulator_z)) {
+        m_nundulator = m_undulator_z.size();
+        getWithParser(pp, "undulator_B0", m_undulator_B0);
+        AMREX_ALWAYS_ASSERT(m_undulator_B0.size() == m_nundulator);
+        getWithParser(pp, "undulator_period", m_undulator_period);
+        AMREX_ALWAYS_ASSERT(m_undulator_period.size() == m_nundulator);
+        getWithParser(pp, "undulator_phase", m_undulator_phase);
+        AMREX_ALWAYS_ASSERT(m_undulator_phase.size() == m_nundulator);
+        getWithParser(pp, "undulator_fc", m_undulator_fc);
+        AMREX_ALWAYS_ASSERT(m_undulator_fc.size() == m_nundulator);
+        getWithParser(pp, "undulator_nperiod", m_undulator_nperiod);
+        AMREX_ALWAYS_ASSERT(m_undulator_nperiod.size() == m_nundulator);
+        m_undulator_kx.resize(m_nundulator);
+        m_undulator_ky.resize(m_nundulator);
+        for (int i=0; i<m_nundulator; ++i) {
+            m_undulator_kx[i] = 0;
+            m_undulator_ky[i] = 2*MathConst::pi/m_undulator_period[i];
+        }
+        m_undulator_kx.copyToDeviceAsync();
+        m_undulator_ky.copyToDeviceAsync();
+    }
+
+    if (queryWithParser(pp, "phaseshifter_dz", m_phaseshifter_dz)) {
+        m_nphaseshifter = m_phaseshifter_dz.size();
+        getWithParser(pp, "phaseshifter_z", m_phaseshifter_z);
+        AMREX_ALWAYS_ASSERT(m_phaseshifter_z.size() == m_nphaseshifter);
+    }
 
     queryWithParserAlt(pp, "insitu_period", m_insitu_period.m_func_str, pp_alt);
     m_insitu_period.compile();
@@ -193,22 +178,6 @@ BeamParticleContainer::InitData (const amrex::Geometry& geom)
     amrex::ParmParse pp(m_name);
     amrex::ParmParse pp_alt("beams");
     amrex::Real ptime {0.};
-
-    m_thinquad_z.copyToDeviceAsync();
-    m_thinquad_K.copyToDeviceAsync();
-    m_thickquad_z.copyToDeviceAsync();
-    m_thickquad_l.copyToDeviceAsync();
-    m_thickquad_k1ga.copyToDeviceAsync();
-    m_phaseshifter_z.copyToDeviceAsync();
-    m_phaseshifter_dz.copyToDeviceAsync();
-    m_undulator_z.copyToDeviceAsync();
-    m_undulator_B0.copyToDeviceAsync();
-    m_undulator_period.copyToDeviceAsync();
-    m_undulator_phase.copyToDeviceAsync();
-    m_undulator_fc.copyToDeviceAsync();
-    m_undulator_nperiod.copyToDeviceAsync();
-    m_undulator_kx.copyToDeviceAsync();
-    m_undulator_ky.copyToDeviceAsync();
 
     if (m_injection_type == "fixed_ppc") {
 

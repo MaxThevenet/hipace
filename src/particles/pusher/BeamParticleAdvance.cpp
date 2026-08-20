@@ -242,6 +242,7 @@ AdvanceBeamParticlesSlice (
         a_mf[0].const_array() : amrex::Array4<const amrex::Real>();
     const bool helm_mode_is_envelope = helmholtz.ModeIsEnvelope();
     const amrex::Real k = helmholtz.getk0();
+    AMREX_ALWAYS_ASSERT(!(use_helmholtz && helm_mode_is_envelope) || nundulator > 0);
 
     const MRLevelData level0data {
         slice_fab_lev0.const_array(),
