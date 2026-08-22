@@ -80,8 +80,6 @@ BeamParticleContainer::ReadParameters ()
         AMREX_ALWAYS_ASSERT(m_undulator_B0.size() == static_cast<std::size_t>(m_nundulator));
         getWithParser(pp, "undulator_period", m_undulator_period);
         AMREX_ALWAYS_ASSERT(m_undulator_period.size() == static_cast<std::size_t>(m_nundulator));
-        getWithParser(pp, "undulator_phase", m_undulator_phase);
-        AMREX_ALWAYS_ASSERT(m_undulator_phase.size() == static_cast<std::size_t>(m_nundulator));
         getWithParser(pp, "undulator_fc", m_undulator_fc);
         AMREX_ALWAYS_ASSERT(m_undulator_fc.size() == static_cast<std::size_t>(m_nundulator));
         getWithParser(pp, "undulator_nperiod", m_undulator_nperiod);

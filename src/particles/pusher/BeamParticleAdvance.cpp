@@ -168,7 +168,6 @@ AdvanceBeamParticlesSlice (
     const amrex::Real spin_anom = beam.m_spin_anom;
     amrex::Real* AMREX_RESTRICT undulator_B0 = beam.m_undulator_B0.data();
     amrex::Real* AMREX_RESTRICT undulator_period = beam.m_undulator_period.data();
-    amrex::Real* AMREX_RESTRICT undulator_phase = beam.m_undulator_phase.data();
     amrex::Real* AMREX_RESTRICT undulator_fc = beam.m_undulator_fc.data();
     amrex::Real* AMREX_RESTRICT undulator_nperiod = beam.m_undulator_nperiod.data();
     amrex::Real* AMREX_RESTRICT undulator_kx = beam.m_undulator_kx.data();
