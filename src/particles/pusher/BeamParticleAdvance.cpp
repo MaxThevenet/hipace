@@ -441,6 +441,7 @@ AdvanceBeamParticlesSlice (
                         amrex::Real fcK = 0._rt;
                         amrex::Real mag_kx = 0._rt;
                         amrex::Real ku = 2.*MathConst::pi/undulator_period[0];
+                        bool in_undulator = false;
                         for (int iu=0; iu<nundulator; iu++) {
                             const amrex::Real zprop = clight*time + zp/clight*0._rt - undulator_z[iu]; // +i*dt? my_time?
                             // Note the index 0 below. Envelope model: the period
@@ -456,6 +457,7 @@ AdvanceBeamParticlesSlice (
                                 K = phys_const.q_e * mag_B0 * mag_period /
                                     (2*MathConst::pi*phys_const.m_e*phys_const.c);
                                 fcK = undulator_fc[0] * K;
+                                in_undulator = true;
                             }
                         }
                         constexpr amrex::GpuComplex<amrex::Real> I(0.,1.);
@@ -492,11 +494,18 @@ AdvanceBeamParticlesSlice (
                             -omega * fcK * gammap_inv * ((Frp+I*Fip)*amrex::exp(I*theta)).real() / 2._rt
                             + 0._rt; // 0 is for longitudinal contribution
                         amrex::Real uzdot = ( 1._rt / gammap_inv * gammadot - ux * uxdot ) / uz;
-                        ux_next += dt * uxdot;
-                        uz_next += dt * uzdot;
-                        if (do_z_push) {
-                            amrex::Real betaz = (k + theta_dot/clight) / ( k + ku );
-                            zp += dt * clight * (betaz - 1._rt);
+                        if (in_undulator) {
+                            ux_next += dt * uxdot;
+                            uz_next += dt * uzdot;
+                            if (do_z_push) {
+                                amrex::Real betaz = (k + theta_dot/clight) / ( k + ku );
+                                zp += dt * clight * (betaz - 1._rt);
+                            }
+                        } else {
+                            if (do_z_push) {
+                                amrex::Real betaz = uz * gammap_inv;
+                                zp += dt * clight * (betaz - 1._rt);
+                            }
                         }
                     } else {
                         amrex::Real betaz = uz * gammap_inv;
