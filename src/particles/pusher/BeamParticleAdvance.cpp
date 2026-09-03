@@ -16,6 +16,7 @@
 #include "utils/GPUUtil.H"
 #include "utils/OMPUtil.H"
 #include <AMReX_GpuComplex.H>
+#include <AMReX_Parser_Y.H>
 
 
 template <int depos_order>
@@ -168,7 +169,7 @@ AdvanceBeamParticlesSlice (
     const amrex::Real spin_anom = beam.m_spin_anom;
     amrex::Real* AMREX_RESTRICT undulator_B0 = beam.m_undulator_B0.data();
     amrex::Real* AMREX_RESTRICT undulator_period = beam.m_undulator_period.data();
-    amrex::Real* AMREX_RESTRICT undulator_fc = beam.m_undulator_fc.data();
+    amrex::Real* AMREX_RESTRICT undulator_fcK = beam.m_undulator_fcK.data();
     amrex::Real* AMREX_RESTRICT undulator_nperiod = beam.m_undulator_nperiod.data();
     amrex::Real* AMREX_RESTRICT undulator_kx = beam.m_undulator_kx.data();
     amrex::Real* AMREX_RESTRICT undulator_ky = beam.m_undulator_ky.data();
@@ -456,7 +457,7 @@ AdvanceBeamParticlesSlice (
                                 mag_kx = undulator_kx[0];
                                 K = phys_const.q_e * mag_B0 * mag_period /
                                     (2*MathConst::pi*phys_const.m_e*phys_const.c);
-                                fcK = undulator_fc[0] * K;
+                                fcK = undulator_fcK[0];
                                 in_undulator = true;
                             }
                         }

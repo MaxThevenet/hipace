@@ -233,7 +233,7 @@ public:
     amrex::Gpu::Buffer<amrex::Real> m_undulator_z;
     amrex::Gpu::Buffer<amrex::Real> m_undulator_B0;
     amrex::Gpu::Buffer<amrex::Real> m_undulator_period;
-    amrex::Gpu::Buffer<amrex::Real> m_undulator_fc;
+    amrex::Gpu::Buffer<amrex::Real> m_undulator_fcK;
     amrex::Gpu::Buffer<amrex::Real> m_undulator_nperiod;
     amrex::Gpu::Buffer<amrex::Real> m_undulator_kx;
     amrex::Gpu::Buffer<amrex::Real> m_undulator_ky;

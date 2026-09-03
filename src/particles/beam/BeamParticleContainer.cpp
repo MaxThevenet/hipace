@@ -80,18 +80,22 @@ BeamParticleContainer::ReadParameters ()
         AMREX_ALWAYS_ASSERT(m_undulator_B0.size() == static_cast<std::size_t>(m_nundulator));
         getWithParser(pp, "undulator_period", m_undulator_period);
         AMREX_ALWAYS_ASSERT(m_undulator_period.size() == static_cast<std::size_t>(m_nundulator));
-        getWithParser(pp, "undulator_fc", m_undulator_fc);
-        AMREX_ALWAYS_ASSERT(m_undulator_fc.size() == static_cast<std::size_t>(m_nundulator));
         getWithParser(pp, "undulator_nperiod", m_undulator_nperiod);
         AMREX_ALWAYS_ASSERT(m_undulator_nperiod.size() == static_cast<std::size_t>(m_nundulator));
         m_undulator_kx.resize(m_nundulator);
         m_undulator_ky.resize(m_nundulator);
+        m_undulator_fcK.resize(m_nundulator);
         for (int i=0; i<m_nundulator; ++i) {
             m_undulator_kx[i] = 0;
             m_undulator_ky[i] = 2*MathConst::pi/m_undulator_period[i];
+            amrex::Real K = PhysConstSI::q_e * m_undulator_B0[i] * m_undulator_period[i] /
+                (2*MathConst::pi*PhysConstSI::m_e*PhysConstSI::c);
+            amrex::Real chi = K*K / 4 / (1+K*K/2);
+            m_undulator_fcK[i] = (amrex::parser_math_jn_host(0,chi)-amrex::parser_math_jn_host(1,chi)) * K;
         }
         m_undulator_kx.copyToDeviceAsync();
         m_undulator_ky.copyToDeviceAsync();
+        m_undulator_fcK.copyToDeviceAsync();
     }
 
     if (queryWithParser(pp, "phaseshifter_dz", m_phaseshifter_dz)) {
