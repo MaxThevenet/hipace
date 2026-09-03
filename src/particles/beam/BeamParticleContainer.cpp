@@ -117,8 +117,11 @@ BeamParticleContainer::ReadParameters ()
     amrex::Array<int, 2> idx_array
         {Hipace::m_depos_order_xy % 2, Hipace::m_depos_order_xy % 2};
     queryWithParserAlt(pp, "reorder_idx_type", idx_array, pp_alt);
-    queryWithParserAlt(pp, "output_ratio", m_output_ratio, pp_alt);
+    bool output_ratio_specified  = queryWithParserAlt(pp, "output_ratio", m_output_ratio, pp_alt);
     AMREX_ALWAYS_ASSERT_WITH_MESSAGE(m_output_ratio >= 1, "output_ratio must be >= 1");
+    bool output_ids_specified = queryWithParserAlt(pp, "output_ids", m_output_ids, pp_alt);
+    AMREX_ALWAYS_ASSERT_WITH_MESSAGE(output_ratio_specified + output_ids_specified < 2,
+        "cannot specify both <beam>.output_ratio and <beam>.output_ids");
     m_reorder_idx_type = amrex::IntVect(idx_array[0], idx_array[1], 0);
     amrex::Array<std::string, 3> field_str = {"0", "0", "0"};
     m_use_external_fields = queryWithParserAlt(pp, "external_E(x,y,z,t)", field_str, pp_alt);

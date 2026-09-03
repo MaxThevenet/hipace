@@ -227,6 +227,7 @@ public:
     amrex::Real m_spin_anom = 0.00115965218128;
     /** ratio of beam particles that are written to the openPMD output */
     int m_output_ratio = 1;
+    amrex::Array<int, 2> m_output_ids {-1, -1};
 
     int m_nundulator {0};
     amrex::Gpu::Buffer<amrex::Real> m_undulator_z;
