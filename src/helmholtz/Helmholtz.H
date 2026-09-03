@@ -162,6 +162,7 @@ public:
     bool ModeIsEnvelope () const { return m_mode == "envelope"; }
     amrex::Real getLambda0 () const { return m_lambda0; }
     amrex::Real getk0 () const { return m_k0; }
+    bool FirstOrder (int step) {return m_first_order || step == 0; }
 
 private:
 
@@ -188,6 +189,7 @@ private:
     bool m_interp_z {true};
     bool m_centered_dz {true};
     bool m_zfilter_source {true};
+    bool m_first_order {true};
 
     /** Array of N slices required to compute current slice */
     amrex::MultiFab m_slices;

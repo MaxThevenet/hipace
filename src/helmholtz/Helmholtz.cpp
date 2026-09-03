@@ -48,6 +48,7 @@ Helmholtz::ReadParameters ()
     queryWithParser(pp, "add_dx_jz", m_add_dx_jz);
     queryWithParser(pp, "add_dz_jx", m_add_dz_jx);
     queryWithParser(pp, "interp_z", m_interp_z);
+    queryWithParser(pp, "first_order", m_first_order);
 
     std::string profile_real_str = "0.";
     std::string profile_imag_str = "0.";
@@ -293,6 +294,7 @@ Helmholtz::AdvanceSliceFFT (const amrex::Real dt, int step)
     const bool centered_dz = m_centered_dz;
     const bool add_dx_jz = m_add_dx_jz;
     const bool add_dz_jx = m_add_dz_jx;
+    const bool first_order = FirstOrder(step);
 
     for ( amrex::MFIter mfi(m_slices, DfltMfi); mfi.isValid(); ++mfi ){
         const amrex::Box& bx = mfi.tilebox();
@@ -325,7 +327,7 @@ Helmholtz::AdvanceSliceFFT (const amrex::Real dt, int step)
                 using namespace WhichHelmholtzSlice;
                 // Transverse Laplacian of A_j^n-1
                 amrex::Real lap;
-                if (step == 0) {
+                if (first_order) {
                     lap = i>imin && i<imax && j>jmin && j<jmax ?
                         (arr(i+1, j,Ex_n00j00)+arr(i-1, j,Ex_n00j00) - 2._rt*arr(i,j,Ex_n00j00))/(dx*dx) +
                         (arr(i, j+1,Ex_n00j00)+arr(i, j-1,Ex_n00j00) - 2._rt*arr(i,j,Ex_n00j00))/(dy*dy) : 0._rt;
@@ -338,7 +340,7 @@ Helmholtz::AdvanceSliceFFT (const amrex::Real dt, int step)
                 const amrex::Real anp1jp1 = arr(i, j, Ex_np1jp1);
                 const amrex::Real anp1jp2 = arr(i, j, Ex_np1jp2);
                 amrex::Real rhs;
-                if (step == 0) {
+                if (first_order) {
                     // First time step: non-centered push to go
                     // from step 0 to step 1 without knowing -1.
                     const amrex::Real an00jp1 = arr(i, j, Ex_n00jp1);
@@ -385,7 +387,7 @@ Helmholtz::AdvanceSliceFFT (const amrex::Real dt, int step)
         // Multiply by appropriate factors in Fourier space
         amrex::Real dkx = 2.*MathConst::pi/m_helmholtz_geom_3D.ProbLength(0);
         amrex::Real dky = 2.*MathConst::pi/m_helmholtz_geom_3D.ProbLength(1);
-        const amrex::Real acoeff = step == 0 ? 6._rt/(c*dt*dz) : 3._rt/(c*dt*dz) + 2._rt/(c*c*dt*dt);
+        const amrex::Real acoeff = first_order ? 6._rt/(c*dt*dz) : 3._rt/(c*dt*dz) + 2._rt/(c*c*dt*dt);
 
         amrex::ParallelFor(
             bx,
@@ -436,6 +438,7 @@ Helmholtz::AdvanceSliceMGEnvelope (amrex::Real dt, int step)
     const amrex::Real k0 = m_k0;
     const bool do_avg_rhs = m_MG_average_rhs;
     const bool zfilter_source = m_zfilter_source;
+    const bool first_order = FirstOrder(step);
 
     amrex::Real acoeff_real_scalar = 0._rt;
     amrex::Real acoeff_imag_scalar = 0._rt;
@@ -515,9 +518,9 @@ Helmholtz::AdvanceSliceMGEnvelope (amrex::Real dt, int step)
 
         // D_j^n as defined in Benedetti's 2017 paper
         djn = ( -3._rt*dt1 + dt2 ) / (2._rt*dz);
-        acoeff_real_scalar = step == 0 ? 6._rt/(c*dt*dz)
+        acoeff_real_scalar = first_order ? 6._rt/(c*dt*dz)
             : 3._rt/(c*dt*dz) + 2._rt/(c*c*dt*dt);
-        acoeff_imag_scalar = step == 0 ? -4._rt * ( k0 + djn ) / (c*dt)
+        acoeff_imag_scalar = first_order ? -4._rt * ( k0 + djn ) / (c*dt)
             : -2._rt * ( k0 + djn ) / (c*dt);
 
         amrex::ParallelFor(
@@ -527,7 +530,7 @@ Helmholtz::AdvanceSliceMGEnvelope (amrex::Real dt, int step)
                 using namespace WhichHelmholtzSlice;
                 // Transverse Laplacian of real and imaginary parts of A_j^n-1
                 amrex::Real lapR, lapI;
-                if (step == 0) {
+                if (first_order) {
                     lapR = i>imin && i<imax && j>jmin && j<jmax ?
                         (arr(i+1, j, Ex_n00j00)+arr(i-1, j, Ex_n00j00)-2._rt*arr(i, j, Ex_n00j00))/(dx*dx) +
                         (arr(i, j+1, Ex_n00j00)+arr(i, j-1, Ex_n00j00)-2._rt*arr(i, j, Ex_n00j00))/(dy*dy) : 0._rt;
@@ -558,7 +561,7 @@ Helmholtz::AdvanceSliceMGEnvelope (amrex::Real dt, int step)
                     acoeff_real_scalar + chi : acoeff_real_scalar;
 
                 Complex rhs;
-                if (step == 0) {
+                if (first_order) {
                     // First time step: non-centered push to go
                     // from step 0 to step 1 without knowing -1.
                     const Complex an00jp1 = arr(i, j, Ex_n00jp1) + I * arr(i, j, Ei_n00jp1);
@@ -624,6 +627,7 @@ Helmholtz::AdvanceSliceFFTEnvelope (const amrex::Real dt, int step)
     const amrex::Real c = phc.c;
     const amrex::Real k0 = m_k0;
     const bool zfilter_source = m_zfilter_source;
+    const bool first_order = FirstOrder(step);
 
     for ( amrex::MFIter mfi(m_slices, DfltMfi); mfi.isValid(); ++mfi ){
         const amrex::Box& bx = mfi.tilebox();
@@ -656,7 +660,7 @@ Helmholtz::AdvanceSliceFFTEnvelope (const amrex::Real dt, int step)
                 using namespace WhichHelmholtzSlice;
                 // Transverse Laplacian of real and imaginary parts of A_j^n-1
                 amrex::Real lapR, lapI;
-                if (step == 0) {
+                if (first_order) {
                     lapR = i>imin && i<imax && j>jmin && j<jmax ?
                         (arr(i+1, j, Ex_n00j00)+arr(i-1, j, Ex_n00j00)-2._rt*arr(i, j, Ex_n00j00))/(dx*dx) +
                         (arr(i, j+1, Ex_n00j00)+arr(i, j-1, Ex_n00j00)-2._rt*arr(i, j, Ex_n00j00))/(dy*dy) : 0._rt;
@@ -680,7 +684,7 @@ Helmholtz::AdvanceSliceFFTEnvelope (const amrex::Real dt, int step)
                     0.25_rt * ( arr(i, j, jz_n00jm1) + I * arr(i, j, rho_n00jm1) )
                     :           arr(i, j, jz_n00j00) + I * arr(i, j, rho_n00j00);
                 Complex rhs;
-                if (step == 0) {
+                if (first_order) {
                     // First time step: non-centered push to go
                     // from step 0 to step 1 without knowing -1.
                     rhs =
@@ -707,7 +711,7 @@ Helmholtz::AdvanceSliceFFTEnvelope (const amrex::Real dt, int step)
         // acoeff_imag is supposed to be a nx*ny array.
         // For the sake of simplicity, we evaluate it on-axis only.
         const Complex acoeff =
-            step == 0 ? - I * 4._rt * k0 / (c*dt) : - I * 2._rt * k0 / (c*dt);
+            first_order ? - I * 4._rt * k0 / (c*dt) : - I * 2._rt * k0 / (c*dt);
         amrex::ParallelFor(
             to2D(bx),
             [=] AMREX_GPU_DEVICE(int i, int j) noexcept {
